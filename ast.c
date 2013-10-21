@@ -39,8 +39,8 @@ ast_t *ast_new_binary(char type, data_type_t *data, ast_t *left, ast_t *right) {
     ast_t *ast         = ast_new_node();
     ast->type          = type;
     ast->ctype         = data;
-    ast->right         = left;
-    ast->left          = right;
+    ast->right         = right;
+    ast->left          = left;
 
     return ast;
 }

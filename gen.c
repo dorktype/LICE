@@ -43,7 +43,7 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
         case ast_type_data_literal:
             switch (ast->ctype->type) {
                 case TYPE_INT:
-                    fprintf(as, "mov $%d, %%rax\n", ast->integer);
+                    fprintf(as, "mov $%d, %%eax\n", ast->integer);
                     break;
                 case TYPE_CHAR:
                     fprintf(as, "mov $%d, %%rax\n", ast->character);
