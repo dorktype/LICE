@@ -41,6 +41,8 @@ test_ast       '1+2*3+4;'                  '(+ (+ 1 (* 2 3)) 4)'
 test_ast       '1*2+3*4;'                  '(+ (* 1 2) (* 3 4))'
 test_ast       '1/2+3/4;'                  '(+ (/ 1 2) (/ 3 4))'
 test_ast       '1/2/3/4;'                  '(/ (/ (/ 1 2) 3) 4)'
+test_ast       'int a=1;&a;'               '(decl int a 1)(& a)'
+test_ast       'int a=1;*&a;'              '(decl int a 1)(* (& a))'
 
 test_gm        '0;'                        '0'
 test_gm        '1+2;'                      '3'
