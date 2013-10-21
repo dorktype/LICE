@@ -15,39 +15,36 @@ test_ast() {
     assert "$out" "$2"
 }
 
-test_compile() {
-    echo "$2" | ./gmcc 2> /dev/null
-    if [ $1 -ne 0 ]; then
-        if [ $? -ne 0 ]; then echo "failed"; exit; fi
-    else
-        if [ ! $? -ne 0 ]; then echo "failed"; exit; fi
+test_gm() {
+    echo $1 | ./gmcc 2> /tmp/gmcc_log
+    if [ $? -ne 0 ]; then
+        echo "failed to compile \"$1\" [$(cat /tmp/gmcc_log)]"
+        exit
     fi
 
-    out="$(./program)"
-    if [ $1 == 0 ]; then
-        assert "$out" "$3"
-    fi
+    out=$(./program)
+    assert "$out" "$2"
 }
 
-test_ast     '1;'                        '1'
-test_ast     "'a';"                      "'a'"
-test_ast     '"hello";'                  '"hello"'
-test_ast     'int a=1;'                  '(decl int a 1)'
-test_ast     'int a=1;a;'                '(decl int a 1)a'
-test_ast     'a();'                      'a()'
-test_ast     'a(1);'                     'a(1)'
-test_ast     'a(1,2,3,4);'               'a(1,2,3,4)'
-test_ast     'int a=1;b(a);'             '(decl int a 1)b(a)'
-test_ast     '1+2-3+4;'                  '(+ (- (+ 1 2) 3) 4)'
-test_ast     '1+2*3+4;'                  '(+ (+ 1 (* 2 3)) 4)'
-test_ast     '1*2+3*4;'                  '(+ (* 1 2) (* 3 4))'
-test_ast     '1/2+3/4;'                  '(+ (/ 1 2) (/ 3 4))'
-test_ast     '1/2/3/4;'                  '(/ (/ (/ 1 2) 3) 4)'
 
-test_compile 0 'int a=1;a;'                '1'
-test_compile 0 'printf("a");int a=0;a;'    'a0'
-test_compile 0 'printf("%s","a");'         'a1'
-test_compile 0 "printf(\"%c\",'a');"       'a1'
+test_ast       '1;'                        '1'
+test_ast       "'a';"                      "'a'"
+test_ast       '"hello";'                  '"hello"'
+test_ast       'int a=1;'                  '(decl int a 1)'
+test_ast       'int a=1;a;'                '(decl int a 1)a'
+test_ast       'a();'                      'a()'
+test_ast       'a(1);'                     'a(1)'
+test_ast       'a(1,2,3,4);'               'a(1,2,3,4)'
+test_ast       'int a=1;b(a);'             '(decl int a 1)b(a)'
+test_ast       '1+2-3+4;'                  '(+ (- (+ 1 2) 3) 4)'
+test_ast       '1+2*3+4;'                  '(+ (+ 1 (* 2 3)) 4)'
+test_ast       '1*2+3*4;'                  '(+ (* 1 2) (* 3 4))'
+test_ast       '1/2+3/4;'                  '(+ (/ 1 2) (/ 3 4))'
+test_ast       '1/2/3/4;'                  '(/ (/ (/ 1 2) 3) 4)'
 
-test_compile 1 '"a"+1;'
-test_compile 1 'int a="1";'
+test_gm        '0;'                        '0'
+test_gm        '1+2;'                      '3'
+test_gm        '1+2+3+4;'                  '10'
+test_gm        '1 + 2;'                    '3'  # whitespace test
+test_gm        '4/2+6/3;'                  '4'
+test_gm        "'a'+1;"                    '98' # ascii 98 == 'a'
