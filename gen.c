@@ -44,6 +44,10 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
             fprintf(as, "mov $%d, %%eax\n", ast->value.integer);
             break;
 
+        case ast_type_data_chr:
+            fprintf(as, "mov $%d, %%eax\n", ast->value.character);
+            break;
+
         case ast_type_data_var:
             fprintf(as, "mov -%d(%%rbp), %%eax\n", ast->value.variable.placement * 4);
             break;

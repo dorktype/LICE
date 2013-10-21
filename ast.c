@@ -56,6 +56,14 @@ ast_t *ast_new_data_int(int value) {
     return ast;
 }
 
+ast_t *ast_new_data_chr(char value) {
+    ast_t *ast           = ast_new_node();
+    ast->type            = ast_type_data_chr;
+    ast->value.character = value;
+
+    return ast;
+}
+
 ast_t *ast_new_data_str(char *value) {
     ast_t *ast             = ast_new_node();
     ast->type              = ast_type_data_str;
@@ -106,6 +114,10 @@ void ast_dump(ast_t *ast) {
             printf("\"");
             ast_dump_escape(ast->value.string.data);
             printf("\"");
+            break;
+
+        case ast_type_data_chr:
+            printf("'%c'", ast->value.character);
             break;
 
         case ast_type_func_call:

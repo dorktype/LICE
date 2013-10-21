@@ -20,6 +20,7 @@ typedef enum {
     ast_type_data_int,
     ast_type_data_var,
     ast_type_data_str,
+    ast_type_data_chr,
 
     // function stuff
     ast_type_func_call
@@ -37,6 +38,7 @@ struct ast_s {
         // data
         struct {
             int    integer;
+            char   character;
 
             // variable
             struct {
@@ -71,6 +73,7 @@ struct ast_s {
 ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right);
 ast_t *ast_new_data_str(char *value);
 ast_t *ast_new_data_int(int value);
+ast_t *ast_new_data_chr(char value);
 ast_t *ast_new_data_var(char *name);
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes);
 

@@ -144,18 +144,41 @@ ast_t *parse_string(void) {
     return ast_new_data_str(buffer);
 }
 
+ast_t *parse_character(void) {
+    int c1 = getc(stdin);
+    int c2;
+    // sanity checks
+    if (c1 == EOF)
+        goto parse_character_error;
+    if (c1 == '\\' && ((c1 == getc(stdin)) == EOF))
+        goto parse_character_error;
+
+    if ((c2 = getc(stdin)) == EOF)
+        goto parse_character_error;
+    if (c2 != '\'')
+        compile_error("Malformatted character constant");
+
+    return ast_new_data_chr(c1);
+
+parse_character_error:
+    compile_error("Unterminated character constant");
+    return NULL;
+}
+
 ast_t *parse_expression_primary(void) {
     int c = getc(stdin);
     if (isdigit(c))
         return parse_integer(c - '0');
     if (c == '"')
         return parse_string();
+    if (c == '\'')
+        return parse_character();
     if (isalpha(c))
         return parse_generic(c);
     else if (c == EOF)
         return NULL;
 
-    compile_error("Syntax error: %c", c);
+    compile_error("Internal error: Don't know what to do next");
     return NULL;
 }
 
