@@ -93,6 +93,7 @@ void ast_dump_escape(const char *str) {
 
 void ast_dump(ast_t *ast) {
     size_t i;
+    if (!ast) return;
     switch (ast->type) {
         default:
             printf("(%c ", ast->type);

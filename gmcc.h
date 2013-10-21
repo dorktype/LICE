@@ -7,6 +7,31 @@
 #define GMCC_ASSEMBLER "as -o blob.o"
 #define GMCC_LINKER    "gcc blob.o invoke.c -o program"
 
+// lexer.c
+typedef struct string_s string_t;
+typedef enum {
+    LEXER_TOKEN_IDENT,
+    LEXER_TOKEN_PUNCT,
+    LEXER_TOKEN_INT,
+    LEXER_TOKEN_CHAR,
+    LEXER_TOKEN_STRING
+} lexer_token_type_t;
+
+typedef struct {
+    lexer_token_type_t type;
+    union {
+        int   integer;
+        char *string;
+        char  punct;
+        char  character;
+    } value;
+} lexer_token_t;
+
+int lexer_ispunc(lexer_token_t *token, char c);
+void lexer_unget(lexer_token_t *token);
+lexer_token_t *lexer_next(void);
+char *lexer_tokenstr(lexer_token_t *token);
+
 // ast.c
 typedef struct ast_s ast_t;
 

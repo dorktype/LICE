@@ -7,16 +7,6 @@
 #define PARSE_BUFFER 1024
 #define PARSE_CALLS  6    // only six registers to use for amd64
 
-static void parse_skip(void) {
-    int c;
-    while ((c = getc(stdin)) != EOF) {
-        if (isspace(c))
-            continue;
-        ungetc(c, stdin);
-        return;
-    }
-}
-
 // what priority does the following operator get?
 static int parse_operator_priority(char operator) {
     switch (operator) {
@@ -27,54 +17,28 @@ static int parse_operator_priority(char operator) {
     return -1;
 }
 
-char *parse_identifier(int c) {
-    char  *buffer = malloc(PARSE_BUFFER);
-    int    i      = 1;
-
-    buffer[0] = c;
-    for (;;) {
-        int c = getc(stdin);
-        if (!isalnum(c)) {
-            ungetc(c, stdin);
-            break;
-        }
-
-        buffer[i++] = c;
-        if (i == PARSE_BUFFER - 1)
-            compile_error("Internal error: OOM");
-    }
-
-    buffer[i] = '\0';
-    return buffer;
-}
-
 ast_t *parse_expression(size_t lastpri);
 ast_t *parse_function_call(char *name) {
     ast_t **args = (ast_t**)malloc(sizeof(ast_t*) * (PARSE_CALLS + 1));
     size_t  i;
-    char    c;
-
-    size_t  wrote; // how many wrote arguments
+    size_t  wrote = 0; // how many wrote arguments
 
     for (i = 0; i < PARSE_CALLS; i++) {
-        parse_skip();
 
-        // break when call close
-        if ((c = getc(stdin)) == ')')
+        // break when call is done
+        lexer_token_t *token = lexer_next();
+        if (lexer_ispunc(token, ')'))
             break;
+        lexer_unget(token);
 
-        ungetc(c, stdin);
         args[i] = parse_expression(0);
         wrote++;
 
-        // check for here as well
-        if ((c = getc(stdin)) == ')')
+        // deal with call done here as well
+        token = lexer_next();
+        if (lexer_ispunc(token, ')'))
             break;
-
-        // skip spaces to next argument
-        if (c == ',')
-            parse_skip();
-        else
+        if (!lexer_ispunc(token, ','))
             compile_error("Unexpected character in function call");
     }
 
@@ -85,161 +49,102 @@ ast_t *parse_function_call(char *name) {
     return ast_new_func_call(name, wrote, args);
 }
 
-// parse generic handles identifiers for variables
-// or function calls, it's generic because it needs
-// to determine which is an ident or function call
-// than dispatch the correct parse routine
-ast_t *parse_generic(char c1) {
-    char  c2;
-    char  *name = parse_identifier(c1);
-    ast_t *var;
 
-    parse_skip();
+ast_t *parse_generic(char *name) {
+    ast_t         *var;
+    lexer_token_t *token = lexer_next();
 
-    // it's a funciton call?
-    if ((c2 = getc(stdin)) == '(')
+    if (lexer_ispunc(token, '('))
         return parse_function_call(name);
 
-    ungetc(c2, stdin);
+    lexer_unget(token);
 
-    // check for variable
-    if (!(var = var_find(name)))
-        return ast_new_data_var(name);
-    return var;
+    return ((var = var_find(name)))
+                ? var
+                : ast_new_data_var(name);
 }
 
-ast_t *parse_integer(int value) {
-    for (;;) {
-        int c = getc(stdin);
-        if (!isdigit(c)) {
-            ungetc(c, stdin);
-            return ast_new_data_int(value);
-        }
-        value = value * 10 + (c - '0');
-    }
-    return NULL;
-}
-
-ast_t *parse_string(void) {
-    char *buffer = malloc(PARSE_BUFFER);
-    int   i      = 0;
-    int   c;
-
-    for (;;) {
-        if ((c = getc(stdin)) == EOF)
-            compile_error("Unexpected end of string");
-        if (c == '"')
-            break;
-        if (c == '\\') {
-            if ((c = getc(stdin)) == EOF)
-                compile_error("Unterminated string");
-        }
-        buffer[i++] = c;
-        if (i == PARSE_BUFFER - 1)
-            compile_error("Internal error: OOM");
-    }
-
-    buffer[i] = '\0';
-
-    return ast_new_data_str(buffer);
-}
-
-ast_t *parse_character(void) {
-    int c1 = getc(stdin);
-    int c2;
-    // sanity checks
-    if (c1 == EOF)
-        goto parse_character_error;
-    if (c1 == '\\' && ((c1 == getc(stdin)) == EOF))
-        goto parse_character_error;
-
-    if ((c2 = getc(stdin)) == EOF)
-        goto parse_character_error;
-    if (c2 != '\'')
-        compile_error("Malformatted character constant");
-
-    return ast_new_data_chr(c1);
-
-parse_character_error:
-    compile_error("Unterminated character constant");
-    return NULL;
-}
 
 ast_t *parse_expression_primary(void) {
-    int c = getc(stdin);
-    if (isdigit(c))
-        return parse_integer(c - '0');
-    if (c == '"')
-        return parse_string();
-    if (c == '\'')
-        return parse_character();
-    if (isalpha(c))
-        return parse_generic(c);
-    else if (c == EOF)
+    lexer_token_t *token;
+
+    if (!(token = lexer_next()))
         return NULL;
 
-    compile_error("Internal error: Don't know what to do next");
+    switch (token->type) {
+        case LEXER_TOKEN_IDENT:
+            return parse_generic(token->value.string);
+
+        // ast generating ones
+        case LEXER_TOKEN_INT:    return ast_new_data_int(token->value.integer);
+        case LEXER_TOKEN_CHAR:   return ast_new_data_chr(token->value.character);
+        case LEXER_TOKEN_STRING: return ast_new_data_str(token->value.string);
+
+        case LEXER_TOKEN_PUNCT:
+            compile_error("Unexpected punctuation: `%c`", token->value.punct);
+            return NULL;
+    }
+    compile_error("Internal error: Expected token");
     return NULL;
 }
 
 // handles operator precedence climbing as well
 ast_t *parse_expression(size_t lastpri) {
     ast_t *ast;
-    int    pri;
-
-    parse_skip();
 
     // no primary expression?
     if (!(ast = parse_expression_primary()))
         return NULL;
 
     for (;;) {
-        int c;
-        parse_skip();
-
-        if ((c = getc(stdin)) == EOF)
-            return ast;
-
-        // operator precedence handling
-        pri = parse_operator_priority(c);
-
-        // (size_t)-1 on error, test that first
-        // hence the integer cast
-        if (pri < 0 || pri < lastpri) {
-            ungetc(c, stdin);
+        lexer_token_t *token = lexer_next();
+        if (token->type != LEXER_TOKEN_PUNCT) {
+            lexer_unget(token);
             return ast;
         }
 
-        parse_skip();
+        int pri = parse_operator_priority(token->value.punct);
+        if (pri < 0 || pri < lastpri) {
+            lexer_unget(token);
+            return ast;
+        }
 
         // precedence climbing is way too easy with recursive
         // descent parsing, thanks q66 for showing me this.
-        ast = ast_new_bin_op(c, ast, parse_expression(pri + 1));
+        ast = ast_new_bin_op(token->value.punct, ast, parse_expression(pri + 1));
     }
-    return ast;
+    return NULL;
 }
 
-static ast_t *parse_dopass(void) {
+static ast_t *parse_next(void) {
     // recursive descent with zero
-    ast_t *ast;
-    int    c;
+    ast_t         *ast;
+    lexer_token_t *token;
 
     if (!(ast = parse_expression(0)))
         return NULL;
 
-    // deal with expression termination
-    parse_skip();
-    if ((c = getc(stdin)) != ';')
-        compile_error("Expected semicolon to terminate expression %c", c);
+    token = lexer_next();
+    if (!lexer_ispunc(token, ';'))
+        compile_error("Expected termination in expression: `%s`", lexer_tokenstr(token));
 
     return ast;
 }
 
 void parse_compile(FILE *as, int dump) {
-    ast_t *ast;
+    ast_t *ast[1024];
+    int    i;
+    int    n;
+
+    for (i = 0; i < 1024; i++) {
+        ast_t *load = parse_next();
+        if   (!load) break;
+        ast[i] = load;
+    }
 
     // emit the entry
     if (!dump) {
+        gen_emit_data(as, ast_strings());
         fprintf(
             as,"\
             .text\n\
@@ -248,16 +153,14 @@ void parse_compile(FILE *as, int dump) {
         );
     }
 
-    for (;;) {
-        if (!(ast = parse_dopass()))
-            break;
+    for (n = 0; n < i; n++) {
         if (dump)
-            ast_dump(ast);
+            ast_dump(ast[n]);
         else
-            gen_emit_expression(as, ast);
+            gen_emit_expression(as, ast[n]);
     }
+
     if (!dump) {
         fprintf(as, "ret\n");
-        gen_emit_data(as, ast_strings());
     }
 }

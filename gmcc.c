@@ -15,7 +15,7 @@ void compile_error(const char *fmt, ...) {
 }
 
 int compile(int dump) {
-    FILE *as;
+    FILE *as = NULL;
 
     if (!dump && !(as = popen(GMCC_ASSEMBLER, "w"))) {
         compile_error("failed to open pipe to assembler");

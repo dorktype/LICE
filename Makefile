@@ -1,7 +1,7 @@
 CC ?= clang
-CFLAGS=-c -Wall
+CFLAGS=-c -Wall -std=gnu99
 LDFLAGS=
-SOURCES=ast.c parse.c gmcc.c gen.c var.c
+SOURCES=ast.c parse.c gmcc.c gen.c var.c lexer.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=gmcc
 

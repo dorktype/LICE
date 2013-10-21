@@ -9,7 +9,7 @@ assert() {
 test_ast() {
     out="$(echo "$1" | ./gmcc --dump-ast)"
     if [ $? -ne 0 ]; then
-        echo "failed"
+        echo "failed $1"
         exit
     fi
     assert "$out" "$2"
@@ -18,7 +18,7 @@ test_ast() {
 test_compile() {
     echo "$1" | ./gmcc
     if [ $? -ne 0 ]; then
-        echo "failed"
+        echo "failed $1"
         exit
     fi
 
