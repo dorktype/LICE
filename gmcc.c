@@ -35,7 +35,7 @@ static int compile_integer(int value) {
             return value;
         }
 
-        value = value * 10 + (c = '0');
+        value = value * 10 + (c - '0');
     }
 }
 
