@@ -7,9 +7,7 @@
     ((ast_t*)malloc(sizeof(ast_t)))
 
 ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right) {
-    ast_t *ast;
-
-    ast        = ast_new_node();
+    ast_t *ast = ast_new_node();
     ast->type  = type;
     ast->left  = left;
     ast->right = right;
@@ -17,20 +15,16 @@ ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right) {
     return ast;
 }
 
-ast_t *ast_new_data_str(char *value) {
-    ast_t *ast;
-
-    ast               = ast_new_node();
-    ast->type         = ast_type_data_str;
-    ast->value.string = value;
+ast_t *ast_new_data_var(var_t *var) {
+    ast_t *ast          = ast_new_node();
+    ast->type           = ast_type_data_var;
+    ast->value.variable = var;
 
     return ast;
 }
 
 ast_t *ast_new_data_int(int value) {
-    ast_t *ast;
-
-    ast                = ast_new_node();
+    ast_t *ast         = ast_new_node();
     ast->type          = ast_type_data_int;
     ast->value.integer = value;
 
@@ -51,8 +45,8 @@ void ast_dump(ast_t *ast) {
         case ast_type_data_int:
             printf("%d", ast->value.integer);
             break;
-        case ast_type_data_str:
-            printf("%s", ast->value.string);
+        case ast_type_data_var:
+            printf("%s", ast->value.variable->name);
             break;
     }
 }

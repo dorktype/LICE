@@ -14,48 +14,38 @@ void compile_error(const char *fmt, ...) {
     exit(EXIT_FAILURE);
 }
 
-int compile(ast_t *ast) {
-    FILE *as = popen(GMCC_ASSEMBLER, "w");
-    if (!as) {
+int compile(int dump) {
+    FILE *as;
+
+    if (!dump && !(as = popen(GMCC_ASSEMBLER, "w"))) {
         compile_error("failed to open pipe to assembler");
         return 0;
     }
 
-    if (ast->type == ast_type_data_str)
-        gen_emit_string(as, ast);
-    else {
-        // emit the function label
-        fprintf(as,".text\n.global %s\n%s:\n", GMCC_ENTRY_INT, GMCC_ENTRY_INT);
+    parse_compile(as, dump);
 
-        // now do the integer expression
-        gen_emit_expression(as, ast);
-
-        // return
-        fprintf(as, "ret\n");
+    if (!dump) {
+        if (pclose(as) != EXIT_SUCCESS)
+            return 0;
+        if (system(GMCC_LINKER) != EXIT_SUCCESS)
+            return 0;
+    } else {
+        // new line the ast dump
+        printf("\n");
     }
-
-    // assembled? now link
-    pclose(as);
-    system(GMCC_LINKER);
 
     return 1;
 }
 
 int main(int argc, char **argv) {
-    ast_t *ast = parse();
-
+    int dump = 0;
     argc--;
     argv++;
 
-    if (argc && !strcmp(*argv, "--dump-ast")) {
-        ast_dump(ast);
-        printf("\n");
-    } else {
-        if (!compile(ast))
-            compile_error("Compilation error");
-        else
-            printf("Success!\nrun ./program now\n");
-    }
+    if (argc && !strcmp(*argv, "--dump-ast"))
+        dump = 1;
 
-    return EXIT_SUCCESS;
+    return compile(dump)
+            ? EXIT_SUCCESS
+            : EXIT_FAILURE;
 }

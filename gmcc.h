@@ -3,10 +3,21 @@
 #include <stdio.h>
 
 // config
-#define GMCC_ENTRY_INT "gmcc_entry_int"
-#define GMCC_ENTRY_STR "gmcc_entry_str"
+#define GMCC_ENTRY     "gmcc_entry"
 #define GMCC_ASSEMBLER "as -o blob.o"
 #define GMCC_LINKER    "gcc blob.o invoke.c -o program"
+
+// var.c
+typedef struct var_s var_t;
+
+var_t *var_find(const char *name);
+var_t *var_create(char *name);
+
+struct var_s {
+    char  *name;
+    int    placement;
+    var_t *next;
+};
 
 // ast.c
 typedef struct ast_s ast_t;
@@ -15,7 +26,7 @@ typedef struct ast_s ast_t;
 typedef enum {
     // data storage
     ast_type_data_int,
-    ast_type_data_str
+    ast_type_data_var
 } ast_type_t;
 
 // the ast and ast node and everything structures
@@ -26,8 +37,8 @@ struct ast_s {
 
     union {
         struct {
-            int   integer;
-            char *string;
+            int    integer;
+            var_t *variable;
         } value;
 
         struct {
@@ -40,10 +51,11 @@ struct ast_s {
 ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right);
 ast_t *ast_new_data_str(char *value);
 ast_t *ast_new_data_int(int value);
+ast_t *ast_new_data_var(var_t *var);
 void ast_dump(ast_t *ast);
 
 // parse.c
-ast_t *parse(void);
+void parse_compile(FILE *as, int dump);
 
 // gmcc.c
 void compile_error(const char *fmt, ...);
