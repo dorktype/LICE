@@ -92,7 +92,7 @@ ast_t *parse_function_call(char *name) {
 ast_t *parse_generic(char c1) {
     char  c2;
     char  *name = parse_identifier(c1);
-    var_t *var;
+    ast_t *var;
 
     parse_skip();
 
@@ -104,9 +104,8 @@ ast_t *parse_generic(char c1) {
 
     // check for variable
     if (!(var = var_find(name)))
-        var = var_create(name);
-
-    return ast_new_data_var(var);
+        return ast_new_data_var(name);
+    return var;
 }
 
 ast_t *parse_integer(int value) {

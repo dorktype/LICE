@@ -7,10 +7,15 @@
     ((ast_t*)malloc(sizeof(ast_t)))
 
 // list of strings
-static ast_t *str_list = NULL;
+ast_t *str_list = NULL;
+ast_t *var_list = NULL;
 
+// singletons
 ast_t *ast_strings(void) {
     return str_list;
+}
+ast_t *ast_variables(void) {
+    return var_list;
 }
 
 ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right) {
@@ -32,11 +37,14 @@ ast_t *ast_new_func_call(char *name, int size, ast_t **nodes) {
     return ast;
 }
 
-ast_t *ast_new_data_var(var_t *var) {
-    ast_t *ast          = ast_new_node();
-    ast->type           = ast_type_data_var;
-    ast->value.variable = var;
-
+ast_t *ast_new_data_var(char *name) {
+    ast_t *ast                    = ast_new_node();
+    ast->type                     = ast_type_data_var;
+    ast->value.variable.name      = name;
+    ast->value.variable.placement = (var_list)
+                                        ? var_list->value.variable.placement + 1
+                                        : 1;
+    ast->value.variable.next      = var_list;
     return ast;
 }
 
@@ -91,7 +99,7 @@ void ast_dump(ast_t *ast) {
             printf("%d", ast->value.integer);
             break;
         case ast_type_data_var:
-            printf("%s", ast->value.variable->name);
+            printf("%s", ast->value.variable.name);
             break;
 
         case ast_type_data_str:

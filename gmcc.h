@@ -7,21 +7,13 @@
 #define GMCC_ASSEMBLER "as -o blob.o"
 #define GMCC_LINKER    "gcc blob.o invoke.c -o program"
 
-// var.c
-typedef struct var_s var_t;
-
-var_t *var_find(const char *name);
-var_t *var_create(char *name);
-
-struct var_s {
-    char  *name;
-    int    placement;
-    var_t *next;
-};
-
 // ast.c
 typedef struct ast_s ast_t;
 
+// var.c
+ast_t *var_find(const char *name);
+
+// ast.c
 // represents what type of ast node it is
 typedef enum {
     // data storage
@@ -45,7 +37,13 @@ struct ast_s {
         // data
         struct {
             int    integer;
-            var_t *variable;
+
+            // variable
+            struct {
+                char  *name;
+                int    placement;
+                ast_t *next;
+            } variable;
 
             // string
             struct {
@@ -73,9 +71,12 @@ struct ast_s {
 ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right);
 ast_t *ast_new_data_str(char *value);
 ast_t *ast_new_data_int(int value);
-ast_t *ast_new_data_var(var_t *var);
+ast_t *ast_new_data_var(char *name);
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes);
+
+// data singletons
 ast_t *ast_strings(void);
+ast_t *ast_variables(void);
 void ast_dump(ast_t *ast);
 
 // parse.c

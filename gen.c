@@ -45,7 +45,7 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
             break;
 
         case ast_type_data_var:
-            fprintf(as, "mov -%d(%%rbp), %%eax\n", ast->value.variable->placement * 4);
+            fprintf(as, "mov -%d(%%rbp), %%eax\n", ast->value.variable.placement * 4);
             break;
 
         case ast_type_data_str:
@@ -85,7 +85,7 @@ void gen_emit_bin(FILE *as, ast_t *ast) {
         if (ast->left->type != ast_type_data_var)
             compile_error("Expected variable");
         // sizeof(int) == 4, hence * 4
-        fprintf(as, "mov %%eax, -%d(%%rbp)\n", ast->left->value.variable->placement * 4);
+        fprintf(as, "mov %%eax, -%d(%%rbp)\n", ast->left->value.variable.placement * 4);
         return;
     }
 
