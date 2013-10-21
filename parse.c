@@ -5,6 +5,7 @@
 #include "gmcc.h"
 
 #define PARSE_BUFFER 1024
+#define PARSE_CALLS  6    // only six registers to use for amd64
 
 static void parse_skip(void) {
     int c;
@@ -26,15 +27,14 @@ static int parse_operator_priority(char operator) {
     return -1;
 }
 
-ast_t *parse_symbol(int c) {
-    var_t *var;
+char *parse_identifier(int c) {
     char  *buffer = malloc(PARSE_BUFFER);
     int    i      = 1;
 
     buffer[0] = c;
     for (;;) {
         int c = getc(stdin);
-        if (!isalpha(c)) {
+        if (!isalnum(c)) {
             ungetc(c, stdin);
             break;
         }
@@ -45,8 +45,66 @@ ast_t *parse_symbol(int c) {
     }
 
     buffer[i] = '\0';
-    if (!(var = var_find(buffer)))
-        var = var_create(buffer);
+    return buffer;
+}
+
+ast_t *parse_expression(size_t lastpri);
+ast_t *parse_function_call(char *name) {
+    ast_t **args = (ast_t**)malloc(sizeof(ast_t*) * (PARSE_CALLS + 1));
+    size_t  i;
+    char    c;
+
+    size_t  wrote; // how many wrote arguments
+
+    for (i = 0; i < PARSE_CALLS; i++) {
+        parse_skip();
+
+        // break when call close
+        if ((c = getc(stdin)) == ')')
+            break;
+
+        ungetc(c, stdin);
+        args[i] = parse_expression(0);
+        wrote++;
+
+        // check for here as well
+        if ((c = getc(stdin)) == ')')
+            break;
+
+        // skip spaces to next argument
+        if (c == ',')
+            parse_skip();
+        else
+            compile_error("Unexpected character in function call");
+    }
+
+    if (i == PARSE_CALLS)
+        compile_error("too many arguments");
+
+    // now build the node! :D
+    return ast_new_func_call(name, wrote, args);
+}
+
+// parse generic handles identifiers for variables
+// or function calls, it's generic because it needs
+// to determine which is an ident or function call
+// than dispatch the correct parse routine
+ast_t *parse_generic(char c1) {
+    char  c2;
+    char  *name = parse_identifier(c1);
+    var_t *var;
+
+    parse_skip();
+
+    // it's a funciton call?
+    if ((c2 = getc(stdin)) == '(')
+        return parse_function_call(name);
+
+    ungetc(c2, stdin);
+
+    // check for variable
+    if (!(var = var_find(name)))
+        var = var_create(name);
 
     return ast_new_data_var(var);
 }
@@ -68,7 +126,7 @@ ast_t *parse_expression_primary(void) {
     if (isdigit(c))
         return parse_integer(c - '0');
     if (isalpha(c))
-        return parse_symbol(c);
+        return parse_generic(c);
     else if (c == EOF)
         return NULL;
 

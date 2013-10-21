@@ -26,7 +26,10 @@ typedef struct ast_s ast_t;
 typedef enum {
     // data storage
     ast_type_data_int,
-    ast_type_data_var
+    ast_type_data_var,
+
+    // function stuff
+    ast_type_func_call
 } ast_type_t;
 
 // the ast and ast node and everything structures
@@ -35,12 +38,23 @@ typedef enum {
 struct ast_s {
     char type;
 
+    // node crap occupies same memory location
+    // to keep ram footprint minimal
     union {
+        // data
         struct {
             int    integer;
             var_t *variable;
+
+            // function call
+            struct {
+                char  *name;
+                int   size; // # of arguments
+                ast_t **args;
+            } call;
         } value;
 
+        // tree
         struct {
             ast_t *left;
             ast_t *right;
@@ -52,6 +66,7 @@ ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right);
 ast_t *ast_new_data_str(char *value);
 ast_t *ast_new_data_int(int value);
 ast_t *ast_new_data_var(var_t *var);
+ast_t *ast_new_func_call(char *name, int size, ast_t **nodes);
 void ast_dump(ast_t *ast);
 
 // parse.c

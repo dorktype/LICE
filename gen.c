@@ -2,7 +2,14 @@
 
 // code generator
 
+
+// registers for function call
+static const char *registers[] = {
+    "rdi", "rsi", "rdx", "rcx", "r8", "r9"
+};
+
 void gen_emit_expression(FILE *as, ast_t *ast) {
+    int i;
     switch (ast->type) {
         case ast_type_data_int:
             fprintf(as, "mov $%d, %%eax\n", ast->value.integer);
@@ -10,6 +17,25 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
 
         case ast_type_data_var:
             fprintf(as, "mov -%d(%%rbp), %%eax\n", ast->value.variable->placement * 4);
+            break;
+
+        case ast_type_func_call:
+            for (i = 1; i < ast->value.call.size; i++)
+                fprintf(as, "push %%%s\n", registers[i]);
+            for (i = 0; i < ast->value.call.size; i++) {
+                gen_emit_expression(as, ast->value.call.args[i]);
+                fprintf(as, "push %%rax\n");
+            }
+            for (i = ast->value.call.size - 1; i >= 0; i--)
+                fprintf(as, "pop %%%s\n", registers[i]);
+            fprintf(
+                as,"\
+                mov $0, %%eax\n\
+                call %s\n",
+                ast->value.call.name
+            );
+            for (i = ast->value.call.size - 1; i > 0; i--)
+                fprintf(as, "pop %%%s\n", registers[i]);
             break;
 
         default:
