@@ -1,21 +1,12 @@
 #include "gmcc.h"
 
 // code generator
-
+void gen_emit_binary(FILE *as, ast_t *ast);
 
 // registers for function call
 static const char *registers[] = {
     "rdi", "rsi", "rdx", "rcx", "r8", "r9"
 };
-
-static void gen_emit_string_escape(FILE *as, const char *str) {
-    while (*str) {
-        if (*str == '\"' || *str == '\\')
-            fprintf(as, "\\");
-        fprintf(as, "%c", *str);
-        str++;
-    }
-}
 
 void gen_emit_data(FILE *as, ast_t *strings) {
     ast_t *ast;
@@ -25,15 +16,14 @@ void gen_emit_data(FILE *as, ast_t *strings) {
 
     fprintf(as, ".data\n");
 
-    for (; ast; ast = ast->value.string.next) {
+    for (; ast; ast = ast->string.next) {
         fprintf(
             as,
             ".s%d:\n\
-            .string \"",
-            ast->value.string.id
+            .string \"%s\"\n",
+            ast->string.id,
+            string_quote(ast->string.data)
         );
-        gen_emit_string_escape(as, ast->value.string.data);
-        fprintf(as, "\"\n");
     }
 }
 
@@ -41,8 +31,8 @@ static void gen_emit_assignment(FILE *as, ast_t *left, ast_t *right) {
     gen_emit_expression(as, right);
     fprintf(
         as,"\
-        mov %%eax, -%d(%%rbp)\n",
-        left->value.variable.placement * 4
+        mov %%rax, -%d(%%rbp)\n",
+        left->variable.placement * 8
     );
 }
 
@@ -50,38 +40,42 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
     int i;
 
     switch (ast->type) {
-        case ast_type_data_int:
-            fprintf(as, "mov $%d, %%eax\n", ast->value.integer);
-            break;
-
-        case ast_type_data_chr:
-            fprintf(as, "mov $%d, %%eax\n", ast->value.character);
+        case ast_type_data_literal:
+            switch (ast->ctype->type) {
+                case TYPE_INT:
+                    fprintf(as, "mov $%d, %%rax\n", ast->integer);
+                    break;
+                case TYPE_CHAR:
+                    fprintf(as, "mov $%d, %%rax\n", ast->character);
+                    break;
+                case TYPE_STR:
+                    fprintf(as, "mov .s%d(%%rip), %%rax\n", ast->string.id);
+                    break;
+                default:
+                    compile_error("Internal error");
+            }
             break;
 
         case ast_type_data_var:
-            fprintf(as, "mov -%d(%%rbp), %%eax\n", ast->value.variable.placement * 4);
-            break;
-
-        case ast_type_data_str:
-            fprintf(as, "lea .s%d(%%rip), %%rax\n", ast->value.string.id);
+            fprintf(as, "mov -%d(%%rbp), %%rax\n", ast->variable.placement * 8);
             break;
 
         case ast_type_func_call:
-            for (i = 1; i < ast->value.call.size; i++)
+            for (i = 1; i < ast->call.size; i++)
                 fprintf(as, "push %%%s\n", registers[i]);
-            for (i = 0; i < ast->value.call.size; i++) {
-                gen_emit_expression(as, ast->value.call.args[i]);
+            for (i = 0; i < ast->call.size; i++) {
+                gen_emit_expression(as, ast->call.args[i]);
                 fprintf(as, "push %%rax\n");
             }
-            for (i = ast->value.call.size - 1; i >= 0; i--)
+            for (i = ast->call.size - 1; i >= 0; i--)
                 fprintf(as, "pop %%%s\n", registers[i]);
             fprintf(
                 as,"\
-                mov $0, %%eax\n\
+                mov $0, %%rax\n\
                 call %s\n",
-                ast->value.call.name
+                ast->call.name
             );
-            for (i = ast->value.call.size - 1; i > 0; i--)
+            for (i = ast->call.size - 1; i > 0; i--)
                 fprintf(as, "pop %%%s\n", registers[i]);
             break;
 
@@ -89,17 +83,27 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
             gen_emit_assignment(as, ast->decl.var, ast->decl.init);
             break;
 
+        case ast_type_addr:
+            fprintf(as, "lea -%d(%%rbp), %%rax\n", ast->unary.operand->variable.placement * 8);
+            break;
+
+        case ast_type_deref:
+            gen_emit_expression(as, ast->unary.operand);
+            fprintf(as, "mov (%%rax), %%rax\n");
+            break;
+
         default:
-            gen_emit_bin(as, ast);
+            gen_emit_binary(as, ast);
     }
 }
 
-void gen_emit_bin(FILE *as, ast_t *ast) {
+void gen_emit_binary(FILE *as, ast_t *ast) {
     const char *operation;
 
     // emit binary store
     if (ast->type == '=') {
         gen_emit_assignment(as, ast->left, ast->right);
+        return;
     }
 
     switch (ast->type) {
@@ -123,16 +127,16 @@ void gen_emit_bin(FILE *as, ast_t *ast) {
     if (ast->type == '/') {
         fprintf(
             as,"\
-            mov %%eax, %%ebx\n\
+            mov %%rax, %%rbx\n\
             pop %%rax\n\
             mov $0, %%edx\n\
-            idiv %%ebx\n"
+            idiv %%rbx\n"
         );
     } else {
         fprintf(
             as,"\
             pop %%rbx\n\
-            %s %%ebx, %%eax\n",
+            %s %%rbx, %%rax\n",
             operation
         );
     }

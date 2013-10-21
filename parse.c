@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <setjmp.h>
 
 #include "gmcc.h"
 
@@ -19,6 +20,7 @@ static int parse_operator_priority(char operator) {
 }
 
 static ast_t *parse_expression(int lastpri);
+
 static ast_t *parse_function_call(char *name) {
     ast_t **args = (ast_t**)malloc(sizeof(ast_t*) * (PARSE_CALLS + 1));
     size_t  i;
@@ -66,24 +68,182 @@ static ast_t *parse_generic(char *name) {
     return var;
 }
 
-static type_t parse_type_get(lexer_token_t *token) {
+static ast_t *parse_expression_primary(void) {
+    lexer_token_t *token;
+
+    if (!(token = lexer_next()))
+        return NULL;
+
+    switch (token->type) {
+        case LEXER_TOKEN_IDENT:
+            return parse_generic(token->string);
+
+        // ast generating ones
+        case LEXER_TOKEN_INT:    return ast_new_data_int(token->integer);
+        case LEXER_TOKEN_CHAR:   return ast_new_data_chr(token->character);
+        case LEXER_TOKEN_STRING: return ast_new_data_str(token->string);
+
+        case LEXER_TOKEN_PUNCT:
+            compile_error("Unexpected punctuation: `%c`", token->punct);
+            return NULL;
+    }
+    compile_error("Internal error: Expected token");
+    return NULL;
+}
+
+static data_type_t *parse_semantic_result_impl(jmp_buf *jmpbuf, data_type_t *a, data_type_t *b) {
+    if (a->type == TYPE_PTR) {
+        if (b->type != TYPE_PTR)
+            goto error;
+
+        data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
+        data->type        = TYPE_PTR;
+        data->pointer     = parse_semantic_result_impl(jmpbuf, a->pointer, b->pointer);
+        return data;
+    }
+
+    // swap them around
+    if (a->type > b->type) {
+        data_type_t *t;
+
+        t = a;
+        a = b;
+        b = t;
+    }
+
+    switch (a->type) {
+        case TYPE_VOID:
+            goto error;
+        case TYPE_INT:
+            switch (b->type) {
+                case TYPE_INT:
+                case TYPE_CHAR:
+                    return ast_data_int();
+                case TYPE_STR:
+                    goto error;
+                default:
+                    break;
+            }
+            compile_error("Internal error");
+            break;
+
+        case TYPE_CHAR:
+            switch (b->type) {
+                case TYPE_CHAR:
+                    return ast_data_int();
+                case TYPE_STR:
+                    goto error;
+                default:
+                    break;
+            }
+            compile_error("Internal error");
+            break;
+        case TYPE_STR:
+            goto error;
+        default:
+            compile_error("Internal error");
+    }
+
+error:
+    longjmp(*jmpbuf, 1);
+
+    return NULL;
+}
+
+static data_type_t *parse_semantic_result(char op, ast_t *a, ast_t *b) {
+    jmp_buf jmpbuf;
+    if (setjmp(jmpbuf) == 0)
+        return parse_semantic_result_impl(&jmpbuf, a->ctype, b->ctype);
+
+    compile_error("Incompatible types in expression: <%s> %c <%s>",
+        op,
+        ast_dump_string(a),
+        ast_dump_string(b)
+    );
+
+    return NULL;
+}
+
+// parser semantic enforcers
+static void parse_semantic_lvalue(ast_t *ast) {
+    // enforce lvalue semantics
+    if (ast->type != ast_type_data_var)
+        compile_error("Expected lvalue");
+}
+
+static bool parse_semantic_rightassoc(char operator) {
+    // enforce right associative semantics
+    return operator == '=';
+}
+
+static ast_t *parse_expression_unary(void) {
+    lexer_token_t *token = lexer_next();
+    if (lexer_ispunc(token, '&')) {
+        ast_t *operand = parse_expression_unary();
+        parse_semantic_lvalue(operand);
+        return ast_new_unary(ast_type_addr, ast_new_pointer(operand->ctype), operand);
+    }
+
+    if (lexer_ispunc(token, '*')) {
+        ast_t *operand = parse_expression_unary();
+        if (operand->ctype->type != TYPE_PTR)
+            compile_error("Expected pointer type, cannot dereference expression <%s>", ast_dump_string(operand));
+        return ast_new_unary(ast_type_deref, operand->ctype->pointer, operand);
+    }
+
+    lexer_unget(token);
+    return parse_expression_primary();
+}
+
+// handles operator precedence climbing as well
+static ast_t *parse_expression(int lastpri) {
+    ast_t       *ast;
+    ast_t       *next;
+    data_type_t *data;
+
+    // no primary expression?
+    if (!(ast = parse_expression_unary()))
+        return NULL;
+
+    for (;;) {
+        lexer_token_t *token = lexer_next();
+        if (token->type != LEXER_TOKEN_PUNCT) {
+            lexer_unget(token);
+            return ast;
+        }
+
+        int pri = parse_operator_priority(token->punct);
+        if (pri < 0 || pri < lastpri) {
+            lexer_unget(token);
+            return ast;
+        }
+
+        if (lexer_ispunc(token, '='))
+            parse_semantic_lvalue(ast);
+
+        next = parse_expression(pri + !parse_semantic_rightassoc(token->punct));
+        data = parse_semantic_result(token->punct, ast, next);
+        ast  = ast_new_binary(token->punct, data, ast, next);
+    }
+    return NULL;
+}
+
+static data_type_t *parse_type_get(lexer_token_t *token) {
     if (token->type != LEXER_TOKEN_IDENT)
-        return -1;
+        return NULL;
 
-    if (!strcmp(token->value.string, "void"))
-        return TYPE_VOID;
-    if (!strcmp(token->value.string, "int"))
-        return TYPE_INT;
-    if (!strcmp(token->value.string, "char"))
-        return TYPE_CHAR;
-    if (!strcmp(token->value.string, "string"))
-        return TYPE_STR;
+    if (!strcmp(token->string, "int"))
+        return ast_data_int();
+    if (!strcmp(token->string, "char"))
+        return ast_data_char();
+    if (!strcmp(token->string, "string"))
+        return ast_data_str();
 
-    return -1;
+    return NULL;
 }
 
 static bool parse_type_check(lexer_token_t *token) {
-    return parse_type_get(token) != -1;
+    return parse_type_get(token) != NULL;
 }
 
 static void parse_expect(char punct) {
@@ -92,31 +252,30 @@ static void parse_expect(char punct) {
         compile_error("Expected `%c`, got %s instead", punct, lexer_tokenstr(token));
 }
 
-static void parse_swap(ast_t *a, ast_t *b) {
-    ast_t *t;
-
-    t = a;
-    a = b;
-    b = t;
-}
 
 static ast_t *parse_declaration(void) {
     lexer_token_t *token;
     ast_t         *var;
-    type_t        type = parse_type_get(lexer_next());
+    data_type_t   *type = parse_type_get(lexer_next());
 
-    token = lexer_next();
+    for (;;) {
+        token = lexer_next();
+        if (!lexer_ispunc(token, '*'))
+            break;
+
+        type = ast_new_pointer(type);
+    }
+
     if (token->type != LEXER_TOKEN_IDENT)
-        compile_error("Expected identifier, got %s instead", lexer_tokenstr(token));
+        compile_error("Expected identifier, got `%s` instead", lexer_tokenstr(token));
 
-    var = ast_new_data_var(type, token->value.string);
+    var = ast_new_data_var(type, token->string);
 
     // expect for init
     parse_expect('=');
 
     return ast_new_decl(var, parse_expression(0));
 }
-
 
 static ast_t *parse_statement(void) {
     lexer_token_t *token = lexer_peek();
@@ -137,135 +296,7 @@ static ast_t *parse_statement(void) {
 }
 
 
-static ast_t *parse_expression_primary(void) {
-    lexer_token_t *token;
-
-    if (!(token = lexer_next()))
-        return NULL;
-
-    switch (token->type) {
-        case LEXER_TOKEN_IDENT:
-            return parse_generic(token->value.string);
-
-        // ast generating ones
-        case LEXER_TOKEN_INT:    return ast_new_data_int(token->value.integer);
-        case LEXER_TOKEN_CHAR:   return ast_new_data_chr(token->value.character);
-        case LEXER_TOKEN_STRING: return ast_new_data_str(token->value.string);
-
-        case LEXER_TOKEN_PUNCT:
-            compile_error("Unexpected punctuation: `%c`", token->value.punct);
-            return NULL;
-    }
-    compile_error("Internal error: Expected token");
-    return NULL;
-}
-
-// parser semantic enforcers
-static void parse_semantic_lvalue(ast_t *ast) {
-    // enforce lvalue semantics
-    if (ast->type != ast_type_data_var)
-        compile_error("Expected lvalue");
-}
-
-static bool parse_semantic_rightassoc(char operator) {
-    // enforce right associative semantics
-    return operator == '=';
-}
-
-static char parse_semantic_result(char operator, ast_t *a, ast_t *b) {
-    // enforce result type semantics, e.g type compatabilty
-    bool swapped = false;
-
-    if (a->ctype > b->ctype) {
-        swapped = true;
-        parse_swap(a, b);
-    }
-
-    switch (a->ctype) {
-        case TYPE_VOID:
-            goto parse_semantic_result_error;
-        case TYPE_INT:
-            switch (b->ctype) {
-                case TYPE_INT:
-                case TYPE_CHAR:
-                    return TYPE_INT;
-                case TYPE_STR:
-                    goto parse_semantic_result_error;
-                default:
-                    break;
-            }
-            compile_error("Internal error");
-            break;
-        case TYPE_CHAR:
-            switch (b->ctype) {
-                case TYPE_CHAR:
-                    return TYPE_INT;
-                case TYPE_STR:
-                    goto parse_semantic_result_error;
-                default:
-                    break;
-            }
-            compile_error("Internal error");
-            break;
-        case TYPE_STR:
-            goto parse_semantic_result_error;
-        default:
-            compile_error("Internal error");
-    }
-
-parse_semantic_result_error:
-    if (swapped)
-        parse_swap(a, b);
-
-    compile_error("Incompatible types in operation: %s and %s",
-        ast_type_string(a->ctype),
-        ast_type_string(b->ctype)
-    );
-    return -1;
-}
-
-// handles operator precedence climbing as well
-static ast_t *parse_expression(int lastpri) {
-    ast_t *ast;
-    ast_t *next;
-
-    // no primary expression?
-    if (!(ast = parse_expression_primary()))
-        return NULL;
-
-    for (;;) {
-        lexer_token_t *token = lexer_next();
-        if (token->type != LEXER_TOKEN_PUNCT) {
-            lexer_unget(token);
-            return ast;
-        }
-
-        int pri = parse_operator_priority(token->value.punct);
-        if (pri < 0 || pri < lastpri) {
-            lexer_unget(token);
-            return ast;
-        }
-
-        if (lexer_ispunc(token, '='))
-            parse_semantic_lvalue(ast);
-
-        // precedence climbing is way too easy with recursive
-        // descent parsing, thanks q66 for showing me this.
-        next = parse_expression(pri + !parse_semantic_rightassoc(token->value.punct));
-        ast  = ast_new_bin_op(
-                token->value.punct,
-                parse_semantic_result(
-                    token->value.punct,
-                    ast,
-                    next
-                ),
-                ast,
-                next
-        );
-    }
-    return NULL;
-}
-
+// compile stage
 void parse_compile(FILE *as, int dump) {
     ast_t *ast[1024];
     int    i;
@@ -284,8 +315,13 @@ void parse_compile(FILE *as, int dump) {
             as,"\
             .text\n\
             .global " GMCC_ENTRY "\n"
-            GMCC_ENTRY ":\n"
+            GMCC_ENTRY ":\n\
+                push %%rbp\n\
+                mov %%rsp, %%rbp\n"
         );
+
+        if (ast_variables())
+            fprintf(as, "sub $%d, %%rsp\n", ast_variables()->variable.placement * 8);
     }
 
     for (n = 0; n < i; n++) {
@@ -296,6 +332,6 @@ void parse_compile(FILE *as, int dump) {
     }
 
     if (!dump) {
-        fprintf(as, "ret\n");
+        fprintf(as, "leave\nret\n");
     }
 }

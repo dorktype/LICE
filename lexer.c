@@ -49,7 +49,7 @@ char *string_quote(char *p) {
         string_append(string, *p);
         p++;
     }
-    return string_buffer(string);
+    return string->buffer;
 }
 
 void string_appendf(string_t *string, const char *fmt, ...) {
@@ -79,33 +79,33 @@ static lexer_token_t *lexer_ungotton = NULL;
 
 
 static lexer_token_t *lexer_identifier(string_t *str) {
-    lexer_token_t *token   = lexer_token_new();
-    token->type            = LEXER_TOKEN_IDENT;
-    token->value.string    = string_buffer(str);
+    lexer_token_t *token = lexer_token_new();
+    token->type          = LEXER_TOKEN_IDENT;
+    token->string        = string_buffer(str);
     return token;
 }
 static lexer_token_t *lexer_strtok(string_t *str) {
-    lexer_token_t *token   = lexer_token_new();
-    token->type            = LEXER_TOKEN_STRING;
-    token->value.string    = string_buffer(str);
+    lexer_token_t *token = lexer_token_new();
+    token->type          = LEXER_TOKEN_STRING;
+    token->string        = string_buffer(str);
     return token;
 }
 static lexer_token_t *lexer_punct(char punct) {
-    lexer_token_t *token   = lexer_token_new();
-    token->type            = LEXER_TOKEN_PUNCT;
-    token->value.punct     = punct;
+    lexer_token_t *token = lexer_token_new();
+    token->type          = LEXER_TOKEN_PUNCT;
+    token->punct         = punct;
     return token;
 }
 static lexer_token_t *lexer_int(int value) {
-    lexer_token_t *token   = lexer_token_new();
-    token->type            = LEXER_TOKEN_INT;
-    token->value.integer   = value;
+    lexer_token_t *token = lexer_token_new();
+    token->type          = LEXER_TOKEN_INT;
+    token->integer       = value;
     return token;
 }
 static lexer_token_t *lexer_char(char value) {
-    lexer_token_t *token   = lexer_token_new();
-    token->type            = LEXER_TOKEN_CHAR;
-    token->value.character = value;
+    lexer_token_t *token = lexer_token_new();
+    token->type          = LEXER_TOKEN_CHAR;
+    token->character     = value;
     return token;
 }
 
@@ -235,7 +235,7 @@ static lexer_token_t *lexer_read_token(void) {
 bool lexer_ispunc(lexer_token_t *token, char c) {
     if (!token)
         compile_error("Internal error: null token");
-    return token->type == LEXER_TOKEN_PUNCT && token->value.punct == c;
+    return token->type == LEXER_TOKEN_PUNCT && token->punct == c;
 }
 
 void lexer_unget(lexer_token_t *token) {
@@ -267,21 +267,21 @@ char *lexer_tokenstr(lexer_token_t *token) {
         case LEXER_TOKEN_PUNCT:
         case LEXER_TOKEN_CHAR:
             string = string_create();
-            string_append(string, token->value.character);
+            string_append(string, token->character);
             return string_buffer(string);
 
         case LEXER_TOKEN_INT:
             string = string_create();
-            string_appendf(string, "%d", token->value.integer);
+            string_appendf(string, "%d", token->integer);
             return string_buffer(string);
 
         case LEXER_TOKEN_STRING:
             string = string_create();
-            string_appendf(string, "\"%s\"", token->value.string);
+            string_appendf(string, "\"%s\"", token->string);
             return string_buffer(string);
 
         case LEXER_TOKEN_IDENT:
-            return token->value.string;
+            return token->string;
     }
     compile_error("Internal error: unexpected token");
     return NULL;

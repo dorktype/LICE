@@ -2,6 +2,14 @@
 
 #include "gmcc.h"
 
+static data_type_t *data_int  = &(data_type_t) { TYPE_INT,  NULL };
+static data_type_t *data_char = &(data_type_t) { TYPE_CHAR, NULL };
+static data_type_t *data_str  = &(data_type_t) { TYPE_STR,  NULL };
+
+data_type_t *ast_data_int(void)  { return data_int;  }
+data_type_t *ast_data_char(void) { return data_char; }
+data_type_t *ast_data_str(void)  { return data_str;  }
+
 // creates a new ast node
 #define ast_new_node() \
     ((ast_t*)malloc(sizeof(ast_t)))
@@ -18,70 +26,79 @@ ast_t *ast_variables(void) {
     return var_list;
 }
 
-ast_t *ast_new_bin_op(char type, type_t ctype, ast_t *left, ast_t *right) {
-    ast_t *ast = ast_new_node();
-    ast->type  = type;
-    ast->ctype = ctype;
-    ast->left  = left;
-    ast->right = right;
+ast_t *ast_new_unary(char type, data_type_t *data, ast_t *operand) {
+    ast_t *ast         = ast_new_node();
+    ast->type          = type;
+    ast->ctype         = data;
+    ast->unary.operand = operand;
+
+    return ast;
+}
+
+ast_t *ast_new_binary(char type, data_type_t *data, ast_t *a, ast_t *b) {
+    ast_t *ast         = ast_new_node();
+    ast->type          = type;
+    ast->ctype         = data;
+    ast->right         = a;
+    ast->left          = b;
 
     return ast;
 }
 
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes) {
-    ast_t *ast           = ast_new_node();
-    ast->type            = ast_type_func_call;
-    ast->ctype           = TYPE_INT;
-    ast->value.call.name = name;
-    ast->value.call.size = size;
-    ast->value.call.args = nodes;
+    ast_t *ast     = ast_new_node();
+    ast->type      = ast_type_func_call;
+    ast->ctype     = data_int;
+    ast->call.name = name;
+    ast->call.size = size;
+    ast->call.args = nodes;
 
     return ast;
 }
 
-ast_t *ast_new_data_var(type_t type, char *name) {
-    ast_t *ast                    = ast_new_node();
-    ast->type                     = ast_type_data_var;
-    ast->ctype                    = type;
-    ast->value.variable.name      = name;
-    ast->value.variable.placement = (var_list)
-                                        ? var_list->value.variable.placement + 1
-                                        : 1;
-    ast->value.variable.next      = var_list;
-    var_list                      = ast;
+ast_t *ast_new_data_var(data_type_t *type, char *name) {
+    ast_t *ast              = ast_new_node();
+    ast->type               = ast_type_data_var;
+    ast->ctype              = type;
+    ast->variable.name      = name;
+    ast->variable.placement = (var_list)
+                                ? var_list->variable.placement + 1
+                                : 1;
+    ast->variable.next      = var_list;
+    var_list                = ast;
     return ast;
 }
 
 ast_t *ast_new_data_int(int value) {
-    ast_t *ast         = ast_new_node();
-    ast->type          = ast_type_data_int;
-    ast->ctype         = TYPE_INT;
-    ast->value.integer = value;
+    ast_t *ast   = ast_new_node();
+    ast->type    = ast_type_data_literal;
+    ast->ctype   = data_int;
+    ast->integer = value;
 
     return ast;
 }
 
 ast_t *ast_new_data_chr(char value) {
-    ast_t *ast           = ast_new_node();
-    ast->type            = ast_type_data_chr;
-    ast->ctype           = TYPE_CHAR;
-    ast->value.character = value;
+    ast_t *ast     = ast_new_node();
+    ast->type      = ast_type_data_literal;
+    ast->ctype     = data_char;
+    ast->character = value;
 
     return ast;
 }
 
 ast_t *ast_new_data_str(char *value) {
-    ast_t *ast             = ast_new_node();
-    ast->type              = ast_type_data_str;
-    ast->ctype             = TYPE_STR;
-    ast->value.string.data = value;
+    ast_t *ast       = ast_new_node();
+    ast->type        = ast_type_data_literal;
+    ast->ctype       = data_str;
+    ast->string.data = value;
 
     if (!str_list) {
-        ast->value.string.id   = 0;
-        ast->value.string.next = NULL;
+        ast->string.id   = 0;
+        ast->string.next = NULL;
     } else {
-        ast->value.string.id   = str_list->value.string.id + 1;
-        ast->value.string.next = str_list;
+        ast->string.id   = str_list->string.id + 1;
+        ast->string.next = str_list;
     }
 
     str_list = ast;
@@ -92,18 +109,34 @@ ast_t *ast_new_data_str(char *value) {
 ast_t *ast_new_decl(ast_t *var, ast_t *init) {
     ast_t *ast     = ast_new_node();
     ast->type      = ast_type_decl;
+    ast->ctype     = NULL;
     ast->decl.var  = var;
     ast->decl.init = init;
 
     return ast;
 }
 
-const char *ast_type_string(type_t type) {
-    switch (type) {
+data_type_t *ast_new_pointer(data_type_t *type) {
+    data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
+    data->type        = TYPE_PTR;
+    data->pointer     = type;
+
+    return data;
+}
+
+const char *ast_type_string(data_type_t *type) {
+    string_t *string;
+
+    switch (type->type) {
         case TYPE_VOID: return "void";
         case TYPE_INT:  return "int";
         case TYPE_CHAR: return "char";
         case TYPE_STR:  return "string";
+
+        case TYPE_PTR:
+            string = string_create();
+            string_appendf(string, "%s*", ast_type_string(type->pointer));
+            return string_buffer(string);
     }
     return NULL;
 }
@@ -112,6 +145,22 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
     size_t i;
     if (!ast) return;
     switch (ast->type) {
+        case ast_type_data_literal:
+            switch (ast->ctype->type) {
+                case TYPE_INT:
+                    string_appendf(string, "%d", ast->integer);
+                    break;
+                case TYPE_CHAR:
+                    string_appendf(string, "'%c'", ast->character);
+                    break;
+                case TYPE_STR:
+                    string_appendf(string, "\"%s\"", string_quote(ast->string.data));
+                    break;
+                default:
+                    compile_error("Internal error");
+                    break;
+            }
+            break;
         default:
             string_appendf(
                 string,
@@ -122,27 +171,15 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
             );
             break;
 
-        // data nodes
-        case ast_type_data_int:
-            string_appendf(string, "%d", ast->value.integer);
-            break;
         case ast_type_data_var:
-            string_appendf(string, "%s", ast->value.variable.name);
-            break;
-
-        case ast_type_data_str:
-            string_appendf(string, "\"%s\"", string_quote(ast->value.string.data));
-            break;
-
-        case ast_type_data_chr:
-            string_appendf(string, "'%c'", ast->value.character);
+            string_appendf(string, "%s", ast->variable.name);
             break;
 
         case ast_type_func_call:
-            string_appendf(string, "%s(", ast->value.call.name);
-            for(i = 0; i < ast->value.call.size; i++) {
-                ast_dump_string_impl(string, ast->value.call.args[i]);
-                if (ast->value.call.args[i + 1])
+            string_appendf(string, "%s(", ast->call.name);
+            for(i = 0; i < ast->call.size; i++) {
+                ast_dump_string_impl(string, ast->call.args[i]);
+                if (ast->call.args[i + 1])
                     string_appendf(string, ",");
             }
             string_appendf(string, ")");
@@ -153,9 +190,17 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
                 string,
                 "(decl %s %s %s)",
                 ast_type_string(ast->decl.var->ctype),
-                ast->decl.var->value.variable.name,
+                ast->decl.var->variable.name,
                 ast_dump_string(ast->decl.init)
             );
+            break;
+
+        case ast_type_addr:
+            string_appendf(string, "(& %s)", ast_dump_string(ast->unary.operand));
+            break;
+
+        case ast_type_deref:
+            string_appendf(string, "(* %s)", ast_dump_string(ast->unary.operand));
             break;
     }
 }

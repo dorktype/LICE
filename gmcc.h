@@ -25,7 +25,7 @@ typedef struct {
         char *string;
         char  punct;
         char  character;
-    } value;
+    };
 } lexer_token_t;
 
 
@@ -52,16 +52,19 @@ ast_t *var_find(const char *name);
 // represents what type of ast node it is
 typedef enum {
     // data storage
-    ast_type_data_int,
     ast_type_data_var,
-    ast_type_data_str,
-    ast_type_data_chr,
+    ast_type_data_literal,
 
     // misc
     ast_type_decl,
 
     // function stuff
-    ast_type_func_call
+    ast_type_func_call,
+
+    // pointer stuff
+    ast_type_addr,
+    ast_type_deref
+
 } ast_type_t;
 
 // language types
@@ -69,45 +72,55 @@ typedef enum {
     TYPE_VOID,
     TYPE_INT,
     TYPE_CHAR,
-    TYPE_STR
+    TYPE_STR,
+    TYPE_PTR
 } type_t;
+
+typedef struct data_type_s data_type_t;
+struct data_type_s {
+    type_t       type;
+    data_type_t *pointer;
+};
+
 
 // the ast and ast node and everything structures
 // this is how ast should be done, one structure
 // to rule them all!
 struct ast_s {
-    char    type;
-    type_t ctype; // C type
+    char         type;
+    data_type_t *ctype; // C type
 
     // node crap occupies same memory location
     // to keep ram footprint minimal
     union {
-        // data
+        int    integer;
+        char   character;
+
+        // variable
         struct {
-            int    integer;
-            char   character;
+            char  *name;
+            int    placement;
+            ast_t *next;
+        } variable;
 
-            // variable
-            struct {
-                char  *name;
-                int    placement;
-                ast_t *next;
-            } variable;
+        // string
+        struct {
+            char  *data;
+            int    id;
+            ast_t *next;
+        } string;
 
-            // string
-            struct {
-                char  *data;
-                int    id;
-                ast_t *next;
-            } string;
+        // function call
+        struct {
+            char  *name;
+            int   size; // # of arguments
+            ast_t **args;
+        } call;
 
-            // function call
-            struct {
-                char  *name;
-                int   size; // # of arguments
-                ast_t **args;
-            } call;
-        } value;
+        // unary
+        struct {
+            ast_t *operand;
+        } unary;
 
         // tree
         struct {
@@ -123,15 +136,21 @@ struct ast_s {
     };
 };
 
-ast_t *ast_new_bin_op(char type, type_t ctype, ast_t *left, ast_t *right);
+data_type_t *ast_data_int(void);
+data_type_t *ast_data_char(void);
+data_type_t *ast_data_str(void);
+
+ast_t *ast_new_unary(char type, data_type_t *data, ast_t *operand);
+ast_t *ast_new_binary(char type, data_type_t *data, ast_t *left, ast_t *right);
 ast_t *ast_new_data_str(char *value);
 ast_t *ast_new_data_int(int value);
 ast_t *ast_new_data_chr(char value);
-ast_t *ast_new_data_var(type_t type, char *name);
+ast_t *ast_new_data_var(data_type_t *type, char *name);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes);
 
-const char *ast_type_string(type_t type);
+data_type_t *ast_new_pointer(data_type_t *type);
+const char *ast_type_string(data_type_t *type);
 
 // data singletons
 ast_t *ast_strings(void);
@@ -149,5 +168,4 @@ void compile_error(const char *fmt, ...);
 // gen.c
 void gen_emit_data(FILE *as, ast_t *strings);
 void gen_emit_expression(FILE *as, ast_t *ast);
-void gen_emit_bin(FILE *as, ast_t *ast);
 #endif
