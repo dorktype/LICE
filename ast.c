@@ -66,6 +66,15 @@ ast_t *ast_new_data_str(char *value) {
     return ast;
 }
 
+void ast_dump_escape(const char *str) {
+    while (*str) {
+        if (*str == '\"' || *str == '\\')
+            printf("\\");
+        printf("%c", *str);
+        str++;
+    }
+}
+
 void ast_dump(ast_t *ast) {
     size_t i;
     switch (ast->type) {
@@ -86,7 +95,10 @@ void ast_dump(ast_t *ast) {
             break;
 
         case ast_type_data_str:
-            // TODO
+            printf("\"");
+            ast_dump_escape(ast->value.string.data);
+            printf("\"");
+            break;
 
         case ast_type_func_call:
             printf("%s(", ast->value.call.name);
