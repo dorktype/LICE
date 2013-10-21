@@ -35,12 +35,12 @@ ast_t *ast_new_unary(char type, data_type_t *data, ast_t *operand) {
     return ast;
 }
 
-ast_t *ast_new_binary(char type, data_type_t *data, ast_t *a, ast_t *b) {
+ast_t *ast_new_binary(char type, data_type_t *data, ast_t *left, ast_t *right) {
     ast_t *ast         = ast_new_node();
     ast->type          = type;
     ast->ctype         = data;
-    ast->right         = a;
-    ast->left          = b;
+    ast->right         = left;
+    ast->left          = right;
 
     return ast;
 }
@@ -142,6 +142,9 @@ const char *ast_type_string(data_type_t *type) {
 }
 
 static void ast_dump_string_impl(string_t *string, ast_t *ast) {
+    char *left;
+    char *right;
+
     size_t i;
     if (!ast) return;
     switch (ast->type) {
@@ -161,15 +164,6 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
                     break;
             }
             break;
-        default:
-            string_appendf(
-                string,
-                "(%c %s %s)",
-                ast->type,
-                ast_dump_string(ast->left),
-                ast_dump_string(ast->right)
-            );
-            break;
 
         case ast_type_data_var:
             string_appendf(string, "%s", ast->variable.name);
@@ -185,6 +179,14 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
             string_appendf(string, ")");
             break;
 
+        case ast_type_addr:
+            string_appendf(string, "(& %s)", ast_dump_string(ast->unary.operand));
+            break;
+
+        case ast_type_deref:
+            string_appendf(string, "(* %s)", ast_dump_string(ast->unary.operand));
+            break;
+
         case ast_type_decl:
             string_appendf(
                 string,
@@ -195,12 +197,10 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
             );
             break;
 
-        case ast_type_addr:
-            string_appendf(string, "(& %s)", ast_dump_string(ast->unary.operand));
-            break;
-
-        case ast_type_deref:
-            string_appendf(string, "(* %s)", ast_dump_string(ast->unary.operand));
+        default:
+            left  = ast_dump_string(ast->left);
+            right = ast_dump_string(ast->right);
+            string_appendf(string, "(%c %s %s)", ast->type, left, right);
             break;
     }
 }
