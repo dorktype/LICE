@@ -13,10 +13,6 @@ typedef struct ast_s ast_t;
 
 // represents what type of ast node it is
 typedef enum {
-    // binary operations
-    ast_type_bin_add,
-    ast_type_bin_sub,
-
     // data storage
     ast_type_data_int,
     ast_type_data_str
@@ -26,7 +22,7 @@ typedef enum {
 // this is how ast should be done, one structure
 // to rule them all!
 struct ast_s {
-    ast_type_t type;
+    char type;
 
     union {
         struct {
@@ -41,7 +37,7 @@ struct ast_s {
     };
 };
 
-ast_t *ast_new_bin_op(ast_type_t type, ast_t *left, ast_t *right);
+ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right);
 ast_t *ast_new_data_str(char *value);
 ast_t *ast_new_data_int(int value);
 void ast_dump(ast_t *ast);

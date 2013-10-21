@@ -16,6 +16,19 @@ static void parse_skip(void) {
     }
 }
 
+// what priority does the following operator get?
+static size_t parse_operator_priority(char operator) {
+    switch (operator) {
+        case '+':
+        case '-':
+            return 1;
+        case '*':
+        case '/':
+            return 2;
+    }
+    return 0;
+}
+
 ast_t *parse_integer(int value) {
     int c;
     while ((c = getc(stdin)) != EOF) {
@@ -67,35 +80,35 @@ ast_t *parse_expression_primary(void) {
     return NULL;
 }
 
-ast_t *parse_expression_left(ast_t *left) {
-    int c;
-    int operation;
+// handles operator precedence climbing as well
+ast_t *parse_expression(size_t lastpri) {
+    ast_t *ast = parse_expression_primary();
+    size_t pri;
 
-    parse_skip();
+    for (;;) {
+        int c;
+        parse_skip();
 
-    if ((c = getc(stdin)) == EOF)
-        return left;
+        if ((c = getc(stdin)) == EOF)
+            return ast;
 
-    if (c == '+')
-        operation = ast_type_bin_add;
-    else if (c == '-')
-        operation = ast_type_bin_sub;
-    else
-        compile_error("Expected operator, got `%c` instead", c);
+        // operator precedence handling
+        pri = parse_operator_priority(c);
+        if (pri < lastpri) {
+            ungetc(c, stdin);
+            return ast;
+        }
 
-    parse_skip();
+        parse_skip();
 
-    // recursive descent
-    return parse_expression_left(
-                ast_new_bin_op(
-                    operation,
-                    left,
-                    parse_expression_primary()
-                )
-            );
+        // precedence climbing is way too easy with recursive
+        // descent parsing, thanks q66 for showing me this.
+        ast = ast_new_bin_op(c, ast, parse_expression(pri + 1));
+    }
+    return ast;
 }
 
 ast_t *parse(void) {
-    // recursive descent
-    return parse_expression_left(parse_expression_primary());
+    // recursive descent with zero
+    return parse_expression(0);
 }

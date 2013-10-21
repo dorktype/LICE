@@ -33,12 +33,6 @@ void gen_emit_string(FILE *as, ast_t *ast) {
 }
 
 void gen_emit_expression(FILE *as, ast_t *ast) {
-    if (ast->type != ast_type_bin_add &&
-        ast->type != ast_type_bin_sub &&
-        ast->type != ast_type_data_int) {
-        compile_error("Internal error: %s called without valid integer expression", __func__);
-    }
-
     if (ast->type == ast_type_data_int)
         fprintf(as, "mov $%d, %%eax\n", ast->value.integer);
     else
@@ -47,15 +41,35 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
 
 void gen_emit_bin(FILE *as, ast_t *ast) {
     const char *operation;
-    if (ast->type == ast_type_bin_add)
-        operation = "add";
-    else if (ast->type == ast_type_bin_sub)
-        operation = "sub";
-    else
-        compile_error("Internal error: %s called with invalid binary operation", __func__);
+    switch (ast->type) {
+        case '+': operation = "add";  break;
+        case '-': operation = "sub";  break;
+
+        case '*':
+        case '/':
+            operation = "imul";
+            break;
+    }
 
     gen_emit_expression(as, ast->left);
-    fprintf(as, "mov %%eax, %%ebx\n");
+    fprintf(as, "push %%rax\n");
     gen_emit_expression(as, ast->right);
-    fprintf(as, "%s %%ebx, %%eax\n", operation);
+
+    // deal with div specially
+    if (ast->type == '/') {
+        fprintf(
+            as,"\
+            mov %%eax, %%ebx\n\
+            pop %%rax\n\
+            mov $0, %%edx\n\
+            idiv %%ebx\n"
+        );
+    } else {
+        fprintf(
+            as,"\
+            pop %%rbx\n\
+            %s %%ebx, %%eax\n",
+            operation
+        );
+    }
 }

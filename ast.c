@@ -6,7 +6,7 @@
 #define ast_new_node() \
     ((ast_t*)malloc(sizeof(ast_t)))
 
-ast_t *ast_new_bin_op(ast_type_t type, ast_t *left, ast_t *right) {
+ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right) {
     ast_t *ast;
 
     ast        = ast_new_node();
@@ -39,12 +39,8 @@ ast_t *ast_new_data_int(int value) {
 
 void ast_dump(ast_t *ast) {
     switch (ast->type) {
-        case ast_type_bin_add:
-            printf("(+ ");
-            // fall
-        case ast_type_bin_sub:
-            if (ast->type == ast_type_bin_sub)
-                printf("(- ");
+        default:
+            printf("(%c ", ast->type);
             ast_dump(ast->left); // dump the left node
             printf(" ");
             ast_dump(ast->right); // dump the right node
