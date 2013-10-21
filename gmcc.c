@@ -17,30 +17,69 @@ static void compile_error(const char *fmt, ...) {
     exit(EXIT_FAILURE);
 }
 
-static void compile_integer(FILE *as, int value) {
+static void compile_skip(void) {
     int c;
     while ((c = getc(stdin)) != EOF) {
         if (isspace(c))
-            break;
-
-        if (!isdigit(c))
-            compile_error("Expected numeric, got `%c` instead", c);
-
-        value = value * 10 + (c - '0');
+            continue;
+        ungetc(c, stdin);
+        return;
     }
+}
 
-    fprintf(
+static int compile_integer(int value) {
+    int c;
+    while ((c = getc(stdin)) != EOF) {
+        if (!isdigit(c)) {
+            ungetc(c, stdin);
+            return value;
+        }
+
+        value = value * 10 + (c = '0');
+    }
+}
+
+static void compile_expression(FILE *as, int value) {
+    int         c;
+    const char *operator;
+
+    fprintf (
         as,
         ".text\n\
         .global %s\n\
         %s:\n\
-            mov $%d, %%rax\n\
-            ret\n",
-
+            mov $%d, %%rax\n",
         GMCC_ENTRY_INT,
         GMCC_ENTRY_INT,
-        value
+        compile_integer(value)
     );
+
+    /* now handle the expression */
+    for (;;) {
+        compile_skip();
+        if ((c = getc(stdin)) == EOF) {
+            fprintf(as, "ret\n");
+            break;
+        }
+
+        if (c == '+')
+            operator = "add";
+        else if (c == '-')
+            operator = "sub";
+        else
+            compile_error("Expected operator, got `%c` instead", c);
+
+        compile_skip();
+        if (!isdigit((c = getc(stdin))))
+            compile_error("Expected integer constant, got `%c` instead", c);
+
+        fprintf(
+            as,
+            "%s $%d, %%rax\n",
+            operator,
+            compile_integer(c - '0')
+        );
+    }
 }
 
 static void compile_string(FILE *as) {
@@ -91,7 +130,7 @@ static void compile_go(void) {
         compile_error("failed to invoke assembler");
 
     if (isdigit(c))
-        compile_integer(as, c - '0');
+        compile_expression(as, c - '0');
     else if (c == '"')
         compile_string(as);
     else
