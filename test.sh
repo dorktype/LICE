@@ -16,14 +16,17 @@ test_ast() {
 }
 
 test_compile() {
-    echo "$1" | ./gmcc
-    if [ $? -ne 0 ]; then
-        echo "failed $1"
-        exit
+    echo "$2" | ./gmcc 2> /dev/null
+    if [ $1 -ne 0 ]; then
+        if [ $? -ne 0 ]; then echo "failed"; exit; fi
+    else
+        if [ ! $? -ne 0 ]; then echo "failed"; exit; fi
     fi
 
     out="$(./program)"
-    assert "$out" "$2"
+    if [ $1 == 0 ]; then
+        assert "$out" "$3"
+    fi
 }
 
 test_ast     '1;'                        '1'
@@ -41,7 +44,10 @@ test_ast     '1*2+3*4;'                  '(+ (* 1 2) (* 3 4))'
 test_ast     '1/2+3/4;'                  '(+ (/ 1 2) (/ 3 4))'
 test_ast     '1/2/3/4;'                  '(/ (/ (/ 1 2) 3) 4)'
 
-test_compile 'int a=1;a;'                '1'
-test_compile 'printf("a");int a=0;a;'    'a0'
-test_compile 'printf("%s","a");'         'a1'
-test_compile "printf(\"%c\",'a');"       'a1'
+test_compile 0 'int a=1;a;'                '1'
+test_compile 0 'printf("a");int a=0;a;'    'a0'
+test_compile 0 'printf("%s","a");'         'a1'
+test_compile 0 "printf(\"%c\",'a');"       'a1'
+
+test_compile 1 '"a"+1;'
+test_compile 1 'int a="1";'

@@ -43,15 +43,19 @@ void string_append(string_t *string, char ch) {
 
 void string_appendf(string_t *string, const char *fmt, ...) {
     va_list  va;
-    va_start(va, fmt);
     for (;;) {
         int left  = string->allocated - string->length;
-        int write = vsnprintf(string->buffer + string->length, left, fmt, va);
+        int write;
+
+        va_start(va, fmt);
+        write = vsnprintf(string->buffer + string->length, left, fmt, va);
+        va_end(va);
+
         if (left < write) {
             string_reallocate(string);
             continue;
         }
-        string->length += write + 1;
+        string->length += write;
         return;
     }
 }
