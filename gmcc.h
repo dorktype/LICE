@@ -9,7 +9,7 @@
 #define GMCC_LINKER    "gcc blob.o invoke.c -o program"
 
 // lexer.c
-typedef struct string_s string_t;
+
 typedef enum {
     LEXER_TOKEN_IDENT,
     LEXER_TOKEN_PUNCT,
@@ -27,6 +27,14 @@ typedef struct {
         char  character;
     } value;
 } lexer_token_t;
+
+
+typedef struct string_s string_t;
+string_t *string_create(void);
+char *string_buffer(string_t *string);
+void string_append(string_t *string, char ch);
+void string_appendf(string_t *string, const char *fmt, ...);
+char *string_quote(char *p);
 
 bool lexer_ispunc(lexer_token_t *token, char c);
 void lexer_unget(lexer_token_t *token);
@@ -62,14 +70,14 @@ typedef enum {
     TYPE_INT,
     TYPE_CHAR,
     TYPE_STR
-} ctype_t;
+} type_t;
 
 // the ast and ast node and everything structures
 // this is how ast should be done, one structure
 // to rule them all!
 struct ast_s {
     char    type;
-    ctype_t ctype; // C type
+    type_t ctype; // C type
 
     // node crap occupies same memory location
     // to keep ram footprint minimal
@@ -115,22 +123,22 @@ struct ast_s {
     };
 };
 
-ast_t *ast_new_bin_op(char type, ctype_t ctype, ast_t *left, ast_t *right);
+ast_t *ast_new_bin_op(char type, type_t ctype, ast_t *left, ast_t *right);
 ast_t *ast_new_data_str(char *value);
 ast_t *ast_new_data_int(int value);
 ast_t *ast_new_data_chr(char value);
-ast_t *ast_new_data_var(ctype_t type, char *name);
+ast_t *ast_new_data_var(type_t type, char *name);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes);
 
-const char *ast_type_string(ctype_t type);
+const char *ast_type_string(type_t type);
 
 // data singletons
 ast_t *ast_strings(void);
 ast_t *ast_variables(void);
 
 // debug
-void ast_dump(ast_t *ast);
+char *ast_dump_string(ast_t *ast);
 
 // parse.c
 void parse_compile(FILE *as, int dump);

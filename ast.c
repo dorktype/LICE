@@ -18,7 +18,7 @@ ast_t *ast_variables(void) {
     return var_list;
 }
 
-ast_t *ast_new_bin_op(char type, ctype_t ctype, ast_t *left, ast_t *right) {
+ast_t *ast_new_bin_op(char type, type_t ctype, ast_t *left, ast_t *right) {
     ast_t *ast = ast_new_node();
     ast->type  = type;
     ast->ctype = ctype;
@@ -39,7 +39,7 @@ ast_t *ast_new_func_call(char *name, int size, ast_t **nodes) {
     return ast;
 }
 
-ast_t *ast_new_data_var(ctype_t type, char *name) {
+ast_t *ast_new_data_var(type_t type, char *name) {
     ast_t *ast                    = ast_new_node();
     ast->type                     = ast_type_data_var;
     ast->ctype                    = type;
@@ -98,16 +98,7 @@ ast_t *ast_new_decl(ast_t *var, ast_t *init) {
     return ast;
 }
 
-void ast_dump_escape(const char *str) {
-    while (*str) {
-        if (*str == '\"' || *str == '\\')
-            printf("\\");
-        printf("%c", *str);
-        str++;
-    }
-}
-
-const char *ast_type_string(ctype_t type) {
+const char *ast_type_string(type_t type) {
     switch (type) {
         case TYPE_VOID: return "void";
         case TYPE_INT:  return "int";
@@ -117,53 +108,60 @@ const char *ast_type_string(ctype_t type) {
     return NULL;
 }
 
-void ast_dump(ast_t *ast) {
+static void ast_dump_string_impl(string_t *string, ast_t *ast) {
     size_t i;
     if (!ast) return;
     switch (ast->type) {
         default:
-            printf("(%c ", ast->type);
-            ast_dump(ast->left); // dump the left node
-            printf(" ");
-            ast_dump(ast->right); // dump the right node
-            printf(")"); // paren close the expression
+            string_appendf(
+                string,
+                "(%c %s %s)",
+                ast->type,
+                ast_dump_string(ast->left),
+                ast_dump_string(ast->right)
+            );
             break;
 
         // data nodes
         case ast_type_data_int:
-            printf("%d", ast->value.integer);
+            string_appendf(string, "%d", ast->value.integer);
             break;
         case ast_type_data_var:
-            printf("%s", ast->value.variable.name);
+            string_appendf(string, "%s", ast->value.variable.name);
             break;
 
         case ast_type_data_str:
-            printf("\"");
-            ast_dump_escape(ast->value.string.data);
-            printf("\"");
+            string_appendf(string, "\"%s\"", string_quote(ast->value.string.data));
             break;
 
         case ast_type_data_chr:
-            printf("'%c'", ast->value.character);
+            string_appendf(string, "'%c'", ast->value.character);
             break;
 
         case ast_type_func_call:
-            printf("%s(", ast->value.call.name);
+            string_appendf(string, "%s(", ast->value.call.name);
             for(i = 0; i < ast->value.call.size; i++) {
-                ast_dump(ast->value.call.args[i]);
+                ast_dump_string_impl(string, ast->value.call.args[i]);
                 if (ast->value.call.args[i + 1])
-                    printf(",");
+                    string_appendf(string, ",");
             }
-            printf(")");
+            string_appendf(string, ")");
             break;
 
         case ast_type_decl:
-            printf("(decl %s %s ",
+            string_appendf(
+                string,
+                "(decl %s %s %s)",
                 ast_type_string(ast->decl.var->ctype),
-                ast->decl.var->value.variable.name
+                ast->decl.var->value.variable.name,
+                ast_dump_string(ast->decl.init)
             );
-            ast_dump(ast->decl.init);
-            printf(")");
             break;
     }
+}
+
+char *ast_dump_string(ast_t *ast) {
+    string_t *string = string_create();
+    ast_dump_string_impl(string, ast);
+    return string_buffer(string);
 }

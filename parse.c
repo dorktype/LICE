@@ -66,7 +66,7 @@ static ast_t *parse_generic(char *name) {
     return var;
 }
 
-static ctype_t parse_type_get(lexer_token_t *token) {
+static type_t parse_type_get(lexer_token_t *token) {
     if (token->type != LEXER_TOKEN_IDENT)
         return -1;
 
@@ -103,7 +103,7 @@ static void parse_swap(ast_t *a, ast_t *b) {
 static ast_t *parse_declaration(void) {
     lexer_token_t *token;
     ast_t         *var;
-    ctype_t        type = parse_type_get(lexer_next());
+    type_t        type = parse_type_get(lexer_next());
 
     token = lexer_next();
     if (token->type != LEXER_TOKEN_IDENT)
@@ -290,7 +290,7 @@ void parse_compile(FILE *as, int dump) {
 
     for (n = 0; n < i; n++) {
         if (dump)
-            ast_dump(ast[n]);
+            printf("%s", ast_dump_string(ast[n]));
         else
             gen_emit_expression(as, ast[n]);
     }

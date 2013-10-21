@@ -41,6 +41,17 @@ void string_append(string_t *string, char ch) {
     string->buffer[string->length]   = '\0';
 }
 
+char *string_quote(char *p) {
+    string_t *string = string_create();
+    while (*p) {
+        if (*p == '\"' || *p == '\\')
+            string_append(string, '\\');
+        string_append(string, *p);
+        p++;
+    }
+    return string_buffer(string);
+}
+
 void string_appendf(string_t *string, const char *fmt, ...) {
     va_list  va;
     for (;;) {
@@ -207,6 +218,7 @@ static lexer_token_t *lexer_read_token(void) {
         case '+': case '-': case '/': case '*': case '=':
         case '(': case ')':
         case ',': case ';':
+        case '&':
             return lexer_punct(c);
 
         case EOF:
