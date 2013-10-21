@@ -4,7 +4,6 @@
 #include "gmcc.h"
 
 // symbol / variable management
-
 static var_t *var_list = NULL;
 
 var_t *var_find(const char *name) {

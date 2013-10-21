@@ -121,10 +121,36 @@ ast_t *parse_integer(int value) {
     return NULL;
 }
 
+ast_t *parse_string(void) {
+    char *buffer = malloc(PARSE_BUFFER);
+    int   i      = 0;
+    int   c;
+
+    for (;;) {
+        if ((c = getc(stdin)) == EOF)
+            compile_error("Unexpected end of string");
+        if (c == '"')
+            break;
+        if (c == '\\') {
+            if ((c = getc(stdin)) == EOF)
+                compile_error("Unterminated string");
+        }
+        buffer[i++] = c;
+        if (i == PARSE_BUFFER - 1)
+            compile_error("Internal error: OOM");
+    }
+
+    buffer[i] = '\0';
+
+    return ast_new_data_str(buffer);
+}
+
 ast_t *parse_expression_primary(void) {
     int c = getc(stdin);
     if (isdigit(c))
         return parse_integer(c - '0');
+    if (c == '"')
+        return parse_string();
     if (isalpha(c))
         return parse_generic(c);
     else if (c == EOF)
@@ -208,6 +234,8 @@ void parse_compile(FILE *as, int dump) {
         else
             gen_emit_expression(as, ast);
     }
-    if (!dump)
+    if (!dump) {
         fprintf(as, "ret\n");
+        gen_emit_data(as, ast_strings());
+    }
 }

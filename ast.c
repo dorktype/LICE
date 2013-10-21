@@ -6,6 +6,13 @@
 #define ast_new_node() \
     ((ast_t*)malloc(sizeof(ast_t)))
 
+// list of strings
+static ast_t *str_list = NULL;
+
+ast_t *ast_strings(void) {
+    return str_list;
+}
+
 ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right) {
     ast_t *ast = ast_new_node();
     ast->type  = type;
@@ -41,6 +48,24 @@ ast_t *ast_new_data_int(int value) {
     return ast;
 }
 
+ast_t *ast_new_data_str(char *value) {
+    ast_t *ast             = ast_new_node();
+    ast->type              = ast_type_data_str;
+    ast->value.string.data = value;
+
+    if (!str_list) {
+        ast->value.string.id   = 0;
+        ast->value.string.next = NULL;
+    } else {
+        ast->value.string.id   = str_list->value.string.id + 1;
+        ast->value.string.next = str_list;
+    }
+
+    str_list = ast;
+
+    return ast;
+}
+
 void ast_dump(ast_t *ast) {
     size_t i;
     switch (ast->type) {
@@ -59,6 +84,9 @@ void ast_dump(ast_t *ast) {
         case ast_type_data_var:
             printf("%s", ast->value.variable->name);
             break;
+
+        case ast_type_data_str:
+            // TODO
 
         case ast_type_func_call:
             printf("%s(", ast->value.call.name);

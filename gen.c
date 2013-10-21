@@ -8,6 +8,35 @@ static const char *registers[] = {
     "rdi", "rsi", "rdx", "rcx", "r8", "r9"
 };
 
+static void gen_emit_string_escape(FILE *as, const char *str) {
+    while (*str) {
+        if (*str == '\"' || *str == '\\')
+            fprintf(as, "\\");
+        fprintf(as, "%c", *str);
+        str++;
+    }
+}
+
+void gen_emit_data(FILE *as, ast_t *strings) {
+    ast_t *ast;
+
+    if (!(ast = strings))
+        return;
+
+    fprintf(as, ".data\n");
+
+    for (; ast; ast = ast->value.string.next) {
+        fprintf(
+            as,
+            ".s%d:\n\
+            .string \"",
+            ast->value.string.id
+        );
+        gen_emit_string_escape(as, ast->value.string.data);
+        fprintf(as, "\"\n");
+    }
+}
+
 void gen_emit_expression(FILE *as, ast_t *ast) {
     int i;
     switch (ast->type) {
@@ -17,6 +46,10 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
 
         case ast_type_data_var:
             fprintf(as, "mov -%d(%%rbp), %%eax\n", ast->value.variable->placement * 4);
+            break;
+
+        case ast_type_data_str:
+            fprintf(as, "lea .s%d(%%rip), %%rax\n", ast->value.string.id);
             break;
 
         case ast_type_func_call:

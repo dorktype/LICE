@@ -27,6 +27,7 @@ typedef enum {
     // data storage
     ast_type_data_int,
     ast_type_data_var,
+    ast_type_data_str,
 
     // function stuff
     ast_type_func_call
@@ -45,6 +46,13 @@ struct ast_s {
         struct {
             int    integer;
             var_t *variable;
+
+            // string
+            struct {
+                char  *data;
+                int    id;
+                ast_t *next;
+            } string;
 
             // function call
             struct {
@@ -67,6 +75,7 @@ ast_t *ast_new_data_str(char *value);
 ast_t *ast_new_data_int(int value);
 ast_t *ast_new_data_var(var_t *var);
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes);
+ast_t *ast_strings(void);
 void ast_dump(ast_t *ast);
 
 // parse.c
@@ -76,7 +85,7 @@ void parse_compile(FILE *as, int dump);
 void compile_error(const char *fmt, ...);
 
 // gen.c
-void gen_emit_string(FILE *as, ast_t *ast);
+void gen_emit_data(FILE *as, ast_t *strings);
 void gen_emit_expression(FILE *as, ast_t *ast);
 void gen_emit_bin(FILE *as, ast_t *ast);
 #endif
