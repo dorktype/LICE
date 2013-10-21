@@ -37,8 +37,18 @@ void gen_emit_data(FILE *as, ast_t *strings) {
     }
 }
 
+static void gen_emit_assignment(FILE *as, ast_t *left, ast_t *right) {
+    gen_emit_expression(as, right);
+    fprintf(
+        as,"\
+        mov %%eax, -%d(%%rbp)\n",
+        left->value.variable.placement * 4
+    );
+}
+
 void gen_emit_expression(FILE *as, ast_t *ast) {
     int i;
+
     switch (ast->type) {
         case ast_type_data_int:
             fprintf(as, "mov $%d, %%eax\n", ast->value.integer);
@@ -75,6 +85,10 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
                 fprintf(as, "pop %%%s\n", registers[i]);
             break;
 
+        case ast_type_decl:
+            gen_emit_assignment(as, ast->decl.var, ast->decl.init);
+            break;
+
         default:
             gen_emit_bin(as, ast);
     }
@@ -85,12 +99,7 @@ void gen_emit_bin(FILE *as, ast_t *ast) {
 
     // emit binary store
     if (ast->type == '=') {
-        gen_emit_expression(as, ast->right);
-        if (ast->left->type != ast_type_data_var)
-            compile_error("Expected variable");
-        // sizeof(int) == 4, hence * 4
-        fprintf(as, "mov %%eax, -%d(%%rbp)\n", ast->left->value.variable.placement * 4);
-        return;
+        gen_emit_assignment(as, ast->left, ast->right);
     }
 
     switch (ast->type) {

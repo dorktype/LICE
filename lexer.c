@@ -95,14 +95,15 @@ static lexer_token_t *lexer_char(char value) {
 }
 
 // skip whitespace
-static void lexer_skip(void) {
+static int lexer_skip(void) {
     int c;
     while ((c = getc(stdin)) != EOF) {
-        if (isspace(c))
+        if (isspace(c) || c == '\n' || c == '\r')
             continue;
         ungetc(c, stdin);
-        return;
+        return c;
     }
+    return EOF;
 }
 
 // read a number and build integer token for the token stream
@@ -215,7 +216,7 @@ static lexer_token_t *lexer_read_token(void) {
     return NULL;
 }
 
-int lexer_ispunc(lexer_token_t *token, char c) {
+bool lexer_ispunc(lexer_token_t *token, char c) {
     if (!token)
         compile_error("Internal error: null token");
     return token->type == LEXER_TOKEN_PUNCT && token->value.punct == c;
@@ -235,6 +236,12 @@ lexer_token_t *lexer_next(void) {
     }
 
     return lexer_read_token();
+}
+
+lexer_token_t *lexer_peek(void) {
+    lexer_token_t *token = lexer_next();
+    lexer_unget(token);
+    return token;
 }
 
 char *lexer_tokenstr(lexer_token_t *token) {

@@ -1,6 +1,7 @@
 #ifndef GMCC_HDR
 #define GMCC_HDR
 #include <stdio.h>
+#include <stdbool.h>
 
 // config
 #define GMCC_ENTRY     "gmcc_entry"
@@ -27,9 +28,10 @@ typedef struct {
     } value;
 } lexer_token_t;
 
-int lexer_ispunc(lexer_token_t *token, char c);
+bool lexer_ispunc(lexer_token_t *token, char c);
 void lexer_unget(lexer_token_t *token);
 lexer_token_t *lexer_next(void);
+lexer_token_t *lexer_peek(void);
 char *lexer_tokenstr(lexer_token_t *token);
 
 // ast.c
@@ -47,15 +49,27 @@ typedef enum {
     ast_type_data_str,
     ast_type_data_chr,
 
+    // misc
+    ast_type_decl,
+
     // function stuff
     ast_type_func_call
 } ast_type_t;
+
+// language types
+typedef enum {
+    TYPE_VOID,
+    TYPE_INT,
+    TYPE_CHAR,
+    TYPE_STR
+} ctype_t;
 
 // the ast and ast node and everything structures
 // this is how ast should be done, one structure
 // to rule them all!
 struct ast_s {
-    char type;
+    char    type;
+    ctype_t ctype; // C type
 
     // node crap occupies same memory location
     // to keep ram footprint minimal
@@ -92,6 +106,12 @@ struct ast_s {
             ast_t *left;
             ast_t *right;
         };
+
+        // declaration tree
+        struct {
+            ast_t *var;
+            ast_t *init;
+        } decl;
     };
 };
 
@@ -99,7 +119,8 @@ ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right);
 ast_t *ast_new_data_str(char *value);
 ast_t *ast_new_data_int(int value);
 ast_t *ast_new_data_chr(char value);
-ast_t *ast_new_data_var(char *name);
+ast_t *ast_new_data_var(ctype_t type, char *name);
+ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes);
 
 // data singletons

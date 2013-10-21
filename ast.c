@@ -37,14 +37,16 @@ ast_t *ast_new_func_call(char *name, int size, ast_t **nodes) {
     return ast;
 }
 
-ast_t *ast_new_data_var(char *name) {
+ast_t *ast_new_data_var(ctype_t type, char *name) {
     ast_t *ast                    = ast_new_node();
     ast->type                     = ast_type_data_var;
+    ast->ctype                    = type;
     ast->value.variable.name      = name;
     ast->value.variable.placement = (var_list)
                                         ? var_list->value.variable.placement + 1
                                         : 1;
     ast->value.variable.next      = var_list;
+    var_list                      = ast;
     return ast;
 }
 
@@ -82,6 +84,15 @@ ast_t *ast_new_data_str(char *value) {
     return ast;
 }
 
+ast_t *ast_new_decl(ast_t *var, ast_t *init) {
+    ast_t *ast     = ast_new_node();
+    ast->type      = ast_type_decl;
+    ast->decl.var  = var;
+    ast->decl.init = init;
+
+    return ast;
+}
+
 void ast_dump_escape(const char *str) {
     while (*str) {
         if (*str == '\"' || *str == '\\')
@@ -89,6 +100,16 @@ void ast_dump_escape(const char *str) {
         printf("%c", *str);
         str++;
     }
+}
+
+static const char *ast_type_string(ctype_t type) {
+    switch (type) {
+        case TYPE_VOID: return "void";
+        case TYPE_INT:  return "int";
+        case TYPE_CHAR: return "char";
+        case TYPE_STR:  return "string";
+    }
+    return NULL;
 }
 
 void ast_dump(ast_t *ast) {
@@ -126,8 +147,17 @@ void ast_dump(ast_t *ast) {
             for(i = 0; i < ast->value.call.size; i++) {
                 ast_dump(ast->value.call.args[i]);
                 if (ast->value.call.args[i + 1])
-                    printf(", ");
+                    printf(",");
             }
+            printf(")");
+            break;
+
+        case ast_type_decl:
+            printf("(decl %s %s ",
+                ast_type_string(ast->decl.var->ctype),
+                ast->decl.var->value.variable.name
+            );
+            ast_dump(ast->decl.init);
             printf(")");
             break;
     }

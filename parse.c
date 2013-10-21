@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "gmcc.h"
 
@@ -17,8 +18,8 @@ static int parse_operator_priority(char operator) {
     return -1;
 }
 
-ast_t *parse_expression(size_t lastpri);
-ast_t *parse_function_call(char *name) {
+static ast_t *parse_expression(int lastpri);
+static ast_t *parse_function_call(char *name) {
     ast_t **args = (ast_t**)malloc(sizeof(ast_t*) * (PARSE_CALLS + 1));
     size_t  i;
     size_t  wrote = 0; // how many wrote arguments
@@ -50,8 +51,8 @@ ast_t *parse_function_call(char *name) {
 }
 
 
-ast_t *parse_generic(char *name) {
-    ast_t         *var;
+static ast_t *parse_generic(char *name) {
+    ast_t         *var   = NULL;
     lexer_token_t *token = lexer_next();
 
     if (lexer_ispunc(token, '('))
@@ -59,13 +60,76 @@ ast_t *parse_generic(char *name) {
 
     lexer_unget(token);
 
-    return ((var = var_find(name)))
-                ? var
-                : ast_new_data_var(name);
+    if (!(var = var_find(name)))
+        compile_error("Undefined variable: %s", name);
+
+    return var;
+}
+
+static ctype_t parse_type_get(lexer_token_t *token) {
+    if (token->type != LEXER_TOKEN_IDENT)
+        return -1;
+
+    if (!strcmp(token->value.string, "void"))
+        return TYPE_VOID;
+    if (!strcmp(token->value.string, "int"))
+        return TYPE_INT;
+    if (!strcmp(token->value.string, "char"))
+        return TYPE_CHAR;
+    if (!strcmp(token->value.string, "string"))
+        return TYPE_STR;
+
+    return -1;
+}
+
+static bool parse_type_check(lexer_token_t *token) {
+    return parse_type_get(token) != -1;
+}
+
+static void parse_expect(char punct) {
+    lexer_token_t *token = lexer_next();
+    if (!lexer_ispunc(token, punct))
+        compile_error("Expected `%c`, got %s instead", punct, lexer_tokenstr(token));
+}
+
+static ast_t *parse_declaration(void) {
+    lexer_token_t *token;
+    ast_t         *var;
+    ctype_t        type = parse_type_get(lexer_next());
+
+    token = lexer_next();
+    if (token->type != LEXER_TOKEN_IDENT)
+        compile_error("Expected identifier, got %s instead", lexer_tokenstr(token));
+
+    var = ast_new_data_var(type, token->value.string);
+
+    // expect for init
+    parse_expect('=');
+
+    return ast_new_decl(var, parse_expression(0));
 }
 
 
-ast_t *parse_expression_primary(void) {
+static ast_t *parse_statement(void) {
+    lexer_token_t *token = lexer_peek();
+    ast_t         *ast;
+
+    if (!token)
+        return NULL;
+
+    ast = parse_type_check(token)
+            ? parse_declaration()
+            : parse_expression(0);
+
+    token = lexer_next();
+    if (!lexer_ispunc(token, ';'))
+        compile_error("Expected termination of expression: %s", lexer_tokenstr(token));
+
+    return ast;
+}
+
+
+static ast_t *parse_expression_primary(void) {
     lexer_token_t *token;
 
     if (!(token = lexer_next()))
@@ -88,8 +152,14 @@ ast_t *parse_expression_primary(void) {
     return NULL;
 }
 
+// parser semantic enforcers
+static void parse_semantic_lvalue(ast_t *ast) {
+    if (ast->type != ast_type_data_var)
+        compile_error("Expected lvalue");
+}
+
 // handles operator precedence climbing as well
-ast_t *parse_expression(size_t lastpri) {
+static ast_t *parse_expression(int lastpri) {
     ast_t *ast;
 
     // no primary expression?
@@ -109,26 +179,14 @@ ast_t *parse_expression(size_t lastpri) {
             return ast;
         }
 
+        if (lexer_ispunc(token, '='))
+            parse_semantic_lvalue(ast);
+
         // precedence climbing is way too easy with recursive
         // descent parsing, thanks q66 for showing me this.
         ast = ast_new_bin_op(token->value.punct, ast, parse_expression(pri + 1));
     }
     return NULL;
-}
-
-static ast_t *parse_next(void) {
-    // recursive descent with zero
-    ast_t         *ast;
-    lexer_token_t *token;
-
-    if (!(ast = parse_expression(0)))
-        return NULL;
-
-    token = lexer_next();
-    if (!lexer_ispunc(token, ';'))
-        compile_error("Expected termination in expression: `%s`", lexer_tokenstr(token));
-
-    return ast;
 }
 
 void parse_compile(FILE *as, int dump) {
@@ -137,7 +195,7 @@ void parse_compile(FILE *as, int dump) {
     int    n;
 
     for (i = 0; i < 1024; i++) {
-        ast_t *load = parse_next();
+        ast_t *load = parse_statement();
         if   (!load) break;
         ast[i] = load;
     }
