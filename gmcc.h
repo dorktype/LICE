@@ -115,7 +115,7 @@ struct ast_s {
     };
 };
 
-ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right);
+ast_t *ast_new_bin_op(char type, ctype_t ctype, ast_t *left, ast_t *right);
 ast_t *ast_new_data_str(char *value);
 ast_t *ast_new_data_int(int value);
 ast_t *ast_new_data_chr(char value);
@@ -123,9 +123,13 @@ ast_t *ast_new_data_var(ctype_t type, char *name);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes);
 
+const char *ast_type_string(ctype_t type);
+
 // data singletons
 ast_t *ast_strings(void);
 ast_t *ast_variables(void);
+
+// debug
 void ast_dump(ast_t *ast);
 
 // parse.c

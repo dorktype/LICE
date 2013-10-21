@@ -92,6 +92,14 @@ static void parse_expect(char punct) {
         compile_error("Expected `%c`, got %s instead", punct, lexer_tokenstr(token));
 }
 
+static void parse_swap(ast_t *a, ast_t *b) {
+    ast_t *t;
+
+    t = a;
+    a = b;
+    b = t;
+}
+
 static ast_t *parse_declaration(void) {
     lexer_token_t *token;
     ast_t         *var;
@@ -154,13 +162,72 @@ static ast_t *parse_expression_primary(void) {
 
 // parser semantic enforcers
 static void parse_semantic_lvalue(ast_t *ast) {
+    // enforce lvalue semantics
     if (ast->type != ast_type_data_var)
         compile_error("Expected lvalue");
+}
+
+static bool parse_semantic_rightassoc(char operator) {
+    // enforce right associative semantics
+    return operator == '=';
+}
+
+static char parse_semantic_result(char operator, ast_t *a, ast_t *b) {
+    // enforce result type semantics, e.g type compatabilty
+    bool swapped = false;
+
+    if (a->ctype > b->ctype) {
+        swapped = true;
+        parse_swap(a, b);
+    }
+
+    switch (a->ctype) {
+        case TYPE_VOID:
+            goto parse_semantic_result_error;
+        case TYPE_INT:
+            switch (b->ctype) {
+                case TYPE_INT:
+                case TYPE_CHAR:
+                    return TYPE_INT;
+                case TYPE_STR:
+                    goto parse_semantic_result_error;
+                default:
+                    break;
+            }
+            compile_error("Internal error");
+            break;
+        case TYPE_CHAR:
+            switch (b->ctype) {
+                case TYPE_CHAR:
+                    return TYPE_INT;
+                case TYPE_STR:
+                    goto parse_semantic_result_error;
+                default:
+                    break;
+            }
+            compile_error("Internal error");
+            break;
+        case TYPE_STR:
+            goto parse_semantic_result_error;
+        default:
+            compile_error("Internal error");
+    }
+
+parse_semantic_result_error:
+    if (swapped)
+        parse_swap(a, b);
+
+    compile_error("Incompatible types in operation: %s and %s",
+        ast_type_string(a->ctype),
+        ast_type_string(b->ctype)
+    );
+    return -1;
 }
 
 // handles operator precedence climbing as well
 static ast_t *parse_expression(int lastpri) {
     ast_t *ast;
+    ast_t *next;
 
     // no primary expression?
     if (!(ast = parse_expression_primary()))
@@ -184,7 +251,17 @@ static ast_t *parse_expression(int lastpri) {
 
         // precedence climbing is way too easy with recursive
         // descent parsing, thanks q66 for showing me this.
-        ast = ast_new_bin_op(token->value.punct, ast, parse_expression(pri + 1));
+        next = parse_expression(pri + !parse_semantic_rightassoc(token->value.punct));
+        ast  = ast_new_bin_op(
+                token->value.punct,
+                parse_semantic_result(
+                    token->value.punct,
+                    ast,
+                    next
+                ),
+                ast,
+                next
+        );
     }
     return NULL;
 }

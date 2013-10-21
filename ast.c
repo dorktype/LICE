@@ -18,9 +18,10 @@ ast_t *ast_variables(void) {
     return var_list;
 }
 
-ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right) {
+ast_t *ast_new_bin_op(char type, ctype_t ctype, ast_t *left, ast_t *right) {
     ast_t *ast = ast_new_node();
     ast->type  = type;
+    ast->ctype = ctype;
     ast->left  = left;
     ast->right = right;
 
@@ -30,6 +31,7 @@ ast_t *ast_new_bin_op(char type, ast_t *left, ast_t *right) {
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes) {
     ast_t *ast           = ast_new_node();
     ast->type            = ast_type_func_call;
+    ast->ctype           = TYPE_INT;
     ast->value.call.name = name;
     ast->value.call.size = size;
     ast->value.call.args = nodes;
@@ -53,6 +55,7 @@ ast_t *ast_new_data_var(ctype_t type, char *name) {
 ast_t *ast_new_data_int(int value) {
     ast_t *ast         = ast_new_node();
     ast->type          = ast_type_data_int;
+    ast->ctype         = TYPE_INT;
     ast->value.integer = value;
 
     return ast;
@@ -61,6 +64,7 @@ ast_t *ast_new_data_int(int value) {
 ast_t *ast_new_data_chr(char value) {
     ast_t *ast           = ast_new_node();
     ast->type            = ast_type_data_chr;
+    ast->ctype           = TYPE_CHAR;
     ast->value.character = value;
 
     return ast;
@@ -69,6 +73,7 @@ ast_t *ast_new_data_chr(char value) {
 ast_t *ast_new_data_str(char *value) {
     ast_t *ast             = ast_new_node();
     ast->type              = ast_type_data_str;
+    ast->ctype             = TYPE_STR;
     ast->value.string.data = value;
 
     if (!str_list) {
@@ -102,7 +107,7 @@ void ast_dump_escape(const char *str) {
     }
 }
 
-static const char *ast_type_string(ctype_t type) {
+const char *ast_type_string(ctype_t type) {
     switch (type) {
         case TYPE_VOID: return "void";
         case TYPE_INT:  return "int";
