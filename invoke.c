@@ -7,9 +7,8 @@
 
 extern int gmcc_entry(void);
 
-void call(int value) {
-    printf("called with: %d\n", value);
-}
+int stub_0() { return 0; }
+int stub_1() { return 1; }
 
 int main(int argc, char **argv) {
     printf("%d\n", gmcc_entry());

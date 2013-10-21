@@ -79,9 +79,9 @@ static ast_t *parse_expression_primary(void) {
             return parse_generic(token->string);
 
         // ast generating ones
-        case LEXER_TOKEN_INT:    return ast_new_data_int(token->integer);
-        case LEXER_TOKEN_CHAR:   return ast_new_data_chr(token->character);
-        case LEXER_TOKEN_STRING: return ast_new_data_str(token->string);
+        case LEXER_TOKEN_INT:    return ast_new_int(token->integer);
+        case LEXER_TOKEN_CHAR:   return ast_new_char(token->character);
+        case LEXER_TOKEN_STRING: return ast_new_string(token->string);
 
         case LEXER_TOKEN_PUNCT:
             compile_error("Unexpected punctuation: `%c`", token->punct);
@@ -91,55 +91,37 @@ static ast_t *parse_expression_primary(void) {
     return NULL;
 }
 
-static data_type_t *parse_semantic_result_impl(jmp_buf *jmpbuf, data_type_t *a, data_type_t *b) {
-    if (a->type == TYPE_PTR) {
-        if (b->type != TYPE_PTR)
-            goto error;
-
-        data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
-        data->type        = TYPE_PTR;
-        data->pointer     = parse_semantic_result_impl(jmpbuf, a->pointer, b->pointer);
-        return data;
-    }
-
-    // swap them around
+static data_type_t *parse_semantic_result_impl(jmp_buf *jmpbuf, char op, data_type_t *a, data_type_t *b) {
     if (a->type > b->type) {
-        data_type_t *t;
-
-        t = a;
+        data_type_t *t = a;
         a = b;
         b = t;
     }
+
+    if (b->type == TYPE_PTR) {
+        if (op != '+' && op != '-')
+            goto error;
+
+        if (a->type != TYPE_PTR) {
+            // warning
+            return b;
+        }
+
+        data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
+        data->type        = TYPE_PTR;
+        data->pointer     = parse_semantic_result_impl(jmpbuf, op, a->pointer, b->pointer);
+        return data;
+    }
+
 
     switch (a->type) {
         case TYPE_VOID:
             goto error;
         case TYPE_INT:
-            switch (b->type) {
-                case TYPE_INT:
-                case TYPE_CHAR:
-                    return ast_data_int();
-                case TYPE_STR:
-                    goto error;
-                default:
-                    break;
-            }
-            compile_error("Internal error");
-            break;
-
         case TYPE_CHAR:
-            switch (b->type) {
-                case TYPE_CHAR:
-                    return ast_data_int();
-                case TYPE_STR:
-                    goto error;
-                default:
-                    break;
-            }
-            compile_error("Internal error");
-            break;
-        case TYPE_STR:
-            goto error;
+            return ast_data_int();
+        case TYPE_ARRAY:
+            return parse_semantic_result_impl(jmpbuf, op, ast_new_pointer(a->pointer), b);
         default:
             compile_error("Internal error");
     }
@@ -153,7 +135,7 @@ error:
 static data_type_t *parse_semantic_result(char op, ast_t *a, ast_t *b) {
     jmp_buf jmpbuf;
     if (setjmp(jmpbuf) == 0)
-        return parse_semantic_result_impl(&jmpbuf, a->ctype, b->ctype);
+        return parse_semantic_result_impl(&jmpbuf, op, a->ctype, b->ctype);
 
     compile_error("Incompatible types in expression: <%s> %c <%s>",
         op,
@@ -223,6 +205,14 @@ static ast_t *parse_expression(int lastpri) {
 
         next = parse_expression(pri + !parse_semantic_rightassoc(token->punct));
         data = parse_semantic_result(token->punct, ast, next);
+
+        // swap
+        if (data->type == TYPE_PTR && ast->ctype->type != TYPE_PTR) {
+            ast_t *t = ast;
+            ast  = next;
+            next = t;
+        }
+
         ast  = ast_new_binary(token->punct, data, ast, next);
     }
     return NULL;
@@ -236,8 +226,6 @@ static data_type_t *parse_type_get(lexer_token_t *token) {
         return ast_data_int();
     if (!strcmp(token->string, "char"))
         return ast_data_char();
-    if (!strcmp(token->string, "string"))
-        return ast_data_str();
 
     return NULL;
 }
@@ -269,7 +257,7 @@ static ast_t *parse_declaration(void) {
     if (token->type != LEXER_TOKEN_IDENT)
         compile_error("Expected identifier, got `%s` instead", lexer_tokenstr(token));
 
-    var = ast_new_data_var(type, token->string);
+    var = ast_new_variable(type, token->string);
 
     // expect for init
     parse_expect('=');

@@ -36,8 +36,22 @@ static void gen_emit_assignment(FILE *as, ast_t *left, ast_t *right) {
     );
 }
 
+static int gen_type_shift(data_type_t *type) {
+    switch (type->type) {
+        case TYPE_CHAR: return 0;
+        case TYPE_INT:  return 1;
+        default:        return 3;
+    }
+    return 3;
+}
+
+static int gen_type_size(data_type_t *type) {
+    return 1 << gen_type_shift(type);
+}
+
 void gen_emit_expression(FILE *as, ast_t *ast) {
-    int i;
+    char *reg; // derefence register
+    int   i;
 
     switch (ast->type) {
         case ast_type_data_literal:
@@ -48,7 +62,7 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
                 case TYPE_CHAR:
                     fprintf(as, "mov $%d, %%rax\n", ast->character);
                     break;
-                case TYPE_STR:
+                case TYPE_ARRAY:
                     fprintf(as, "mov .s%d(%%rip), %%rax\n", ast->string.id);
                     break;
                 default:
@@ -57,7 +71,19 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
             break;
 
         case ast_type_data_var:
-            fprintf(as, "mov -%d(%%rbp), %%rax\n", ast->variable.placement * 8);
+            switch (gen_type_size(ast->ctype)) {
+                case 1:
+                    fprintf(as, "mov $0, %%eax\nmov -%d(%%rbp), %%al\n", ast->variable.placement * 8);
+                    break;
+                case 4:
+                    fprintf(as, "mov -%d(%%rbp), %%eax\n", ast->variable.placement * 8);
+                    break;
+                case 8:
+                    fprintf(as, "mov -%d(%%rbp), %%rax\n", ast->variable.placement * 8);
+                    break;
+                default:
+                    compile_error("Internal error");
+            }
             break;
 
         case ast_type_func_call:
@@ -71,7 +97,7 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
                 fprintf(as, "pop %%%s\n", registers[i]);
             fprintf(
                 as,"\
-                mov $0, %%rax\n\
+                mov $0, %%eax\n\
                 call %s\n",
                 ast->call.name
             );
@@ -89,12 +115,43 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
 
         case ast_type_deref:
             gen_emit_expression(as, ast->unary.operand);
-            fprintf(as, "mov (%%rax), %%rax\n");
+            switch (gen_type_size(ast->ctype)) {
+                case 1: reg = "%bl";  break;
+                case 4: reg = "%ebx"; break;
+                case 8: reg = "%rbx"; break;
+                default:
+                    compile_error("Internal error");
+            }
+            fprintf(
+                as,"\
+                mov $0, %%ebx\n\
+                mov (%%rax), %s\n\
+                mov %%rbx, %%rax\n",
+                reg
+            );
             break;
 
         default:
             gen_emit_binary(as, ast);
     }
+}
+
+static void gen_emit_pointer(FILE *as, char op, ast_t *left, ast_t *right) {
+    int shift;
+
+    gen_emit_expression(as, left);
+    fprintf(as, "push %%rax\n");
+    gen_emit_expression(as, right);
+
+    if ((shift = gen_type_shift(left->ctype)) > 0)
+        fprintf(as, "sal $%d, %%rax\n", shift);
+
+    fprintf(
+        as,"\
+        mov %%rax, %%rbx\n\
+        pop %%rax\n\
+        add %%rbx, %%rax\n"
+    );
 }
 
 void gen_emit_binary(FILE *as, ast_t *ast) {
@@ -103,6 +160,11 @@ void gen_emit_binary(FILE *as, ast_t *ast) {
     // emit binary store
     if (ast->type == '=') {
         gen_emit_assignment(as, ast->left, ast->right);
+        return;
+    }
+
+    if (ast->ctype->type == TYPE_PTR) {
+        gen_emit_pointer(as, ast->type, ast->left, ast->right);
         return;
     }
 

@@ -52,14 +52,14 @@ ast_t *var_find(const char *name);
 // represents what type of ast node it is
 typedef enum {
     // data storage
-    ast_type_data_var,
     ast_type_data_literal,
-
-    // misc
-    ast_type_decl,
+    ast_type_data_var,
 
     // function stuff
     ast_type_func_call,
+
+    // misc
+    ast_type_decl,
 
     // pointer stuff
     ast_type_addr,
@@ -72,7 +72,7 @@ typedef enum {
     TYPE_VOID,
     TYPE_INT,
     TYPE_CHAR,
-    TYPE_STR,
+    TYPE_ARRAY,
     TYPE_PTR
 } type_t;
 
@@ -138,14 +138,14 @@ struct ast_s {
 
 data_type_t *ast_data_int(void);
 data_type_t *ast_data_char(void);
-data_type_t *ast_data_str(void);
+data_type_t *ast_data_array(void);
 
 ast_t *ast_new_unary(char type, data_type_t *data, ast_t *operand);
 ast_t *ast_new_binary(char type, data_type_t *data, ast_t *left, ast_t *right);
-ast_t *ast_new_data_str(char *value);
-ast_t *ast_new_data_int(int value);
-ast_t *ast_new_data_chr(char value);
-ast_t *ast_new_data_var(data_type_t *type, char *name);
+ast_t *ast_new_string(char *value);
+ast_t *ast_new_int(int value);
+ast_t *ast_new_char(char value);
+ast_t *ast_new_variable(data_type_t *type, char *name);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes);
 

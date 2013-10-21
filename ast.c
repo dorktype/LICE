@@ -2,9 +2,16 @@
 
 #include "gmcc.h"
 
-static data_type_t *data_int  = &(data_type_t) { TYPE_INT,  NULL };
-static data_type_t *data_char = &(data_type_t) { TYPE_CHAR, NULL };
-static data_type_t *data_str  = &(data_type_t) { TYPE_STR,  NULL };
+static data_type_t *data_int  = &(data_type_t) { TYPE_INT,   NULL };
+static data_type_t *data_char = &(data_type_t) { TYPE_CHAR,  NULL };
+static data_type_t *data_str  = &(data_type_t)
+{
+    TYPE_ARRAY,
+    &(data_type_t) {
+        TYPE_CHAR,
+        NULL
+    }
+};
 
 data_type_t *ast_data_int(void)  { return data_int;  }
 data_type_t *ast_data_char(void) { return data_char; }
@@ -56,7 +63,7 @@ ast_t *ast_new_func_call(char *name, int size, ast_t **nodes) {
     return ast;
 }
 
-ast_t *ast_new_data_var(data_type_t *type, char *name) {
+ast_t *ast_new_variable(data_type_t *type, char *name) {
     ast_t *ast              = ast_new_node();
     ast->type               = ast_type_data_var;
     ast->ctype              = type;
@@ -69,7 +76,7 @@ ast_t *ast_new_data_var(data_type_t *type, char *name) {
     return ast;
 }
 
-ast_t *ast_new_data_int(int value) {
+ast_t *ast_new_int(int value) {
     ast_t *ast   = ast_new_node();
     ast->type    = ast_type_data_literal;
     ast->ctype   = data_int;
@@ -78,7 +85,7 @@ ast_t *ast_new_data_int(int value) {
     return ast;
 }
 
-ast_t *ast_new_data_chr(char value) {
+ast_t *ast_new_char(char value) {
     ast_t *ast     = ast_new_node();
     ast->type      = ast_type_data_literal;
     ast->ctype     = data_char;
@@ -87,7 +94,7 @@ ast_t *ast_new_data_chr(char value) {
     return ast;
 }
 
-ast_t *ast_new_data_str(char *value) {
+ast_t *ast_new_string(char *value) {
     ast_t *ast       = ast_new_node();
     ast->type        = ast_type_data_literal;
     ast->ctype       = data_str;
@@ -131,11 +138,15 @@ const char *ast_type_string(data_type_t *type) {
         case TYPE_VOID: return "void";
         case TYPE_INT:  return "int";
         case TYPE_CHAR: return "char";
-        case TYPE_STR:  return "string";
 
         case TYPE_PTR:
             string = string_create();
             string_appendf(string, "%s*", ast_type_string(type->pointer));
+            return string_buffer(string);
+
+        case TYPE_ARRAY:
+            string = string_create();
+            string_appendf(string, "%s[]", ast_type_string(type->pointer));
             return string_buffer(string);
     }
     return NULL;
@@ -156,7 +167,7 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
                 case TYPE_CHAR:
                     string_appendf(string, "'%c'", ast->character);
                     break;
-                case TYPE_STR:
+                case TYPE_ARRAY:
                     string_appendf(string, "\"%s\"", string_quote(ast->string.data));
                     break;
                 default:
