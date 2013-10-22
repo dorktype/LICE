@@ -69,16 +69,6 @@ ast_t *ast_new_variable_local(data_type_t *type, char *name) {
     return ast;
 }
 
-ast_t *ast_new_reference_local(data_type_t *type, ast_t *var, int off) {
-    ast_t *ast         = ast_new_node();
-    ast->type          = AST_TYPE_REF_LOCAL;
-    ast->ctype         = type;
-    ast->local_ref.ref = var;
-    ast->local_ref.off = off;
-
-    return ast;
-}
-
 ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file) {
     ast_t *ast        = ast_new_node();
     ast->type         = AST_TYPE_VAR_GLOBAL;
@@ -87,16 +77,6 @@ ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file) {
     ast->global.label = (file) ? ast_new_label() : name;
 
     list_push(ast_globals, ast);
-    return ast;
-}
-
-ast_t *ast_new_reference_global(data_type_t *type, ast_t *var, int off) {
-    ast_t *ast          = ast_new_node();
-    ast->type           = AST_TYPE_REF_GLOBAL;
-    ast->ctype          = type;
-    ast->global_ref.ref = var;
-    ast->global_ref.off = off;
-
     return ast;
 }
 
@@ -289,14 +269,6 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_catf(string, "%s", ast->global.name);
             break;
 
-        case AST_TYPE_REF_LOCAL:
-            string_catf(string, "%s[%d]", ast_string(ast->local_ref.ref), ast->local_ref.off);
-            break;
-
-        case AST_TYPE_REF_GLOBAL:
-            string_catf(string, "%s[%d]", ast_string(ast->global_ref.ref), ast->global_ref.off);
-            break;
-
         case AST_TYPE_CALL:
             string_catf(string, "(%s)%s(", ast_type_string(ast->ctype), ast->function.name);
             for (list_iterator_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
@@ -319,11 +291,14 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             break;
 
         case AST_TYPE_DECL:
-            string_catf(string, "(decl %s %s %s)",
+            string_catf(string, "(decl %s %s",
                     ast_type_string(ast->decl.var->ctype),
-                    ast->decl.var->local.name,
-                    ast_string(ast->decl.init)
+                    ast->decl.var->local.name
             );
+            if (ast->decl.init)
+                string_catf(string, " %s)", ast_string(ast->decl.init));
+            else
+                string_cat(string, ')');
             break;
 
         case AST_TYPE_ARRAY_INIT:

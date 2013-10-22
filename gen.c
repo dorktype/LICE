@@ -49,11 +49,9 @@ static int gen_type_size(data_type_t *type) {
     return 0;
 }
 
-static void gen_load_global(data_type_t *type, char *label, int off) {
+static void gen_load_global(data_type_t *type, char *label) {
     if (type->type == TYPE_ARRAY) {
         gen_emit("array global load", "lea %s(%%rip), %%rax", label);
-        if (off)
-            gen_emit("array global load offset", "add $%d, %%rax", gen_type_size(type->pointer) * off);
         return;
     }
 
@@ -65,13 +63,11 @@ static void gen_load_global(data_type_t *type, char *label, int off) {
         case 8: reg = "rax"; break;
     }
 
-    gen_emit("global load", "mov %s(%%rip), %%%s", label, reg);
-    if (off)
-        gen_emit("global load offset", "add $%d, %%rax", off * size);
-    gen_emit("global load end", "mov (%%rax), %%%s", reg);
+    gen_emit("global load",     "mov %s(%%rip), %%%s", label, reg);
+    gen_emit("global load end", "mov (%%rax), %%%s",   reg);
 }
 
-static void gen_load_local(ast_t *var, int off) {
+static void gen_load_local(ast_t *var) {
     if (var->ctype->type == TYPE_ARRAY) {
         gen_emit("local load array", "lea %d(%%rbp), %%rax", -var->local.off);
         return;
@@ -92,12 +88,9 @@ static void gen_load_local(ast_t *var, int off) {
             gen_emit("local load", "mov %d(%%rbp), %%rax", -var->local.off);
             break;
     }
-
-    if (off)
-        gen_emit("local load offset", "add $%d, %%rax", var->local.off * size);
 }
 
-static void gen_save_global(ast_t *var, int off) {
+static void gen_save_global(ast_t *var) {
     char *reg;
     gen_emit("global save", "push %%rcx");
     gen_emit_basic("mov %s(%%rip), %%rcx", var->global.label);
@@ -108,7 +101,7 @@ static void gen_save_global(ast_t *var, int off) {
         case 8: reg = "rax"; break;
     }
 
-    gen_emit("global save", "mov %s, %d(%%rbp)", reg, off * size);
+    gen_emit("global save", "mov %s, (%%rbp)", reg);
     gen_emit("global save", "pop %%rcx");
 }
 
@@ -144,20 +137,8 @@ static void gen_assignment(ast_t *var, ast_t *value) {
             gen_save_local(var->ctype, var->local.off, 0);
             break;
 
-        case AST_TYPE_REF_LOCAL:
-            gen_save_local(
-                var->local_ref.ref->ctype,
-                var->local_ref.ref->local.off,
-                var->local_ref.off
-            );
-            break;
-
         case AST_TYPE_VAR_GLOBAL:
-            gen_save_global(var, 0);
-            break;
-
-        case AST_TYPE_REF_GLOBAL:
-            gen_save_global(var->global_ref.ref, var->global_ref.off);
+            gen_save_global(var);
             break;
 
         case AST_TYPE_DEREF:
@@ -341,24 +322,10 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_VAR_LOCAL:
-            gen_load_local(ast, 0);
-            break;
-        case AST_TYPE_REF_LOCAL:
-            gen_load_local(ast->local_ref.ref, ast->local_ref.off);
+            gen_load_local(ast);
             break;
         case AST_TYPE_VAR_GLOBAL:
-            gen_load_global(ast->ctype, ast->global.label, 0);
-            break;
-        case AST_TYPE_REF_GLOBAL:
-            if (ast->global_ref.ref->type == AST_TYPE_STRING)
-                gen_emit("global reference", "lea %s(%%rip), %%rax", ast->global_ref.ref->string.label);
-            else {
-                gen_load_global(
-                    ast->global_ref.ref->ctype,
-                    ast->global_ref.ref->global.label,
-                    ast->global_ref.off
-                );
-            }
+            gen_load_global(ast->ctype, ast->global.label);
             break;
 
         case AST_TYPE_CALL:
@@ -393,7 +360,7 @@ static void gen_expression(ast_t *ast) {
                     gen_emit("array decl", "movb $%d, %d(%%rbp)", *p, -(ast->decl.var->local.off - i));
                 gen_emit("array decl", "movb $0, %d(%%rbp)", -(ast->decl.var->local.off - i));
             } else if (ast->decl.init->type == AST_TYPE_STRING) {
-                gen_load_global(ast->decl.init->ctype, ast->decl.init->string.label, 0);
+                gen_load_global(ast->decl.init->ctype, ast->decl.init->string.label);
                 gen_save_local(ast->decl.var->ctype, ast->decl.var->local.off, 0);
             } else {
                 gen_expression(ast->decl.init);
@@ -402,7 +369,7 @@ static void gen_expression(ast_t *ast) {
             return;
 
         case AST_TYPE_ADDR:
-            gen_emit_basic("address of", "lea %d(%%rbp), %%rax", -ast->unary.operand->local.off);
+            gen_emit("address of", "lea %d(%%rbp), %%rax", -ast->unary.operand->local.off);
             break;
 
         case AST_TYPE_DEREF:

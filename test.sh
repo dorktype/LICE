@@ -44,6 +44,8 @@ test_ast       '1/2+3/4;'                  '{(+ (/ 1 2) (/ 3 4));}'
 test_ast       '1/2/3/4;'                  '{(/ (/ (/ 1 2) 3) 4);}'
 test_ast       'int a=1;*&a;'              '{(decl int a 1);(* (& a));}'
 test_ast       'int a[]={1,2,3};'          '{(decl int[3] a {1,2,3});}'
+test_ast       'int a[2]={1,2};'           '{(decl int[2] a {1,2});}'
+test_ast       'int a[2][2][2][2];'        '{(decl int[2][2][2][2] a);}'
 
 test_gm        '0;'                        '0'
 test_gm        '1+2;'                      '3'

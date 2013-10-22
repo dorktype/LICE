@@ -21,10 +21,11 @@ static int parse_operator_priority(lexer_token_t *token) {
     return -1;
 }
 
-static void    parse_expect(char punct);
-static ast_t  *parse_expression(int lastpri);
-static list_t *parse_block(void);
-static ast_t *parse_declaration_statement(void);
+static void         parse_expect(char punct);
+static ast_t       *parse_expression(int lastpri);
+static list_t      *parse_block(void);
+static ast_t       *parse_declaration_statement(void);
+static data_type_t *parse_array_convert(ast_t *ast);
 
 static ast_t *parse_function_call(char *name) {
     list_t *list = list_create();
@@ -156,9 +157,7 @@ static data_type_t *parse_semantic_result(char op, data_type_t *a, data_type_t *
 static void parse_semantic_lvalue(ast_t *ast) {
     switch (ast->type) {
         case AST_TYPE_VAR_LOCAL:
-        case AST_TYPE_REF_LOCAL:
         case AST_TYPE_VAR_GLOBAL:
-        case AST_TYPE_REF_GLOBAL:
         case AST_TYPE_DEREF:
             return;
     }
@@ -204,6 +203,14 @@ static ast_t *parse_statement_for(void) {
 
 static ast_t *parse_expression_unary(void) {
     lexer_token_t *token = lexer_next();
+
+    // for *(expression) and &(expression)
+    if (lexer_ispunct(token, '(')) {
+        ast_t *next = parse_expression(0);
+        parse_expect(')');
+        return next;
+    }
+
     if (lexer_ispunct(token, '&')) {
         ast_t *operand = parse_expression_unary();
         parse_semantic_lvalue(operand);
@@ -212,7 +219,8 @@ static ast_t *parse_expression_unary(void) {
 
     if (lexer_ispunct(token, '*')) {
         ast_t *operand = parse_expression_unary();
-        if (operand->ctype->type != TYPE_PTR)
+        data_type_t *type = parse_array_convert(operand);
+        if (type->type != TYPE_PTR)
             compile_error("TODO");
         return ast_new_unary(AST_TYPE_DEREF, operand->ctype->pointer, operand);
     }
@@ -221,25 +229,16 @@ static ast_t *parse_expression_unary(void) {
     return parse_expression_primary();
 }
 
-static ast_t *parse_array_decay(ast_t *ast) {
-    if (ast->type == AST_TYPE_STRING)
-        return ast_new_reference_global(ast_new_pointer(ast_data_char), ast, 0);
+static data_type_t *parse_array_convert(ast_t *ast) {
     if (ast->ctype->type != TYPE_ARRAY)
-        return ast;
-
-    if (ast->type == AST_TYPE_VAR_LOCAL)
-        return ast_new_reference_local(ast_new_pointer(ast->ctype->pointer), ast, 0);
-    if (ast->type != AST_TYPE_VAR_GLOBAL)
-        compile_error("Internal error");
-
-    return ast_new_reference_global(ast_new_pointer(ast->ctype->pointer), ast, 0);
+        return ast->ctype;
+    return ast_new_pointer(ast->ctype->pointer);
 }
 
 // handles operator precedence climbing as well
 static ast_t *parse_expression(int lastpri) {
     ast_t       *ast;
     ast_t       *next;
-    data_type_t *data;
 
     // no primary expression?
     if (!(ast = parse_expression_unary()))
@@ -260,22 +259,70 @@ static ast_t *parse_expression(int lastpri) {
 
         if (lexer_ispunct(token, '='))
             parse_semantic_lvalue(ast);
-        else
-            ast = parse_array_decay(ast);
 
-        next = parse_array_decay(parse_expression(pri + !parse_semantic_rightassoc(token)));
-        data = parse_semantic_result(token->punct, ast->ctype, next->ctype);
+        next = parse_expression(pri + !parse_semantic_rightassoc(token));
+        data_type_t *atype = parse_array_convert(ast);
+        data_type_t *ntype = parse_array_convert(next);
+        data_type_t *rtype = parse_semantic_result(token->punct, atype, ntype);
 
         // swap
-        if (!lexer_ispunct(token, '=') && ast->ctype->type != TYPE_PTR && next->ctype->type == TYPE_PTR) {
+        if (!lexer_ispunct(token, '=') && atype->type != TYPE_PTR && rtype->type == TYPE_PTR) {
             ast_t *t = ast;
             ast  = next;
             next = t;
         }
 
-        ast  = ast_new_binary(token->punct, data, ast, next);
+        ast  = ast_new_binary(token->punct, rtype, ast, next);
     }
     return NULL;
+}
+
+static data_type_t *parse_array_dimensions_impl(void) {
+    lexer_token_t *token = lexer_next();
+    if (!lexer_ispunct(token, '[')) {
+        lexer_unget(token);
+        return NULL;
+    }
+
+    int dimension = -1;
+    token = lexer_peek();
+    if (!lexer_ispunct(token, ']')) {
+        ast_t *size = parse_expression(0);
+        if (size->type        != AST_TYPE_LITERAL ||
+            size->ctype->type != TYPE_INT) {
+
+            compile_error("TODO");
+
+        }
+
+        dimension = size->integer;
+    }
+
+    parse_expect(']');
+    // recursive because we're parsing for multi-dimensional
+    // arrays here.
+    data_type_t *next = parse_array_dimensions_impl();
+    if (next) {
+        if (next->size == -1 && dimension == -1)
+            compile_error("TODO");
+        return ast_new_array(next, dimension);
+    }
+    return ast_new_array(NULL, dimension);
+}
+
+static data_type_t *parse_array_dimensions(data_type_t *basetype) {
+    data_type_t *type = parse_array_dimensions_impl();
+    if (!type)
+        return basetype;
+
+    data_type_t *next = type;
+    for (; next->pointer; next = next->pointer) {
+        // deal with it
+        ;
+    }
+    next->pointer = basetype;
+
+    return type;
 }
 
 static data_type_t *parse_type_get(lexer_token_t *token) {
@@ -371,27 +418,8 @@ static ast_t *parse_declaration(void) {
     if (name->type != LEXER_TOKEN_IDENT)
         compile_error("Expected identifier");
 
-    for (;;) {
-        lexer_token_t *token = lexer_next();
-        if (lexer_ispunct(token, '[')) {
-            token = lexer_peek();
-            if (lexer_ispunct(token ,']')) {
-                if (type->size == -1)
-                    compile_error("TODO");
-                type = ast_new_array(type, -1);
-            } else {
-                ast_t *size = parse_expression(0);
-                if (size->type != AST_TYPE_LITERAL || size->ctype->type != TYPE_INT)
-                    compile_error("TODO");
-                type = ast_new_array(type, size->integer);
-            }
-            parse_expect(']');
-        } else {
-            lexer_unget(token);
-            break;
-        }
-    }
-
+    // deal with arrays
+    type = parse_array_dimensions(type);
     ast_t *var = ast_new_variable_local(type, name->string);
     lexer_token_t *token = lexer_next();
     if (lexer_ispunct(token, '='))
@@ -441,6 +469,11 @@ static list_t *parse_function_parameters(void) {
         lexer_token_t *name = lexer_next();
         if (name->type != LEXER_TOKEN_IDENT)
             compile_error("Expected identifier");
+
+        // proper array decay
+        type = parse_array_dimensions(type);
+        if (type->type == TYPE_ARRAY)
+            type = ast_new_pointer(type->pointer);
 
         list_push(params, ast_new_variable_local(type, name->string));
         lexer_token_t *next = lexer_next();
