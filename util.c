@@ -64,8 +64,11 @@ char *string_quote(char *p) {
     string_t *string = string_create();
     while (*p) {
         if (*p == '\"' || *p == '\\')
-            string_append(string, '\\');
-        string_append(string, *p);
+            string_appendf(string, "\\%c", *p);
+        else if (*p == '\n')
+            string_appendf(string, "\\n");
+        else
+            string_append(string, *p);
         p++;
     }
     return string->buffer;
