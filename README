@@ -17,7 +17,7 @@ Support currently is as follows:
         functions will likely crash.
 
     Functions:
-        Functions are supported but function prototyping isn't which mean
+        Functions are supported but function prototyping isn't which means
         the function has to be implemented where it's declared. Functions
         are limited to six arguments, and variable arguments are not
         supported. Calling external C variable functions such as printf
