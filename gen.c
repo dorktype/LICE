@@ -103,7 +103,7 @@ static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
     if (size > 1)
         printf("imul $%d, %%rax\n\t", size);
 
-    printf("mov %%rax. %%rbx\n\t");
+    printf("mov %%rax, %%rbx\n\t");
     printf("pop %%rax\n\t");
     printf("add %%rbx, %%rax\n\t");
 }
@@ -172,7 +172,7 @@ static void gen_binary(ast_t *ast) {
         printf("idiv %%rbx\n\t");
     } else {
         printf("pop %%rbx\n\t");
-        printf("%s %%Rbx, %%rax\n\t", op);
+        printf("%s %%rbx, %%rax\n\t", op);
     }
 }
 
