@@ -1,9 +1,34 @@
+#include <stdarg.h>
+#include <string.h>
 #include "lice.h"
 
 // registers for function call
 static const char *registers[] = {
     "rdi", "rsi", "rdx", "rcx", "r8", "r9"
 };
+
+
+#define gen_emit(A,...)      gen_emit_impl(__LINE__, A, "\t" __VA_ARGS__)
+#define gen_emit_basic(...)  gen_emit_impl(__LINE__, 0, "\t" __VA_ARGS__)
+#define gen_emit_label(...)  gen_emit_impl(__LINE__, 0,  __VA_ARGS__)
+#define gen_emit_inline(...) gen_emit_impl(__LINE__, 0,  __VA_ARGS__)
+
+void gen_emit_impl(int line, const char *annotate, char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    int col = vprintf(fmt, args);
+    va_end(args);
+
+    for (char *p = fmt; *p; p++)
+        if (*p == '\t')
+          col += 8 - 1;
+
+    col = (30 - col) > 0 ? (30 - col) : 2;
+    if (annotate)
+        printf("%*c % 4d %s\n", col, '#', line, annotate);
+    else
+        printf("%*c % 4d\n", col, '#', line);
+}
 
 static void gen_expression(ast_t *ast);
 static void gen_pointer_dereference(ast_t *var, ast_t *value);
@@ -26,56 +51,56 @@ static int gen_type_size(data_type_t *type) {
 
 static void gen_load_global(data_type_t *type, char *label, int off) {
     if (type->type == TYPE_ARRAY) {
-        printf("lea %s(%%rip), %%rax\n\t", label);
+        gen_emit("array global load", "lea %s(%%rip), %%rax", label);
         if (off)
-            printf("add $%d, %%rax\n\t", gen_type_size(type->pointer) * off);
+            gen_emit("array global load offset", "add $%d, %%rax", gen_type_size(type->pointer) * off);
         return;
     }
 
     char *reg;
     int size = gen_type_size(type);
     switch (size) {
-        case 1: reg = "al"; printf("mov $0, %%eax\n\t"); break;
+        case 1: reg = "al";  gen_emit_basic("mov $0, %%eax"); break;
         case 4: reg = "eax"; break;
         case 8: reg = "rax"; break;
     }
 
-    printf("mov %s(%%rip), %%%s\n\t", label, reg);
+    gen_emit("global load", "mov %s(%%rip), %%%s", label, reg);
     if (off)
-        printf("add $%d, %%rax\n\t", off * size);
-    printf("mov (%%rax), %%%s\n\t", reg);
+        gen_emit("global load offset", "add $%d, %%rax", off * size);
+    gen_emit("global load end", "mov (%%rax), %%%s", reg);
 }
 
 static void gen_load_local(ast_t *var, int off) {
     if (var->ctype->type == TYPE_ARRAY) {
-        printf("lea %d(%%rbp), %%rax\n\t", -var->local.off);
+        gen_emit("local load array", "lea %d(%%rbp), %%rax", -var->local.off);
         return;
     }
 
     int size = gen_type_size(var->ctype);
     switch (size) {
         case 1:
-            printf("mov $0, %%eax\n\t");
-            printf("mov %d(%%rbp), %%al\n\t", -var->local.off);
+            gen_emit("local load", "mov $0, %%eax");
+            gen_emit("local load", "mov %d(%%rbp), %%al", -var->local.off);
             break;
 
         case 4:
-            printf("mov %d(%%rbp), %%eax\n\t", -var->local.off);
+            gen_emit("local load", "mov %d(%%rbp), %%eax", -var->local.off);
             break;
 
         case 8:
-            printf("mov %d(%%rbp), %%rax\n\t", -var->local.off);
+            gen_emit("local load", "mov %d(%%rbp), %%rax", -var->local.off);
             break;
     }
 
     if (off)
-        printf("add $%d, %%rax\n\t", var->local.off * size);
+        gen_emit("local load offset", "add $%d, %%rax", var->local.off * size);
 }
 
 static void gen_save_global(ast_t *var, int off) {
     char *reg;
-    printf("push %%rcx\n\t");
-    printf("mov %s(%%rip), %%rcx\n\t", var->global.label);
+    gen_emit("global save", "push %%rcx");
+    gen_emit_basic("mov %s(%%rip), %%rcx", var->global.label);
     int size = gen_type_size(var->ctype);
     switch (size) {
         case 1: reg = "al";  break;
@@ -83,8 +108,8 @@ static void gen_save_global(ast_t *var, int off) {
         case 8: reg = "rax"; break;
     }
 
-    printf("mov %s, %d(%%rbp)\n\t", reg, off * size);
-    printf("pop %%rcx\n\t");
+    gen_emit("global save", "mov %s, %d(%%rbp)", reg, off * size);
+    gen_emit("global save", "pop %%rcx");
 }
 
 static void gen_save_local(data_type_t *type, int loff, int roff) {
@@ -95,21 +120,21 @@ static void gen_save_local(data_type_t *type, int loff, int roff) {
         case 4: reg = "eax"; break;
         case 8: reg = "rax"; break;
     }
-    printf("mov %%%s, %d(%%rbp)\n\t", reg, -(loff + roff * size));
+    gen_emit("local save", "mov %%%s, %d(%%rbp)", reg, -(loff + roff * size));
 }
 
 static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
     gen_expression(left);
-    printf("push %%rax\n\t");
+    gen_emit("pointer arithmetic", "push %%rax");
     gen_expression(right);
 
     int size = gen_type_size(left->ctype->pointer);
     if (size > 1)
-        printf("imul $%d, %%rax\n\t", size);
+        gen_emit("pointer arithmetic", "imul $%d, %%rax", size);
 
-    printf("mov %%rax, %%rcx\n\t");
-    printf("pop %%rax\n\t");
-    printf("add %%rcx, %%rax\n\t");
+    gen_emit("pointer arithmetic", "mov %%rax, %%rcx");
+    gen_emit("pointer arithmetic", "pop %%rax");
+    gen_emit("pointer arithmetic", "add %%rcx, %%rax");
 }
 
 static void gen_assignment(ast_t *var, ast_t *value) {
@@ -146,13 +171,13 @@ static void gen_assignment(ast_t *var, ast_t *value) {
 
 static void gen_comparision(char *operation, ast_t *a, ast_t *b) {
     gen_expression(a);
-    printf("push %%rax\n\t");
+    gen_emit("comparision", "push %%rax");
     gen_expression(b);
 
-    printf("pop %%rcx\n\t");
-    printf("cmp %%rax, %%rcx\n\t");
-    printf("%s %%al\n\t", operation);
-    printf("movzb %%al, %%eax\n\t");
+    gen_emit("comparision", "pop %%rcx");
+    gen_emit("comparision", "cmp %%rax, %%rcx");
+    gen_emit("comparision", "%s %%al", operation);
+    gen_emit("comparision", "movzb %%al, %%eax");
 }
 
 static void gen_binary(ast_t *ast) {
@@ -193,16 +218,16 @@ static void gen_binary(ast_t *ast) {
     }
 
     gen_expression(ast->right);
-    printf("push %%rax\n\t");
+    gen_emit("operation", "push %%rax");
     gen_expression(ast->left);
 
     if (ast->type == '/') {
-        printf("pop %%rcx\n\t");
-        printf("mov $0, %%edx\n\t");
-        printf("idiv %%rcx\n\t");
+        gen_emit("operation", "pop %%rcx");
+        gen_emit("operation", "mov $0, %%edx");
+        gen_emit("operation", "idiv %%rcx");
     } else {
-        printf("pop %%rcx\n\t");
-        printf("%s %%rcx, %%rax\n\t", op);
+        gen_emit("operation", "pop %%rcx");
+        gen_emit("operation", "%s %%rcx, %%rax", op);
     }
 }
 
@@ -220,8 +245,8 @@ void gen_data_section(void) {
 
     for (list_iterator_t *it = list_iterator(ast_globals); !list_iterator_end(it); ) {
         ast_t *ast = list_iterator_next(it);
-        printf("%s:\n\t", ast->string.label);
-        printf(".string \"%s\"\n", string_quote(ast->string.data));
+        gen_emit_label("%s:", ast->string.label);
+        gen_emit_inline(".string \"%s\"", string_quote(ast->string.data));
     }
 }
 
@@ -229,18 +254,18 @@ static void gen_function_prologue(ast_t *ast) {
     if (list_length(ast->function.params) > sizeof(registers)/sizeof(registers[0]))
         compile_error("Too many params for function");
 
-    printf(".text\n\t");
-    printf(".global %s\n", ast->function.name);
-    printf("%s:\n\t", ast->function.name);
-    printf("push %%rbp\n\t");
-    printf("mov %%rsp, %%rbp\n\t");
+    gen_emit_inline(".text");
+    gen_emit_inline(".global %s", ast->function.name);
+    gen_emit_label("%s:", ast->function.name);
+    gen_emit("function prologue", "push %%rbp");
+    gen_emit("function prologue", "mov %%rsp, %%rbp");
 
     int r = 0;
     int o = 0;
 
     for (list_iterator_t *it = list_iterator(ast->function.params); !list_iterator_end(it); r++) {
         ast_t *value = list_iterator_next(it);
-        printf("push %%%s\n\t", registers[r]);
+        gen_emit("function prologue", "push %%%s", registers[r]);
         o += gen_data_padding(gen_type_size(value->ctype));
         value->local.off = o;
     }
@@ -252,12 +277,12 @@ static void gen_function_prologue(ast_t *ast) {
     }
 
     if (o)
-        printf("sub $%d, %%rsp\n\t", o);
+        gen_emit("function prologue", "sub $%d, %%rsp", o);
 }
 
 static void gen_function_epilogue(void) {
-    printf("leave\n\t");
-    printf("ret\n");
+    gen_emit("function epilogue", "leave");
+    gen_emit("function epilogue", "ret");
 }
 
 void gen_function(ast_t *ast) {
@@ -275,9 +300,9 @@ static void gen_pointer_dereference(ast_t *var, ast_t *value) {
     char *reg;
 
     gen_expression(var->unary.operand);
-    printf("push %%rax\n\t");
+    gen_emit_basic("push %%rax");
     gen_expression(value);
-    printf("pop %%rcx\n\t");
+    gen_emit_basic("pop %%rcx");
 
     switch (gen_type_size(var->unary.operand->ctype)) {
         case 1: reg = "al";  break;
@@ -285,7 +310,7 @@ static void gen_pointer_dereference(ast_t *var, ast_t *value) {
         case 8: reg = "rax"; break;
     }
 
-    printf("mov %%%s, (%%rcx)\n\t", reg);
+    gen_emit("pointer dereference", "mov %%%s, (%%rcx)", reg);
 }
 
 static void gen_expression(ast_t *ast) {
@@ -300,10 +325,10 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_LITERAL:
             switch (ast->ctype->type) {
                 case TYPE_INT:
-                    printf("mov $%d, %%eax\n\t", ast->integer);
+                    gen_emit("literal integer expression", "mov $%d, %%eax", ast->integer);
                     break;
                 case TYPE_CHAR:
-                    printf("mov $%d, %%rax\n\t", ast->character);
+                    gen_emit("literal integer expression", "mov $%d, %%rax", ast->character);
                     break;
 
                 default:
@@ -312,7 +337,7 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_STRING:
-            printf("lea %s(%%rip), %%rax\n\t", ast->string.label);
+            gen_emit("string", "lea %s(%%rip), %%rax", ast->string.label);
             break;
 
         case AST_TYPE_VAR_LOCAL:
@@ -326,7 +351,7 @@ static void gen_expression(ast_t *ast) {
             break;
         case AST_TYPE_REF_GLOBAL:
             if (ast->global_ref.ref->type == AST_TYPE_STRING)
-                printf("lea %s(%%rip), %%rax\n\t", ast->global_ref.ref->string.label);
+                gen_emit("global reference", "lea %s(%%rip), %%rax", ast->global_ref.ref->string.label);
             else {
                 gen_load_global(
                     ast->global_ref.ref->ctype,
@@ -338,17 +363,17 @@ static void gen_expression(ast_t *ast) {
 
         case AST_TYPE_CALL:
             for (i = 1; i < list_length(ast->function.call.args); i++)
-                printf("push %%%s\n\t", registers[i]);
+                gen_emit("function call", "push %%%s", registers[i]);
             for (list_iterator_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 gen_expression(list_iterator_next(it));
-                printf("push %%rax\n\t");
+                gen_emit("function call", "push %%rax");
             }
             for (i = list_length(ast->function.call.args) - 1; i >= 0; i--)
-                printf("pop %%%s\n\t", registers[i]);
-            printf("mov $0, %%eax\n\t");
-            printf("call %s\n\t", ast->function.name);
+                gen_emit("function call", "pop %%%s", registers[i]);
+            gen_emit("function call", "mov $0, %%eax");
+            gen_emit("function call", "call %s", ast->function.name);
             for (i = list_length(ast->function.call.args) - 1; i > 0; i--)
-                printf("pop %%%s\n\t", registers[i]);
+                gen_emit("function call", "pop %%%s", registers[i]);
             break;
 
         case AST_TYPE_DECL:
@@ -365,8 +390,8 @@ static void gen_expression(ast_t *ast) {
             } else if (ast->decl.var->ctype->type == TYPE_ARRAY) {
                 char *p;
                 for (i = 0, p = ast->decl.init->string.data; *p; p++, i++)
-                    printf("movb $%d, %d(%%rbp)\n\t", *p, -(ast->decl.var->local.off - i));
-                printf("movb $0, %d(%%rbp)\n\t", -(ast->decl.var->local.off - i));
+                    gen_emit("array decl", "movb $%d, %d(%%rbp)", *p, -(ast->decl.var->local.off - i));
+                gen_emit("array decl", "movb $0, %d(%%rbp)", -(ast->decl.var->local.off - i));
             } else if (ast->decl.init->type == AST_TYPE_STRING) {
                 gen_load_global(ast->decl.init->ctype, ast->decl.init->string.label, 0);
                 gen_save_local(ast->decl.var->ctype, ast->decl.var->local.off, 0);
@@ -377,7 +402,7 @@ static void gen_expression(ast_t *ast) {
             return;
 
         case AST_TYPE_ADDR:
-            printf("lea %d(%%rbp), %%rax\n\t", -ast->unary.operand->local.off);
+            gen_emit_basic("address of", "lea %d(%%rbp), %%rax", -ast->unary.operand->local.off);
             break;
 
         case AST_TYPE_DEREF:
@@ -387,25 +412,25 @@ static void gen_expression(ast_t *ast) {
                 case 4: r = "%ecx"; break;
                 case 8: r = "%rcx"; break;
             }
-            printf("mov $0, %%ecx\n\t");
-            printf("mov (%%rax), %s\n\t", r);
-            printf("mov %%rcx, %%rax\n\t");
+            gen_emit("dereference", "mov $0, %%ecx");
+            gen_emit("dereference", "mov (%%rax), %s", r);
+            gen_emit("dereference", "mov %%rcx, %%rax");
             break;
 
         case AST_TYPE_STATEMENT_IF:
             gen_expression(ast->ifstmt.cond);
             ne = ast_new_label();
-            printf("test %%rax, %%rax\n\t");
-            printf("je %s\n\t", ne);
+            gen_emit("if statement", "test %%rax, %%rax");
+            gen_emit("if statement", "je %s", ne);
             gen_block(ast->ifstmt.then);
             if (ast->ifstmt.last) {
                 end = ast_new_label();
-                printf("jmp %s\n\t", end);
-                printf("%s:\n\t", ne);
+                gen_emit("if statement", "jmp %s", end);
+                gen_emit_label("%s:", ne);
                 gen_block(ast->ifstmt.last);
-                printf("%s:\n\t", end);
+                gen_emit_label("%s:", end);
             } else {
-                printf("%s:\n\t", ne);
+                gen_emit_label("%s:", ne);
             }
             break;
 
@@ -414,23 +439,23 @@ static void gen_expression(ast_t *ast) {
                 gen_expression(ast->forstmt.init);
             begin = ast_new_label();
             end   = ast_new_label();
-            printf("%s:\n\t", begin);
+            gen_emit_label("%s:", begin);
             if (ast->forstmt.cond) {
                 gen_expression(ast->forstmt.cond);
-                printf("test %%rax, %%rax\n\t");
-                printf("je %s\n\t", end);
+                gen_emit("for loop condition", "test %%rax, %%rax");
+                gen_emit("for loop condition", "je %s", end);
             }
             gen_block(ast->forstmt.body);
             if (ast->forstmt.step)
                 gen_expression(ast->forstmt.step);
-            printf("jmp %s\n\t", begin);
-            printf("%s:\n\t", end);
+            gen_emit("for loop", "jmp %s", begin);
+            gen_emit_label("%s:", end);
             break;
 
         case AST_TYPE_STATEMENT_RETURN:
             gen_expression(ast->returnstmt);
-            printf("leave\n\t");
-            printf("ret\n\t");
+            gen_emit_basic("leave");
+            gen_emit_basic("ret");
             break;
 
         default:
