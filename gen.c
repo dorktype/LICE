@@ -184,21 +184,19 @@ static void gen_binary(ast_t *ast) {
 }
 
 void gen_data_section(void) {
-    ast_t *ast;
-
-    if (!ast_data_globals())
+    if (!ast_globals)
         return;
 
-    for (ast = ast_data_globals(); ast; ast = ast->next) {
+    for (list_iter_t *it = list_iterator(ast_globals); !list_iterator_end(it); ) {
+        ast_t *ast = list_iterator_next(it);
         printf("%s:\n\t", ast->string.label);
         printf(".string \"%s\"\n", string_quote(ast->string.data));
     }
 }
 
-void gen_block(ast_t **block) {
-    int i;
-    for (i = 0; block[i]; i++)
-        gen_expression(block[i]);
+void gen_block(list_t *block) {
+    for (list_iter_t *it = list_iterator(block); !list_iterator_end(it); )
+        gen_expression(list_iterator_next(it));
 }
 
 static void gen_pointer_dereference(ast_t *var, ast_t *value) {
@@ -266,25 +264,27 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_CALL:
-            for (i = 1; i < ast->call.size; i++)
+            for (i = 1; i < list_length(ast->call.args); i++)
                 printf("push %%%s\n\t", registers[i]);
-            for (i = 0; i < ast->call.size; i++) {
-                gen_expression(ast->call.args[i]);
+            for (list_iter_t *it = list_iterator(ast->call.args); !list_iterator_end(it); ) {
+                gen_expression(list_iterator_next(it));
                 printf("push %%rax\n\t");
             }
-            for (i = ast->call.size - 1; i >= 0; i--)
+            for (i = list_length(ast->call.args) - 1; i >= 0; i--)
                 printf("pop %%%s\n\t", registers[i]);
             printf("mov $0, %%eax\n\t");
             printf("call %s\n\t", ast->call.name);
-            for (i = ast->call.size - 1; i > 0; i--)
+            for (i = list_length(ast->call.args) - 1; i > 0; i--)
                 printf("pop %%%s\n\t", registers[i]);
             break;
 
         case AST_TYPE_DECL:
             if (ast->decl.init->type == AST_TYPE_ARRAY_INIT) {
-                for (i = 0; i < ast->decl.init->array.size; i++) {
-                    gen_expression(ast->decl.init->array.init[i]);
+                i = 0;
+                for (list_iter_t *it = list_iterator(ast->decl.init->array.init); !list_iterator_end(it);) {
+                    gen_expression(list_iterator_next(it));
                     gen_save_local(ast->decl.var->ctype->pointer, ast->decl.var->local.off, -i);
+                    i++;
                 }
             } else if (ast->decl.var->ctype->type == TYPE_ARRAY) {
                 char *p;

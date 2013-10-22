@@ -5,15 +5,10 @@
 
 static int ast_label_index = 0;
 
-static data_type_t *data_int    = &(data_type_t) { TYPE_INT,  NULL };
-static data_type_t *data_char   = &(data_type_t) { TYPE_CHAR, NULL };
-static ast_t       *ast_locals  = NULL;
-static ast_t       *ast_globals = NULL;
-
-ast_t       *ast_data_globals(void) { return ast_globals; }
-ast_t       *ast_data_locals(void)  { return ast_locals;  }
-data_type_t *ast_data_int(void)     { return data_int;    }
-data_type_t *ast_data_char(void)    { return data_char;   }
+data_type_t *ast_data_int  = &(data_type_t) { TYPE_INT,  NULL };
+data_type_t *ast_data_char = &(data_type_t) { TYPE_CHAR, NULL };
+list_t      *ast_globals   = &(list_t){ .length = 0, .head = NULL, .tail = NULL };
+list_t      *ast_locals    = &(list_t){ .length = 0, .head = NULL, .tail = NULL };
 
 // creates a new ast node
 #define ast_new_node() \
@@ -41,7 +36,7 @@ ast_t *ast_new_binary(char type, data_type_t *data, ast_t *left, ast_t *right) {
 ast_t *ast_new_int(int value) {
     ast_t *ast   = ast_new_node();
     ast->type    = AST_TYPE_LITERAL;
-    ast->ctype   = data_int;
+    ast->ctype   = ast_data_int;
     ast->integer = value;
 
     return ast;
@@ -50,7 +45,7 @@ ast_t *ast_new_int(int value) {
 ast_t *ast_new_char(char value) {
     ast_t *ast     = ast_new_node();
     ast->type      = AST_TYPE_LITERAL;
-    ast->ctype     = data_char;
+    ast->ctype     = ast_data_char;
     ast->character = value;
 
     return ast;
@@ -67,18 +62,8 @@ ast_t *ast_new_variable_local(data_type_t *type, char *name) {
     ast->type       = AST_TYPE_VAR_LOCAL;
     ast->ctype      = type;
     ast->local.name = name;
-    ast->next       = NULL;
 
-    if (ast_locals) {
-        ast_t *item;
-        for(item = ast_locals; item->next; item = item->next)
-            ;
-
-        item->next = ast;
-    } else {
-        ast_locals = ast;
-    }
-
+    list_push(ast_locals, ast);
     return ast;
 }
 
@@ -98,18 +83,8 @@ ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file) {
     ast->ctype        = type;
     ast->global.name  = name;
     ast->global.label = (file) ? ast_new_label() : name;
-    ast->next         = NULL;
 
-    if (ast_globals) {
-        ast_t *item;
-        for (item = ast_globals; item->next; item = item->next)
-            ;
-
-        item->next  = ast;
-    } else {
-        ast_globals = ast;
-    }
-
+    list_push(ast_globals, ast);
     return ast;
 }
 
@@ -126,21 +101,19 @@ ast_t *ast_new_reference_global(data_type_t *type, ast_t *var, int off) {
 ast_t *ast_new_string(char *value) {
     ast_t *ast        = ast_new_node();
     ast->type         = AST_TYPE_STRING;
-    ast->ctype        = ast_new_array(data_char, strlen(value) + 1);
+    ast->ctype        = ast_new_array(ast_data_char, strlen(value) + 1);
     ast->string.data  = value;
     ast->string.label = ast_new_label();
-    ast->next         = ast_globals;
-    ast_globals       = ast;
 
+    list_push(ast_globals, ast);
     return ast;
 }
 
-ast_t *ast_new_call(char *name, int size, ast_t **args) {
+ast_t *ast_new_call(char *name, list_t *args) {
     ast_t *ast     = ast_new_node();
     ast->type      = AST_TYPE_CALL;
-    ast->ctype     = data_int;
+    ast->ctype     = ast_data_int;
     ast->call.name = name;
-    ast->call.size = size;
     ast->call.args = args;
 
     return ast;
@@ -156,7 +129,7 @@ ast_t *ast_new_decl(ast_t *var, ast_t *init) {
     return ast;
 }
 
-ast_t *ast_new_array_init(int size, ast_t **init) {
+ast_t *ast_new_array_init(int size, list_t *init) {
     ast_t *ast      = ast_new_node();
     ast->type       = AST_TYPE_ARRAY_INIT;
     ast->ctype      = NULL;
@@ -166,7 +139,7 @@ ast_t *ast_new_array_init(int size, ast_t **init) {
     return ast;
 }
 
-ast_t *ast_new_if(ast_t *cond, ast_t **then, ast_t **last) {
+ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last) {
     ast_t *ast       = ast_new_node();
     ast->type        = AST_TYPE_IF;
     ast->ctype       = NULL;
@@ -195,14 +168,16 @@ data_type_t *ast_new_array(data_type_t *type, int size) {
 }
 
 ast_t *ast_find_variable(const char *name) {
-    ast_t *ast;
-    for (ast = ast_locals; ast; ast = ast->next)
-        if (!strcmp(name, ast->local.name))
-            return ast;
-    for (ast = ast_globals; ast; ast = ast->next)
-        if (!strcmp(name, ast->global.name))
-            return ast;
-
+    for (list_iter_t *it = list_iterator(ast_locals); !list_iterator_end(it); ) {
+        ast_t *v = list_iterator_next(it);
+        if (!strcmp(name, v->local.name))
+            return v;
+    }
+    for (list_iter_t *it = list_iterator(ast_globals); !list_iterator_end(it); ) {
+        ast_t *v = list_iterator_next(it);
+        if (!strcmp(name, v->local.name))
+            return v;
+    }
     return NULL;
 }
 
@@ -233,9 +208,9 @@ const char *ast_type_string(data_type_t *type) {
 }
 
 static void ast_dump_string_impl(string_t *string, ast_t *ast) {
-    char *left;
-    char *right;
-    size_t i;
+    char        *left;
+    char        *right;
+    list_iter_t *it;
 
     if (!ast) {
         string_appendf(string, "(null)");
@@ -277,9 +252,9 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
 
         case AST_TYPE_CALL:
             string_appendf(string, "%s(", ast->call.name);
-            for(i = 0; i < ast->call.size; i++) {
-                ast_dump_string_impl(string, ast->call.args[i]);
-                if (ast->call.args[i + 1])
+            for (it = list_iterator(ast->call.args); !list_iterator_end(it); ) {
+                ast_dump_string_impl(string, list_iterator_next(it));
+                if (!list_iterator_end(it))
                     string_appendf(string, ",");
             }
             string_appendf(string, ")");
@@ -288,9 +263,9 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
 
         case AST_TYPE_ARRAY_INIT:
             string_appendf(string, "{");
-            for (i = 0; i < ast->array.size; i++) {
-                ast_dump_string_impl(string, ast->array.init[i]);
-                if (i != ast->array.size - 1)
+            for (it = list_iterator(ast->array.init); !list_iterator_end(it); ) {
+                ast_dump_string_impl(string, list_iterator_next(it));
+                if (!list_iterator_end(it))
                     string_appendf(string, ",");
             }
             string_appendf(string, "}");
@@ -334,12 +309,11 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
 }
 
 
-char *ast_dump_block_string(ast_t **block) {
+char *ast_dump_block_string(list_t *block) {
     string_t *string = string_create();
-    int i;
     string_appendf(string, "{");
-    for (i = 0; block[i]; i++) {
-        ast_dump_string_impl(string, block[i]);
+    for (list_iter_t *it = list_iterator(block); !list_iterator_end(it); ) {
+        ast_dump_string_impl(string, list_iterator_next(it));
         string_append(string, ';');
     }
     string_append(string, '}');

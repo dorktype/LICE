@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#include "util.h"
+
 // config
 #define GMCC_ENTRY     "gmcc_entry"
 #define GMCC_ASSEMBLER "as -o blob.o"
@@ -28,13 +30,6 @@ typedef struct {
     };
 } lexer_token_t;
 
-
-typedef struct string_s string_t;
-string_t *string_create(void);
-char *string_buffer(string_t *string);
-void string_append(string_t *string, char ch);
-void string_appendf(string_t *string, const char *fmt, ...);
-char *string_quote(char *p);
 
 bool lexer_ispunc(lexer_token_t *token, char c);
 void lexer_unget(lexer_token_t *token);
@@ -94,7 +89,6 @@ struct data_type_s {
 struct ast_s {
     char         type;
     data_type_t *ctype; // C type
-    ast_t       *next;
 
     // node crap occupies same memory location
     // to keep ram footprint minimal
@@ -134,9 +128,8 @@ struct ast_s {
 
         // function call
         struct {
-            char  *name;
-            int   size; // # of arguments
-            ast_t **args;
+            char   *name;
+            list_t *args;
         } call;
 
         // unary
@@ -159,14 +152,14 @@ struct ast_s {
         // array initializer
         struct {
             int     size;
-            ast_t **init;
+            list_t *init;
         } array;
 
         // if statement
         struct {
-            ast_t *cond;
-            ast_t **then;
-            ast_t **last;
+            ast_t  *cond;
+            list_t *then;
+            list_t *last;
         } ifstmt;
     };
 };
@@ -182,34 +175,34 @@ ast_t *ast_new_reference_local(data_type_t *type, ast_t *var, int off);
 ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file);
 ast_t *ast_new_reference_global(data_type_t *type, ast_t *var, int off);
 ast_t *ast_new_string(char *value);
-ast_t *ast_new_call(char *name, int size, ast_t **args);
+ast_t *ast_new_call(char *name, list_t *args);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
-ast_t *ast_new_array_init(int size, ast_t **init);
-ast_t *ast_new_if(ast_t *cond, ast_t **then, ast_t **last);
+ast_t *ast_new_array_init(int size, list_t *init);
+ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last);
 
 ast_t *ast_find_variable(const char *name);
 
 data_type_t *ast_new_pointer(data_type_t *type);
 data_type_t *ast_new_array(data_type_t *type, int size);
 
-ast_t       *ast_data_globals(void);
-ast_t       *ast_data_locals(void);
 
-data_type_t *ast_data_int(void);
-data_type_t *ast_data_char(void);
+extern data_type_t *ast_data_int;
+extern data_type_t *ast_data_char;
+extern list_t      *ast_globals;
+extern list_t      *ast_locals;
 
 // debug
 char *ast_dump_string(ast_t *ast);
-char *ast_dump_block_string(ast_t **block);
+char *ast_dump_block_string(list_t *block);
 
 // gmcc.c
 void compile_error(const char *fmt, ...);
 
 // gen.c
 void gen_data_section(void);
-void gen_block(ast_t **block);
+void gen_block(list_t *block);
 
 // parse
-ast_t **parse_block(void);
+list_t *parse_block(void);
 
 #endif

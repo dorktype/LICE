@@ -38,13 +38,14 @@ static int compile_type_size(data_type_t *type) {
 
 int compile(int dump) {
 
-    ast_t **block = parse_block();
+    list_t *block = parse_block();
 
     if (!dump) {
         int offset = 0;
-        for (ast_t *item = ast_data_locals(); item; item = item->next) {
-            offset         += padding(compile_type_size(item->ctype));
-            item->local.off = offset;
+        for (list_iter_t *it = list_iterator(ast_locals); !list_iterator_end(it); ) {
+            ast_t *block = list_iterator_next(it);
+            offset         += padding(compile_type_size(block->ctype));
+            block->local.off = offset;
         }
 
         gen_data_section();
@@ -55,7 +56,7 @@ int compile(int dump) {
         printf("push %%rbp\n\t");
         printf("mov %%rsp, %%rbp\n\t");
 
-        if (ast_data_locals())
+        if (ast_locals)
             printf("sub $%d, %%rsp\n\t", offset);
 
         gen_block(block);

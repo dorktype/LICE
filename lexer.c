@@ -4,72 +4,7 @@
 #include <ctype.h>
 
 #include "gmcc.h"
-
-// an efficent strechy buffer string
-struct string_s {
-    char *buffer;
-    int   allocated;
-    int   length;
-};
-
-string_t *string_create(void) {
-    string_t *string  = (string_t*)malloc(sizeof(string_t));
-    string->buffer    = malloc(16);
-    string->allocated = 16;
-    string->length    = 0;
-    string->buffer[0] = '\0';
-    return string;
-}
-
-static void string_reallocate(string_t *string) {
-    int   size   = string->allocated * 2;
-    char *buffer = malloc(size);
-
-    strcpy(buffer, string->buffer);
-    string->buffer    = buffer;
-    string->allocated = size;
-}
-
-char *string_buffer(string_t *string) {
-    return string->buffer;
-}
-
-void string_append(string_t *string, char ch) {
-    if (string->allocated == (string->length + 1))
-        string_reallocate(string);
-    string->buffer[string->length++] = ch;
-    string->buffer[string->length]   = '\0';
-}
-
-char *string_quote(char *p) {
-    string_t *string = string_create();
-    while (*p) {
-        if (*p == '\"' || *p == '\\')
-            string_append(string, '\\');
-        string_append(string, *p);
-        p++;
-    }
-    return string->buffer;
-}
-
-void string_appendf(string_t *string, const char *fmt, ...) {
-    va_list  va;
-    for (;;) {
-        int left  = string->allocated - string->length;
-        int write;
-
-        va_start(va, fmt);
-        write = vsnprintf(string->buffer + string->length, left, fmt, va);
-        va_end(va);
-
-        if (left < write) {
-            string_reallocate(string);
-            continue;
-        }
-        string->length += write;
-        return;
-    }
-}
+#include "util.h"
 
 // now the lexer
 #define lexer_token_new() \

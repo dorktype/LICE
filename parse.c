@@ -22,21 +22,14 @@ static int parse_operator_priority(char operator) {
 static ast_t *parse_expression(int lastpri);
 
 static ast_t *parse_function_call(char *name) {
-    ast_t **args = (ast_t**)malloc(sizeof(ast_t*) * (PARSE_CALLS + 1));
-    size_t  i;
-    size_t  wrote = 0; // how many wrote arguments
-
-    for (i = 0; i < PARSE_CALLS; i++) {
-
+    list_t *list = list_create();
+    for (;;) {
         // break when call is done
         lexer_token_t *token = lexer_next();
         if (lexer_ispunc(token, ')'))
             break;
         lexer_unget(token);
-
-        args[i] = parse_expression(0);
-        wrote++;
-
+        list_push(list, parse_expression(0));
         // deal with call done here as well
         token = lexer_next();
         if (lexer_ispunc(token, ')'))
@@ -45,11 +38,10 @@ static ast_t *parse_function_call(char *name) {
             compile_error("Unexpected character in function call");
     }
 
-    if (i == PARSE_CALLS)
+    if (PARSE_CALLS < list_length(list))
         compile_error("too many arguments");
 
-    // now build the node! :D
-    return ast_new_call(name, wrote, args);
+    return ast_new_call(name, list);
 }
 
 
@@ -117,7 +109,7 @@ static data_type_t *parse_semantic_result_impl(jmp_buf *jmpbuf, char op, data_ty
             switch (b->type) {
                 case TYPE_INT:
                 case TYPE_CHAR:
-                    return ast_data_int();
+                    return ast_data_int;
 
                 case TYPE_ARRAY:
                 case TYPE_PTR:
@@ -190,7 +182,7 @@ static ast_t *parse_expression_unary(void) {
 
 static ast_t *parse_array_decay(ast_t *ast) {
     if (ast->type == AST_TYPE_STRING)
-        return ast_new_reference_global(ast_new_pointer(ast_data_char()), ast, 0);
+        return ast_new_reference_global(ast_new_pointer(ast_data_char), ast, 0);
     if (ast->ctype->type != TYPE_ARRAY)
         return ast;
 
@@ -250,9 +242,9 @@ static data_type_t *parse_type_get(lexer_token_t *token) {
         return NULL;
 
     if (!strcmp(token->string, "int"))
-        return ast_data_int();
+        return ast_data_int;
     if (!strcmp(token->string, "char"))
-        return ast_data_char();
+        return ast_data_char;
 
     return NULL;
 }
@@ -275,11 +267,12 @@ static ast_t *parse_decl_array_initializer(data_type_t *type) {
     if (!lexer_ispunc(token, '{'))
         compile_error("Expected initializer list");
 
-    ast_t **init = (ast_t**)malloc(sizeof(ast_t*) * type->size);
+    list_t *init = list_create();
     int i;
     for (i = 0; i < type->size; i++) {
-        init[i] = parse_expression(0);
-        parse_semantic_result('=', init[i]->ctype, type->pointer);
+        ast_t *in = parse_expression(0);
+        list_push(init, in);
+        parse_semantic_result('=', in->ctype, type->pointer);
         token = lexer_next();
         if (lexer_ispunc(token, '}') && (i == type->size - 1))
             break;
@@ -345,8 +338,8 @@ static ast_t *parse_declaration(void) {
 ast_t *parse_statement_if(void) {
     lexer_token_t *token; //= lexer_next();
     ast_t *cond;
-    ast_t **then;
-    ast_t **last;
+    list_t *then;
+    list_t *last;
 
     parse_expect('(');
     cond = parse_expression(0);
@@ -390,23 +383,17 @@ static ast_t *parse_decl_statement(void) {
         return NULL;
 
     return parse_type_check(token) ? parse_declaration() : parse_statement();
-    //return parse_statement();
 }
 
-ast_t **parse_block(void) {
-    ast_t **statements = (ast_t**)malloc(sizeof(ast_t*) * 1024);
-    int i;
-    for (i = 0; i < 1024 - 1; i++) {
-        lexer_token_t *token;
-        statements[i] = parse_decl_statement();
-        token         = lexer_peek();
-        if (!statements[i] || lexer_ispunc(token, '}'))
+list_t *parse_block(void) {
+    list_t *statements = list_create();
+    for (;;) {
+        ast_t *statement = parse_decl_statement();
+        if (statement)
+            list_push(statements, statement);
+
+        if (!statement || lexer_ispunc(lexer_peek(), '}'))
             break;
     }
-
-    if (i == 1024 - 1)
-        compile_error("Internal error: OOM");
-
-    statements[i + 1] = NULL;
     return statements;
 }
