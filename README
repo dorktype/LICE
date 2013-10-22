@@ -20,9 +20,9 @@ Support currently is as follows:
         Functions are supported but function prototyping isn't which means
         the function has to be implemented where it's declared. Functions
         are limited to six arguments, and variable arguments are not
-        supported. Calling external C variable functions such as printf
-        are allowed but the argument count is also limited to six. You
-        can also call malloc/free for heap allocations.
+        supported. Calling external C variable argument functions such
+        as printf are allowed but the argument count is also limited to six.
+        You can also call malloc/free for heap allocations.
 
     Statements:
         Lice currently supports three statements:
@@ -91,3 +91,8 @@ Support currently is as follows:
 
     Rescurive functions:
         Recursive functions work as you'd expect them to.
+
+    Supported platforms:
+        The code generator produces code compatible in accordance to
+        the SysV ABI for AMD64. So it should function on any AMD64
+        Linux or FreeBSD system.
