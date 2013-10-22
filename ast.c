@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "gmcc.h"
+#include "lice.h"
 
 static int ast_label_index = 0;
 

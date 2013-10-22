@@ -3,7 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "gmcc.h"
+#include "lice.h"
 #include "util.h"
 
 // now the lexer

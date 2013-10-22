@@ -1,4 +1,4 @@
-#include "gmcc.h"
+#include "lice.h"
 
 // registers for function call
 static const char *registers[] = {

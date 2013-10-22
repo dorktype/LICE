@@ -1,9 +1,9 @@
 CC ?= clang
 CFLAGS=-c -Wall -std=gnu99
 LDFLAGS=
-SOURCES=ast.c parse.c gmcc.c gen.c lexer.c util.c
+SOURCES=ast.c parse.c lice.c gen.c lexer.c util.c
 OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=gmcc
+EXECUTABLE=lice
 
 all: $(SOURCES) $(EXECUTABLE)
 

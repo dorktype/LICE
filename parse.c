@@ -4,7 +4,7 @@
 #include <string.h>
 #include <setjmp.h>
 
-#include "gmcc.h"
+#include "lice.h"
 
 #define PARSE_BUFFER 1024
 #define PARSE_CALLS  6    // only six registers to use for amd64
