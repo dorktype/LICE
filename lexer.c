@@ -189,7 +189,7 @@ static lexer_token_t *lexer_read_token(void) {
     return NULL;
 }
 
-bool lexer_ispunc(lexer_token_t *token, char c) {
+bool lexer_ispunct(lexer_token_t *token, char c) {
     return token && (token->type == LEXER_TOKEN_PUNCT) && (token->punct == c);
 }
 

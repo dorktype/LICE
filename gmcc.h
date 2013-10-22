@@ -31,7 +31,7 @@ typedef struct {
 } lexer_token_t;
 
 
-bool lexer_ispunc(lexer_token_t *token, char c);
+bool lexer_ispunct(lexer_token_t *token, char c);
 void lexer_unget(lexer_token_t *token);
 lexer_token_t *lexer_next(void);
 lexer_token_t *lexer_peek(void);

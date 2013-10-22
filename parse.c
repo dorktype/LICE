@@ -30,15 +30,15 @@ static ast_t *parse_function_call(char *name) {
     for (;;) {
         // break when call is done
         lexer_token_t *token = lexer_next();
-        if (lexer_ispunc(token, ')'))
+        if (lexer_ispunct(token, ')'))
             break;
         lexer_unget(token);
         list_push(list, parse_expression(0));
         // deal with call done here as well
         token = lexer_next();
-        if (lexer_ispunc(token, ')'))
+        if (lexer_ispunct(token, ')'))
             break;
-        if (!lexer_ispunc(token, ','))
+        if (!lexer_ispunct(token, ','))
             compile_error("Unexpected character in function call");
     }
 
@@ -53,7 +53,7 @@ static ast_t *parse_generic(char *name) {
     ast_t         *var   = NULL;
     lexer_token_t *token = lexer_next();
 
-    if (lexer_ispunc(token, '('))
+    if (lexer_ispunct(token, '('))
         return parse_function_call(name);
 
     lexer_unget(token);
@@ -173,7 +173,7 @@ static bool parse_semantic_rightassoc(char operator) {
 // loops which have a (init; cond; post) setup.
 static ast_t *parse_declaration_statement_semicolon(void) {
     lexer_token_t *token = lexer_next();
-    if (lexer_ispunc(token, ';'))
+    if (lexer_ispunct(token, ';'))
         return NULL;
     lexer_unget(token);
     return parse_declaration_statement();
@@ -181,7 +181,7 @@ static ast_t *parse_declaration_statement_semicolon(void) {
 
 static ast_t *parse_expression_semicolon(void) {
     lexer_token_t *token = lexer_next();
-    if (lexer_ispunc(token, ';'))
+    if (lexer_ispunct(token, ';'))
         return NULL;
     lexer_unget(token);
 
@@ -194,7 +194,7 @@ static ast_t *parse_statement_for(void) {
     parse_expect('(');
     ast_t *init = parse_declaration_statement_semicolon();
     ast_t *cond = parse_expression_semicolon();
-    ast_t *step = lexer_ispunc(lexer_peek(), ')') ? NULL : parse_expression(0);
+    ast_t *step = lexer_ispunct(lexer_peek(), ')') ? NULL : parse_expression(0);
     parse_expect(')');
     parse_expect('{');
 
@@ -203,13 +203,13 @@ static ast_t *parse_statement_for(void) {
 
 static ast_t *parse_expression_unary(void) {
     lexer_token_t *token = lexer_next();
-    if (lexer_ispunc(token, '&')) {
+    if (lexer_ispunct(token, '&')) {
         ast_t *operand = parse_expression_unary();
         parse_semantic_lvalue(operand);
         return ast_new_unary(AST_TYPE_ADDR, ast_new_pointer(operand->ctype), operand);
     }
 
-    if (lexer_ispunc(token, '*')) {
+    if (lexer_ispunct(token, '*')) {
         ast_t *operand = parse_expression_unary();
         if (operand->ctype->type != TYPE_PTR)
             compile_error("TODO");
@@ -257,7 +257,7 @@ static ast_t *parse_expression(int lastpri) {
             return ast;
         }
 
-        if (lexer_ispunc(token, '='))
+        if (lexer_ispunct(token, '='))
             parse_semantic_lvalue(ast);
         else
             ast = parse_array_decay(ast);
@@ -266,7 +266,7 @@ static ast_t *parse_expression(int lastpri) {
         data = parse_semantic_result(token->punct, ast->ctype, next->ctype);
 
         // swap
-        if (!lexer_ispunc(token, '=') && ast->ctype->type != TYPE_PTR && next->ctype->type == TYPE_PTR) {
+        if (!lexer_ispunct(token, '=') && ast->ctype->type != TYPE_PTR && next->ctype->type == TYPE_PTR) {
             ast_t *t = ast;
             ast  = next;
             next = t;
@@ -295,7 +295,7 @@ static bool parse_type_check(lexer_token_t *token) {
 
 static void parse_expect(char punct) {
     lexer_token_t *token = lexer_next();
-    if (!lexer_ispunc(token, punct))
+    if (!lexer_ispunct(token, punct))
         compile_error("Expected `%c`, got %s instead", punct, lexer_tokenstr(token));
 }
 
@@ -304,13 +304,13 @@ static ast_t *parse_declaration_array_initializer(data_type_t *type) {
     if (type->pointer->type == TYPE_CHAR && token->type == LEXER_TOKEN_STRING)
         return ast_new_string(token->string);
 
-    if (!lexer_ispunc(token, '{'))
+    if (!lexer_ispunct(token, '{'))
         compile_error("Expected initializer list");
 
     list_t *init = list_create();
     for (;;) {
         token = lexer_next();
-        if (lexer_ispunc(token, '}'))
+        if (lexer_ispunct(token, '}'))
             break;
         lexer_unget(token);
 
@@ -318,7 +318,7 @@ static ast_t *parse_declaration_array_initializer(data_type_t *type) {
         list_push(init, in);
         parse_semantic_result('=', in->ctype, type->pointer);
         token = lexer_next();
-        if (!lexer_ispunc(token, ','))
+        if (!lexer_ispunct(token, ','))
             lexer_unget(token);
     }
 
@@ -334,7 +334,7 @@ static data_type_t *parse_declaration_specification(void) {
 
     for (;;) {
         token = lexer_next();
-        if (!lexer_ispunc(token, '*')) {
+        if (!lexer_ispunct(token, '*')) {
             lexer_unget(token);
             return type;
         }
@@ -353,9 +353,9 @@ static ast_t *parse_declaration(void) {
 
     for (;;) {
         lexer_token_t *token = lexer_next();
-        if (lexer_ispunc(token, '[')) {
+        if (lexer_ispunct(token, '[')) {
             token = lexer_peek();
-            if (lexer_ispunc(token ,']')) {
+            if (lexer_ispunct(token ,']')) {
                 if (type->size == -1)
                     compile_error("TODO");
                 type = ast_new_array(type, -1);
@@ -425,7 +425,7 @@ static list_t *parse_function_parameters(void) {
     list_t        *params = list_create();
     lexer_token_t *token  = lexer_next();
 
-    if (lexer_ispunc(token, ')'))
+    if (lexer_ispunct(token, ')'))
         return params;
 
     lexer_unget(token);
@@ -438,9 +438,9 @@ static list_t *parse_function_parameters(void) {
 
         list_push(params, ast_new_variable_local(type, name->string));
         lexer_token_t *next = lexer_next();
-        if (lexer_ispunc(next, ')'))
+        if (lexer_ispunct(next, ')'))
             return params;
-        if (!lexer_ispunc(next, ','))
+        if (!lexer_ispunct(next, ','))
             compile_error("Expected comma");
     }
     return NULL;
@@ -527,7 +527,7 @@ static list_t *parse_block(void) {
             break;
 
         lexer_token_t *token = lexer_next();
-        if (lexer_ispunc(token, '}'))
+        if (lexer_ispunct(token, '}'))
             break;
 
         lexer_unget(token);

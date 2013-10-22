@@ -423,7 +423,7 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_RETURN:
             gen_expression(ast->returnstmt);
             printf("leave\n\t");
-            printf("ret\n");
+            printf("ret\n\t");
             break;
 
         default:

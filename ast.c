@@ -196,6 +196,8 @@ ast_t *ast_new_return(ast_t *value) {
     ast->type       = AST_TYPE_RETURN;
     ast->ctype      = NULL;
     ast->returnstmt = value;
+
+    return ast;
 }
 
 static ast_t *ast_find_variable_subsitute(list_t *list, const char *name) {
