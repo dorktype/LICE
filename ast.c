@@ -3,19 +3,17 @@
 
 #include "gmcc.h"
 
-static data_type_t *data_int  = &(data_type_t) { TYPE_INT,  NULL };
-static data_type_t *data_char = &(data_type_t) { TYPE_CHAR, NULL };
-
-static ast_t *ast_locals  = NULL;
-static ast_t *ast_globals = NULL;
-
-ast_t *ast_data_globals(void) { return ast_globals; }
-ast_t *ast_data_locals(void) { return ast_locals; }
-
-data_type_t *ast_data_int(void)  { return data_int;  }
-data_type_t *ast_data_char(void) { return data_char; }
-
 static int ast_label_index = 0;
+
+static data_type_t *data_int    = &(data_type_t) { TYPE_INT,  NULL };
+static data_type_t *data_char   = &(data_type_t) { TYPE_CHAR, NULL };
+static ast_t       *ast_locals  = NULL;
+static ast_t       *ast_globals = NULL;
+
+ast_t       *ast_data_globals(void) { return ast_globals; }
+ast_t       *ast_data_locals(void)  { return ast_locals;  }
+data_type_t *ast_data_int(void)     { return data_int;    }
+data_type_t *ast_data_char(void)    { return data_char;   }
 
 // creates a new ast node
 #define ast_new_node() \

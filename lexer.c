@@ -169,8 +169,27 @@ static lexer_token_t *lexer_read_string(void) {
         if (c == '"')
             break;
 
-        if (c == '\\' && ((c = getc(stdin)) == EOF))
-            compile_error("Expected termination in line continuation for string literal");
+        // handle continuation and quote continuation correctly
+        // I think.
+        if (c == '\\') {
+            c = getc(stdin);
+            switch (c) {
+                case EOF:
+                    compile_error("Unterminated `\\`");
+                    break;
+
+                case '\"':
+                    break;
+
+                case 'n':
+                    c = '\n';
+                    break;
+
+                default:
+                    compile_error("Unknown quote: %c", c);
+                    break;
+            }
+        }
 
         string_append(string, c); // append character
     }

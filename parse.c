@@ -99,6 +99,8 @@ static data_type_t *parse_semantic_result_impl(jmp_buf *jmpbuf, char op, data_ty
     }
 
     if (b->type == TYPE_PTR) {
+        if (op == '=')
+            return a;
         if (op != '+' && op != '-')
             goto error;
         if (a->type != TYPE_INT)
@@ -156,6 +158,7 @@ static void parse_semantic_lvalue(ast_t *ast) {
         case AST_TYPE_REF_LOCAL:
         case AST_TYPE_VAR_GLOBAL:
         case AST_TYPE_REF_GLOBAL:
+        case AST_TYPE_DEREF:
             return;
     }
     compile_error("<%s> isn't a valid lvalue", ast_dump_string(ast));

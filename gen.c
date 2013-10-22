@@ -6,6 +6,7 @@ static const char *registers[] = {
 };
 
 static void gen_expression(ast_t *ast);
+static void gen_pointer_dereference(ast_t *var, ast_t *value);
 
 static int gen_type_size(data_type_t *type) {
     switch (type->type) {
@@ -133,6 +134,10 @@ static void gen_assignment(ast_t *var, ast_t *value) {
             gen_save_global(var->global_ref.ref, var->global_ref.off);
             break;
 
+        case AST_TYPE_DEREF:
+            gen_pointer_dereference(var, value);
+            break;
+
         default:
             compile_error("Internal error");
     }
@@ -194,6 +199,23 @@ void gen_block(ast_t **block) {
     int i;
     for (i = 0; block[i]; i++)
         gen_expression(block[i]);
+}
+
+static void gen_pointer_dereference(ast_t *var, ast_t *value) {
+    char *reg;
+
+    gen_expression(var->unary.operand);
+    printf("push %%rax\n\t");
+    gen_expression(value);
+    printf("pop %%rcx\n\t");
+
+    switch (gen_type_size(var->unary.operand->ctype)) {
+        case 1: reg = "al";  break;
+        case 4: reg = "eax"; break;
+        case 8: reg = "rax"; break;
+    }
+
+    printf("mov %%%s, (%%rcx)\n\t", reg);
 }
 
 static void gen_expression(ast_t *ast) {
