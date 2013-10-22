@@ -62,6 +62,7 @@ static ast_t *parse_generic(char *name) {
 
 static ast_t *parse_expression_primary(void) {
     lexer_token_t *token;
+    ast_t         *ast;
 
     if (!(token = lexer_next()))
         return NULL;
@@ -73,7 +74,10 @@ static ast_t *parse_expression_primary(void) {
         // ast generating ones
         case LEXER_TOKEN_INT:    return ast_new_int(token->integer);
         case LEXER_TOKEN_CHAR:   return ast_new_char(token->character);
-        case LEXER_TOKEN_STRING: return ast_new_string(token->string);
+        case LEXER_TOKEN_STRING:
+            ast = ast_new_string(token->string);
+            list_push(ast_globals, ast);
+            return ast;
 
         case LEXER_TOKEN_PUNCT:
             compile_error("Unexpected punctuation: `%c`", token->punct);

@@ -105,7 +105,6 @@ ast_t *ast_new_string(char *value) {
     ast->string.data  = value;
     ast->string.label = ast_new_label();
 
-    list_push(ast_globals, ast);
     return ast;
 }
 
