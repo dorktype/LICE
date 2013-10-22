@@ -144,20 +144,25 @@ static void gen_assignment(ast_t *var, ast_t *value) {
     }
 }
 
-static void gen_comparision(ast_t *a, ast_t *b) {
+static void gen_comparision(char *operation, ast_t *a, ast_t *b) {
     gen_expression(a);
     printf("push %%rax\n\t");
     gen_expression(b);
 
     printf("pop %%rcx\n\t");
     printf("cmp %%rax, %%rcx\n\t");
-    printf("setl %%al\n\t");
+    printf("%s %%al\n\t", operation);
     printf("movzb %%al, %%eax\n\t");
 }
 
 static void gen_binary(ast_t *ast) {
     if (ast->type == '=') {
         gen_assignment(ast->left, ast->right);
+        return;
+    }
+
+    if (ast->type == ':') {
+        gen_comparision("sete", ast->left, ast->right);
         return;
     }
 
@@ -169,10 +174,10 @@ static void gen_binary(ast_t *ast) {
     char *op;
     switch (ast->type) {
         case '<':
-            gen_comparision(ast->left, ast->right);
+            gen_comparision("setl", ast->left, ast->right);
             return;
         case '>':
-            gen_comparision(ast->right, ast->left);
+            gen_comparision("setg", ast->left, ast->right);
             return;
 
         case '+': op = "add";  break;
@@ -187,13 +192,12 @@ static void gen_binary(ast_t *ast) {
             break;
     }
 
-    gen_expression(ast->left);
-    printf("push %%rax\n\t");
     gen_expression(ast->right);
+    printf("push %%rax\n\t");
+    gen_expression(ast->left);
 
     if (ast->type == '/') {
-        printf("mov %%rax, %%rcx\n\t");
-        printf("pop %%rax\n\t");
+        printf("pop %%rcx\n\t");
         printf("mov $0, %%edx\n\t");
         printf("idiv %%rcx\n\t");
     } else {
@@ -348,6 +352,9 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_DECL:
+            if (!ast->decl.init)
+                return;
+
             if (ast->decl.init->type == AST_TYPE_ARRAY_INIT) {
                 i = 0;
                 for (list_iter_t *it = list_iterator(ast->decl.init->array); !list_iterator_end(it);) {

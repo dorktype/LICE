@@ -169,7 +169,7 @@ static lexer_token_t *lexer_read_token(void) {
             return lexer_read_identifier(c);
 
         // punctuation
-        case '+': case '-': case '/': case '*': case '=':
+        case '+': case '-': case '/': case '*':
         case '(': case ')':
         case '[': case ']':
         case '{': case '}':
@@ -177,6 +177,12 @@ static lexer_token_t *lexer_read_token(void) {
         case '<': case '>':
         case '&':
             return lexer_punct(c);
+
+        case '=':
+            if ((c = getc(stdin)) == '=')
+                return lexer_punct(':');
+            ungetc(c, stdin);
+            return lexer_punct('=');
 
         case EOF:
             return NULL;
@@ -219,26 +225,27 @@ lexer_token_t *lexer_peek(void) {
 }
 
 char *lexer_tokenstr(lexer_token_t *token) {
-    string_t *string;
+    string_t *string = string_create();
 
     if (!token)
         return "(null)";
 
     switch (token->type) {
-        // overlaps same memory
         case LEXER_TOKEN_PUNCT:
+            if (token->punct == ':') {
+                string_appendf(string, "==");
+                return string_buffer(string);
+            }
+            // fall
         case LEXER_TOKEN_CHAR:
-            string = string_create();
             string_append(string, token->character);
             return string_buffer(string);
 
         case LEXER_TOKEN_INT:
-            string = string_create();
             string_appendf(string, "%d", token->integer);
             return string_buffer(string);
 
         case LEXER_TOKEN_STRING:
-            string = string_create();
             string_appendf(string, "\"%s\"", token->string);
             return string_buffer(string);
 

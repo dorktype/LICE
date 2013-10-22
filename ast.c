@@ -367,7 +367,10 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
         default:
             left  = ast_string(ast->left);
             right = ast_string(ast->right);
-            string_appendf(string, "(%c %s %s)", ast->type, left, right);
+            if (ast->type == ':')
+                string_appendf(string, "(== %s %s)", left, right);
+            else
+                string_appendf(string, "(%c %s %s)", ast->type, left, right);
             break;
     }
 }

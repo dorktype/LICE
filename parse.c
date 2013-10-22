@@ -10,12 +10,13 @@
 #define PARSE_CALLS  6    // only six registers to use for amd64
 
 // what priority does the following operator get?
-static int parse_operator_priority(char operator) {
-    switch (operator) {
+static int parse_operator_priority(lexer_token_t *token) {
+    switch (token->punct) {
         case '=':           return 1;
-        case '<': case '>': return 2;
-        case '+': case '-': return 3;
-        case '/': case '*': return 4;
+        case ':':           return 2;
+        case '<': case '>': return 3;
+        case '+': case '-': return 4;
+        case '/': case '*': return 5;
     }
     return -1;
 }
@@ -164,9 +165,9 @@ static void parse_semantic_lvalue(ast_t *ast) {
     compile_error("TODO");
 }
 
-static bool parse_semantic_rightassoc(char operator) {
+static bool parse_semantic_rightassoc(lexer_token_t *token) {
     // enforce right associative semantics
-    return operator == '=';
+    return (token->punct == '=');
 }
 
 // expressions that are read up to a semicolon, usefu l for only for
@@ -251,7 +252,7 @@ static ast_t *parse_expression(int lastpri) {
             return ast;
         }
 
-        int pri = parse_operator_priority(token->punct);
+        int pri = parse_operator_priority(token);
         if (pri < 0 || pri < lastpri) {
             lexer_unget(token);
             return ast;
@@ -262,7 +263,7 @@ static ast_t *parse_expression(int lastpri) {
         else
             ast = parse_array_decay(ast);
 
-        next = parse_array_decay(parse_expression(pri + !parse_semantic_rightassoc(token->punct)));
+        next = parse_array_decay(parse_expression(pri + !parse_semantic_rightassoc(token)));
         data = parse_semantic_result(token->punct, ast->ctype, next->ctype);
 
         // swap
@@ -299,7 +300,7 @@ static void parse_expect(char punct) {
         compile_error("Expected `%c`, got %s instead", punct, lexer_tokenstr(token));
 }
 
-static ast_t *parse_declaration_array_initializer(data_type_t *type) {
+static ast_t *parse_declaration_array_initializer_impl(data_type_t *type) {
     lexer_token_t *token = lexer_next();
     if (type->pointer->type == TYPE_CHAR && token->type == LEXER_TOKEN_STRING)
         return ast_new_string(token->string);
@@ -323,6 +324,25 @@ static ast_t *parse_declaration_array_initializer(data_type_t *type) {
     }
 
     return ast_new_array_init(init);
+}
+
+static ast_t *parse_declaration_array_initializer(ast_t *var) {
+    ast_t *init;
+    if (var->ctype->type == TYPE_ARRAY) {
+        init = parse_declaration_array_initializer_impl(var->ctype);
+    int len = (init->type == AST_TYPE_STRING)
+                    ? strlen(init->string.data) + 1
+                    : list_length(init->array);
+
+    if (var->ctype->size == -1) {
+        var->ctype->size = len;
+    } else if (var->ctype->size != len)
+        compile_error("TODO");
+    } else {
+        init = parse_expression(0);
+    }
+    parse_expect(';');
+    return ast_new_decl(var, init);
 }
 
 static data_type_t *parse_declaration_specification(void) {
@@ -374,26 +394,13 @@ static ast_t *parse_declaration(void) {
     }
 
     ast_t *var = ast_new_variable_local(type, name->string);
-    ast_t *init;
-    parse_expect('=');
-
-    if (type->type == TYPE_ARRAY) {
-        init = parse_declaration_array_initializer(type);
-        int len = (init->type == AST_TYPE_STRING)
-                        ? strlen(init->string.data) + 1
-                        : list_length(init->array);
-
-        if (type->size == -1)
-            type->size = len;
-        else if (type->size != len) {
-            compile_error("%d vs %d", type->size, len);
-        }
-    } else {
-        init = parse_expression(0);
-    }
+    lexer_token_t *token = lexer_next();
+    if (lexer_ispunct(token, '='))
+        return parse_declaration_array_initializer(var);
+    lexer_unget(token);
 
     parse_expect(';');
-    return ast_new_decl(var, init);
+    return ast_new_decl(var, NULL);
 }
 
 ast_t *parse_statement_if(void) {
