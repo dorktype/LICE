@@ -63,7 +63,7 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
                     fprintf(as, "mov $%d, %%rax\n", ast->character);
                     break;
                 case TYPE_ARRAY:
-                    fprintf(as, "mov .s%d(%%rip), %%rax\n", ast->string.id);
+                    fprintf(as, "lea .s%d(%%rip), %%rax\n", ast->string.id);
                     break;
                 default:
                     compile_error("Internal error");
