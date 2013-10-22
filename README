@@ -1,0 +1,88 @@
+LICE is an experiment to see how close I can get to a C compiler looking
+at the sources of existing ones like TCC, GCC and SubC, while still
+keeping the code easy to understand and well documented for my own sake.
+
+Support currently is as follows:
+    Types:
+        There are currently only two types supported, int and char, as
+        well as the pointer and array versions of those types. There is
+        no support for signed/unsigned keywords, all types are handled
+        as signed integer types.
+
+        There is no support for floating point operations, not because
+        the type doesn't exist (which would potentially prevent such
+        operations) but because stack space isn't aligned on 16 byte
+        boundry yet to accomodate it, and the registers themselfs aren't
+        properly saved/restored to allow it, so calling external float-aware
+        functions will likely crash.
+
+    Functions:
+        Functions are supported but function prototyping isn't which mean
+        the function has to be implemented where it's declared. Functions
+        are limited to six arguments, and variable arguments are not
+        supported. Calling external C variable functions such as printf
+        are allowed but the argument count is also limited to six. You
+        can also call malloc/free for heap allocations.
+
+    Statements:
+        Lice currently supports three statements:
+            if      - Your standard if statement
+            for     - Your standard for statement
+            return  - Your standard return statement
+
+    Operators:
+        Lice only supports the following operators:
+            +,-,/,* - Arithmetic operators
+            =       - Assignment operator
+            ==      - Equality operator
+            <       - Less than operator
+            >       - Greater than operator
+
+        Lice doesn't support the terse version of those operators, e.g
+            +=, -=, ... aren't supported.
+
+        There is no post/pre increment operators
+
+    Constructs:
+        There is no support for structures, switches or unions. There
+        is however support for array initializer lists, e.g
+            int a[] = { 1, 2, 3 };
+
+        Statement block constructs must exist for every statement, e.g
+            if (a)
+        Must have a block { } on it. Eliding the block will result
+        in a compiler error. This will be fixed once compound statements
+        are implemented.
+
+    Pointers:
+        Pointers work how they typically would work, you can define one
+        take the address of one and have as many layers of referencing
+        and dereferencing as you want. Pointer arithmetic works as well.
+        Pointers to functions aren't supported. You can also dereference
+        pointers into assignments, e.g *a=b; works.
+
+    Comments:
+        Currently the source can contain no C or C++ style comments.
+
+    Globals:
+        While support for global data generation exists in the code
+        generator, globals aren't supported since scoping doesn't
+        exist yet. Which means code like:
+            int f() { { int a; } }
+
+        Won't compile. Once compound statements are implemented those
+        blocks of code will be interpeted as a compound statement.
+
+
+    Code generation:
+        The codegen is unoptimal crap, it produces a 'stack machine'
+        model which isn't exactly efficent. All registers are saved
+        and restored while they mostly may not need to be. Return
+        statements need to emit leave instructions even though they
+        might not need to be. Operations will always load operands
+        into the first closest registers and store the result back
+        into the first, even though that operation may already
+        put the result into the first.
+
+    Rescurive functions:
+        Recursive functions work as you'd expect them to.

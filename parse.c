@@ -384,7 +384,6 @@ static ast_t *parse_declaration(void) {
                 if (size->type != AST_TYPE_LITERAL || size->ctype->type != TYPE_INT)
                     compile_error("TODO");
                 type = ast_new_array(type, size->integer);
-                printf("%d", size->integer);
             }
             parse_expect(']');
         } else {

@@ -7,7 +7,7 @@ assert() {
 }
 
 test_ast() {
-    out="$(echo "int f(){$1}" | ./gmcc --dump-ast)"
+    out="$(echo "int f(){$1}" | ./lice --dump-ast)"
     if [ $? -ne 0 ]; then
         echo "failed $1"
         exit
@@ -16,7 +16,7 @@ test_ast() {
 }
 
 test_gm() {
-    echo "int f(){$1} int main(){printf(\"%d\", f());}" | ./gmcc > /tmp/gmcc.S
+    echo "int f(){$1} int main(){printf(\"%d\", f());}" | ./lice > /tmp/gmcc.S
     if [ $? -ne 0 ]; then
         echo "failed to compile"
         exit
