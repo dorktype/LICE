@@ -231,7 +231,7 @@ static ast_t *parse_expression(int lastpri) {
         data = parse_semantic_result(token->punct, ast->ctype, next->ctype);
 
         // swap
-        if (!lexer_ispunc(token, '=') && data->type == TYPE_PTR && ast->ctype->type != TYPE_PTR) {
+        if (!lexer_ispunc(token, '=') && ast->ctype->type != TYPE_PTR && next->ctype->type == TYPE_PTR) {
             ast_t *t = ast;
             ast  = next;
             next = t;
@@ -333,7 +333,7 @@ static ast_t *parse_declaration(void) {
 
     var = ast_new_variable_local(type, varname->string);
     parse_expect('=');
-    return ast_new_decl(var, parse_expression(0));
+    return ast_new_decl(var, parse_decl_initializer(type));
 }
 
 ast_t *parse_statement(void) {

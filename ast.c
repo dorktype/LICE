@@ -212,7 +212,12 @@ const char *ast_type_string(data_type_t *type) {
 
         case TYPE_ARRAY:
             string = string_create();
-            string_appendf(string, "%s[]", ast_type_string(type->pointer));
+            string_appendf(
+                string,
+                "%s[%d]",
+                ast_type_string(type->pointer),
+                type->size
+            );
             return string_buffer(string);
     }
     return NULL;
