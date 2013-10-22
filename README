@@ -37,6 +37,7 @@ Support currently is as follows:
             ==      - Equality operator
             <       - Less than operator
             >       - Greater than operator
+            !       - Boolean not operator
             (,)     - Only supported in pointer dereferencing, e.g *(a + b)
 
         Lice doesn't support the terse version of those operators, e.g
