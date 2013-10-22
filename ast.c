@@ -153,7 +153,7 @@ ast_t *ast_new_array_init(list_t *init) {
 
 ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last) {
     ast_t *ast       = ast_new_node();
-    ast->type        = AST_TYPE_IF;
+    ast->type        = AST_TYPE_STATEMENT_IF;
     ast->ctype       = NULL;
     ast->ifstmt.cond = cond;
     ast->ifstmt.then = then;
@@ -181,7 +181,7 @@ data_type_t *ast_new_array(data_type_t *type, int size) {
 
 ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, list_t *body) {
     ast_t *ast        = ast_new_node();
-    ast->type         = AST_TYPE_FOR;
+    ast->type         = AST_TYPE_STATEMENT_FOR;
     ast->ctype        = NULL;
     ast->forstmt.init = init;
     ast->forstmt.cond = cond;
@@ -193,7 +193,7 @@ ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, list_t *body) {
 
 ast_t *ast_new_return(ast_t *value) {
     ast_t *ast      = ast_new_node();
-    ast->type       = AST_TYPE_RETURN;
+    ast->type       = AST_TYPE_STATEMENT_RETURN;
     ast->ctype      = NULL;
     ast->returnstmt = value;
 
@@ -344,14 +344,14 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_catf(string, "(* %s)", ast_string(ast->unary.operand));
             break;
 
-        case AST_TYPE_IF:
+        case AST_TYPE_STATEMENT_IF:
             string_catf(string, "(if %s %s", ast_string(ast->ifstmt.cond), ast_block_string(ast->ifstmt.then));
             if (ast->ifstmt.last)
                 string_catf(string, " %s", ast_block_string(ast->ifstmt.last));
             string_cat(string, ')');
             break;
 
-        case AST_TYPE_FOR:
+        case AST_TYPE_STATEMENT_FOR:
             string_catf(string, "(for %s %s %s %s)",
                 ast_string(ast->forstmt.init),
                 ast_string(ast->forstmt.cond),
@@ -360,7 +360,7 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             );
             break;
 
-        case AST_TYPE_RETURN:
+        case AST_TYPE_STATEMENT_RETURN:
             string_catf(string, "(return %s)", ast_string(ast->returnstmt));
             break;
 

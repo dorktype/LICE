@@ -392,7 +392,7 @@ static void gen_expression(ast_t *ast) {
             printf("mov %%rcx, %%rax\n\t");
             break;
 
-        case AST_TYPE_IF:
+        case AST_TYPE_STATEMENT_IF:
             gen_expression(ast->ifstmt.cond);
             ne = ast_new_label();
             printf("test %%rax, %%rax\n\t");
@@ -409,7 +409,7 @@ static void gen_expression(ast_t *ast) {
             }
             break;
 
-        case AST_TYPE_FOR:
+        case AST_TYPE_STATEMENT_FOR:
             if (ast->forstmt.init)
                 gen_expression(ast->forstmt.init);
             begin = ast_new_label();
@@ -427,7 +427,7 @@ static void gen_expression(ast_t *ast) {
             printf("%s:\n\t", end);
             break;
 
-        case AST_TYPE_RETURN:
+        case AST_TYPE_STATEMENT_RETURN:
             gen_expression(ast->returnstmt);
             printf("leave\n\t");
             printf("ret\n\t");

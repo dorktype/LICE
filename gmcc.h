@@ -64,9 +64,9 @@ typedef enum {
     AST_TYPE_DEREF,
 
     // statements
-    AST_TYPE_IF,
-    AST_TYPE_FOR,
-    AST_TYPE_RETURN
+    AST_TYPE_STATEMENT_IF,
+    AST_TYPE_STATEMENT_FOR,
+    AST_TYPE_STATEMENT_RETURN
 } ast_type_t;
 
 // language types
