@@ -183,15 +183,43 @@ static void gen_binary(ast_t *ast) {
     }
 }
 
+static int gen_data_padding(int n) {
+    int remainder = n % 8;
+    return (remainder == 0)
+                ? n
+                : n - remainder + 8;
+}
+
+
 void gen_data_section(void) {
+    int offset = 0;
+
     if (!ast_globals)
         return;
+
+    // padding
+    for (list_iter_t *it = list_iterator(ast_locals); !list_iterator_end(it); ) {
+        ast_t *block     = list_iterator_next(it);
+        offset          += gen_data_padding(gen_type_size(block->ctype));
+        block->local.off = offset;
+    }
 
     for (list_iter_t *it = list_iterator(ast_globals); !list_iterator_end(it); ) {
         ast_t *ast = list_iterator_next(it);
         printf("%s:\n\t", ast->string.label);
         printf(".string \"%s\"\n", string_quote(ast->string.data));
     }
+
+    printf(".text\n\t");
+    printf(".global entry\n");
+    printf("entry:\n\t");
+    printf("push %%rbp\n\t");
+    printf("mov %%rsp, %%rbp\n\t");
+
+    if (ast_locals)
+        printf("sub $%d, %%rsp\n\t", offset);
+
+
 }
 
 void gen_block(list_t *block) {

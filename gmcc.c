@@ -14,51 +14,12 @@ void compile_error(const char *fmt, ...) {
     exit(EXIT_FAILURE);
 }
 
-static int padding(int n) {
-    int remainder = n % 8;
-    return (remainder == 0)
-                ? n
-                : n - remainder + 8;
-}
-
-static int compile_type_size(data_type_t *type) {
-    switch (type->type) {
-        case TYPE_CHAR: return 1;
-        case TYPE_INT:  return 4;
-        case TYPE_PTR:  return 8;
-
-        case TYPE_ARRAY:
-            return compile_type_size(type->pointer) * type->size;
-
-        default:
-            compile_error("Internal error");
-    }
-    return 0;
-}
-
 int compile(int dump) {
 
     list_t *block = parse_block();
 
     if (!dump) {
-        int offset = 0;
-        for (list_iter_t *it = list_iterator(ast_locals); !list_iterator_end(it); ) {
-            ast_t *block = list_iterator_next(it);
-            offset         += padding(compile_type_size(block->ctype));
-            block->local.off = offset;
-        }
-
         gen_data_section();
-
-        printf(".text\n\t");
-        printf(".global entry\n");
-        printf("entry:\n\t");
-        printf("push %%rbp\n\t");
-        printf("mov %%rsp, %%rbp\n\t");
-
-        if (ast_locals)
-            printf("sub $%d, %%rsp\n\t", offset);
-
         gen_block(block);
         printf("leave\n\t");
         printf("ret\n");
