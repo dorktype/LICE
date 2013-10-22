@@ -50,7 +50,7 @@ Support currently is as follows:
             int a[] = { 1, 2, 3 };
             int a[2] = { 1, 2 };
 
-        There is also support for multidimensionala arrays:
+        There is also support for multidimensional arrays:
             int a[1][2][3][4];
 
         Statement block constructs must exist for every statement, e.g
