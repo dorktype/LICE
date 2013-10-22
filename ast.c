@@ -142,12 +142,11 @@ ast_t *ast_new_decl(ast_t *var, ast_t *init) {
     return ast;
 }
 
-ast_t *ast_new_array_init(int size, list_t *init) {
-    ast_t *ast      = ast_new_node();
-    ast->type       = AST_TYPE_ARRAY_INIT;
-    ast->ctype      = NULL;
-    ast->array.size = size;
-    ast->array.init = init;
+ast_t *ast_new_array_init(list_t *init) {
+    ast_t *ast  = ast_new_node();
+    ast->type   = AST_TYPE_ARRAY_INIT;
+    ast->ctype  = NULL;
+    ast->array  = init;
 
     return ast;
 }
@@ -308,7 +307,7 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
 
         case AST_TYPE_ARRAY_INIT:
             string_append(string, '{');
-            for(list_iter_t *it = list_iterator(ast->array.init); !list_iterator_end(it); ) {
+            for(list_iter_t *it = list_iterator(ast->array); !list_iterator_end(it); ) {
                 ast_string_impl(string, list_iterator_next(it));
                 if (!list_iterator_end(it))
                     string_append(string, ',');

@@ -331,7 +331,7 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_DECL:
             if (ast->decl.init->type == AST_TYPE_ARRAY_INIT) {
                 i = 0;
-                for (list_iter_t *it = list_iterator(ast->decl.init->array.init); !list_iterator_end(it);) {
+                for (list_iter_t *it = list_iterator(ast->decl.init->array); !list_iterator_end(it);) {
                     gen_expression(list_iterator_next(it));
                     gen_save_local(ast->decl.var->ctype->pointer, ast->decl.var->local.off, -i);
                     i++;

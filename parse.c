@@ -264,7 +264,7 @@ static void parse_expect(char punct) {
         compile_error("Expected `%c`, got %s instead", punct, lexer_tokenstr(token));
 }
 
-static ast_t *parse_decl_array_initializer(data_type_t *type) {
+static ast_t *parse_declaration_array_initializer(data_type_t *type) {
     lexer_token_t *token = lexer_next();
     if (type->pointer->type == TYPE_CHAR && token->type == LEXER_TOKEN_STRING)
         return ast_new_string(token->string);
@@ -273,32 +273,21 @@ static ast_t *parse_decl_array_initializer(data_type_t *type) {
         compile_error("Expected initializer list");
 
     list_t *init = list_create();
-    int i;
-    for (i = 0; i < type->size; i++) {
+    for (;;) {
+        token = lexer_next();
+        if (lexer_ispunc(token, '}'))
+            break;
+        lexer_unget(token);
+
         ast_t *in = parse_expression(0);
         list_push(init, in);
         parse_semantic_result('=', in->ctype, type->pointer);
         token = lexer_next();
-        if (lexer_ispunc(token, '}') && (i == type->size - 1))
-            break;
         if (!lexer_ispunc(token, ','))
-            compile_error("Expected comma in initializer list");
-
-        if (i == type->size - 1) {
-            token = lexer_next();
-            if (!lexer_ispunc(token, '}'))
-                compile_error("Expected `}`");
-            break;
-        }
+            lexer_unget(token);
     }
 
-    return ast_new_array_init(type->size, init);
-}
-
-ast_t *parse_declaration_initializer(data_type_t *type) {
-    if (type->type == TYPE_ARRAY)
-        return parse_decl_array_initializer(type);
-    return parse_expression(0);
+    return ast_new_array_init(init);
 }
 
 static data_type_t *parse_declaration_specification(void) {
@@ -330,11 +319,19 @@ static ast_t *parse_declaration(void) {
     for (;;) {
         lexer_token_t *token = lexer_next();
         if (lexer_ispunc(token, '[')) {
-            ast_t *size = parse_expression(0);
-            if (size->type != AST_TYPE_LITERAL || size->ctype->type != TYPE_INT)
-                compile_error("TODO");
+            token = lexer_peek();
+            if (lexer_ispunc(token ,']')) {
+                if (type->size == -1)
+                    compile_error("TODO");
+                type = ast_new_array(type, -1);
+            } else {
+                ast_t *size = parse_expression(0);
+                if (size->type != AST_TYPE_LITERAL || size->ctype->type != TYPE_INT)
+                    compile_error("TODO");
+                type = ast_new_array(type, size->integer);
+                printf("%d", size->integer);
+            }
             parse_expect(']');
-            type = ast_new_array(type, size->integer);
         } else {
             lexer_unget(token);
             break;
@@ -342,10 +339,25 @@ static ast_t *parse_declaration(void) {
     }
 
     ast_t *var = ast_new_variable_local(type, name->string);
+    ast_t *init;
     parse_expect('=');
-    ast_t *init = parse_declaration_initializer(type);
-    parse_expect(';');
 
+    if (type->type == TYPE_ARRAY) {
+        init = parse_declaration_array_initializer(type);
+        int len = (init->type == AST_TYPE_STRING)
+                        ? strlen(init->string.data) + 1
+                        : list_length(init->array);
+
+        if (type->size == -1)
+            type->size = len;
+        else if (type->size != len) {
+            compile_error("%d vs %d", type->size, len);
+        }
+    } else {
+        init = parse_expression(0);
+    }
+
+    parse_expect(';');
     return ast_new_decl(var, init);
 }
 

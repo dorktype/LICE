@@ -156,11 +156,8 @@ struct ast_s {
             ast_t *init;
         } decl;
 
-        // array initializer
-        struct {
-            int     size;
-            list_t *init;
-        } array;
+        // array
+        list_t *array;
 
         // if statement
         struct {
@@ -185,7 +182,7 @@ ast_t *ast_new_string(char *value);
 ast_t *ast_new_call(data_type_t *type, char *name, list_t *args);
 ast_t *ast_new_function(data_type_t *type, char *name, list_t *params, list_t *body, list_t *locals);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
-ast_t *ast_new_array_init(int size, list_t *init);
+ast_t *ast_new_array_init(list_t *init);
 ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last);
 
 ast_t *ast_find_variable(const char *name);
