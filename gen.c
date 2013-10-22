@@ -425,6 +425,14 @@ static void gen_expression(ast_t *ast) {
             gen_emit_basic("ret");
             break;
 
+        case '!':
+            // this is so horribly inefficent I feel bad :(
+            gen_expression(ast->unary.operand);
+            gen_emit("boolean not", "cmp $0, %%rax");
+            gen_emit("boolean not", "sete %%al");
+            gen_emit("boolean not", "movzb %%al, %%eax");
+            break;
+
         default:
             gen_binary(ast);
     }

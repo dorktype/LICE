@@ -216,6 +216,10 @@ static ast_t *parse_expression_unary(void) {
         parse_semantic_lvalue(operand);
         return ast_new_unary(AST_TYPE_ADDR, ast_new_pointer(operand->ctype), operand);
     }
+    if (lexer_ispunct(token, '!')) {
+        ast_t *operand = parse_expression_unary();
+        return ast_new_unary('!', ast_data_int, operand);
+    }
 
     if (lexer_ispunct(token, '*')) {
         ast_t *operand = parse_expression_unary();

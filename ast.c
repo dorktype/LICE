@@ -339,6 +339,10 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_catf(string, "(return %s)", ast_string(ast->returnstmt));
             break;
 
+        case '!':
+            string_catf(string, "(! %s)", ast_string(ast->unary.operand));
+            break;
+
         default:
             left  = ast_string(ast->left);
             right = ast_string(ast->right);

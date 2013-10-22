@@ -60,7 +60,7 @@ Support currently is as follows:
         are implemented.
 
     Pointers:
-        Pointers work how they typically would work, you can define one
+        Pointers work how they typically would work, you can define one,
         take the address of one and have as many layers of referencing
         and dereferencing as you want. Pointer arithmetic works as well.
         Pointers to functions aren't supported. You can also dereference
