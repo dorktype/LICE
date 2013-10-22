@@ -64,7 +64,11 @@ typedef enum {
     AST_TYPE_DEREF,
 
     // conditions
-    AST_TYPE_IF
+    AST_TYPE_IF,
+
+
+    // statements
+    AST_TYPE_FOR
 } ast_type_t;
 
 // language types
@@ -165,6 +169,14 @@ struct ast_s {
             list_t *then;
             list_t *last;
         } ifstmt;
+
+        // for statement
+        struct {
+            ast_t  *init;
+            ast_t  *cond;
+            ast_t  *step;
+            list_t *body;
+        } forstmt;
     };
 };
 
@@ -184,6 +196,7 @@ ast_t *ast_new_function(data_type_t *type, char *name, list_t *params, list_t *b
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_array_init(list_t *init);
 ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last);
+ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, list_t *body);
 
 ast_t *ast_find_variable(const char *name);
 

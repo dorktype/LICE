@@ -144,6 +144,17 @@ static void gen_assignment(ast_t *var, ast_t *value) {
     }
 }
 
+static void gen_comparision(ast_t *a, ast_t *b) {
+    gen_expression(a);
+    printf("push %%rax\n\t");
+    gen_expression(b);
+
+    printf("pop %%rcx\n\t");
+    printf("cmp %%rax, %%rcx\n\t");
+    printf("setl %%al\n\t");
+    printf("movzb %%al, %%eax\n\t");
+}
+
 static void gen_binary(ast_t *ast) {
     if (ast->type == '=') {
         gen_assignment(ast->left, ast->right);
@@ -157,6 +168,13 @@ static void gen_binary(ast_t *ast) {
 
     char *op;
     switch (ast->type) {
+        case '<':
+            gen_comparision(ast->left, ast->right);
+            return;
+        case '>':
+            gen_comparision(ast->right, ast->left);
+            return;
+
         case '+': op = "add";  break;
         case '-': op = "sub";  break;
         case '*': op = "imul"; break;
@@ -267,8 +285,9 @@ static void gen_pointer_dereference(ast_t *var, ast_t *value) {
 }
 
 static void gen_expression(ast_t *ast) {
-    char *l1;
-    char *l2;
+    char *begin;
+    char *ne;
+    char *end;
 
     char *r;
     int   i;
@@ -368,19 +387,37 @@ static void gen_expression(ast_t *ast) {
 
         case AST_TYPE_IF:
             gen_expression(ast->ifstmt.cond);
-            l1 = ast_new_label();
+            ne = ast_new_label();
             printf("test %%rax, %%rax\n\t");
-            printf("je %s\n\t", l1);
+            printf("je %s\n\t", ne);
             gen_block(ast->ifstmt.then);
             if (ast->ifstmt.last) {
-                l2 = ast_new_label();
-                printf("jmp %s\n\t", l2);
-                printf("%s:\n\t", l1);
+                end = ast_new_label();
+                printf("jmp %s\n\t", end);
+                printf("%s:\n\t", ne);
                 gen_block(ast->ifstmt.last);
-                printf("%s:\n\t", l2);
+                printf("%s:\n\t", end);
             } else {
-                printf("%s:\n\t", l1);
+                printf("%s:\n\t", ne);
             }
+            break;
+
+        case AST_TYPE_FOR:
+            if (ast->forstmt.init)
+                gen_expression(ast->forstmt.init);
+            begin = ast_new_label();
+            end   = ast_new_label();
+            printf("%s:\n\t", begin);
+            if (ast->forstmt.cond) {
+                gen_expression(ast->forstmt.cond);
+                printf("test %%rax, %%rax\n\t");
+                printf("je %s\n\t", end);
+            }
+            gen_block(ast->forstmt.body);
+            if (ast->forstmt.step)
+                gen_expression(ast->forstmt.step);
+            printf("jmp %s\n\t", begin);
+            printf("%s:\n\t", end);
             break;
 
         default:

@@ -13,14 +13,17 @@
 static int parse_operator_priority(char operator) {
     switch (operator) {
         case '=':           return 1;
-        case '+': case '-': return 2;
-        case '*': case '/': return 3;
+        case '<': case '>': return 2;
+        case '+': case '-': return 3;
+        case '/': case '*': return 4;
     }
     return -1;
 }
 
+static void    parse_expect(char punct);
 static ast_t  *parse_expression(int lastpri);
 static list_t *parse_block(void);
+static ast_t *parse_declaration_statement(void);
 
 static ast_t *parse_function_call(char *name) {
     list_t *list = list_create();
@@ -164,6 +167,38 @@ static void parse_semantic_lvalue(ast_t *ast) {
 static bool parse_semantic_rightassoc(char operator) {
     // enforce right associative semantics
     return operator == '=';
+}
+
+// expressions that are read up to a semicolon, usefu l for only for
+// loops which have a (init; cond; post) setup.
+static ast_t *parse_declaration_statement_semicolon(void) {
+    lexer_token_t *token = lexer_next();
+    if (lexer_ispunc(token, ';'))
+        return NULL;
+    lexer_unget(token);
+    return parse_declaration_statement();
+}
+
+static ast_t *parse_expression_semicolon(void) {
+    lexer_token_t *token = lexer_next();
+    if (lexer_ispunc(token, ';'))
+        return NULL;
+    lexer_unget(token);
+
+    ast_t *next = parse_expression(0);
+    parse_expect(';');
+    return next;
+}
+
+static ast_t *parse_statement_for(void) {
+    parse_expect('(');
+    ast_t *init = parse_declaration_statement_semicolon();
+    ast_t *cond = parse_expression_semicolon();
+    ast_t *step = lexer_ispunc(lexer_peek(), ')') ? NULL : parse_expression(0);
+    parse_expect(')');
+    parse_expect('{');
+
+    return ast_new_for(init, cond, step, parse_block());
 }
 
 static ast_t *parse_expression_unary(void) {
@@ -452,6 +487,9 @@ static ast_t *parse_statement(void) {
 
     if (token->type == LEXER_TOKEN_IDENT && !strcmp(token->string, "if"))
         return parse_statement_if();
+    if (token->type == LEXER_TOKEN_IDENT && !strcmp(token->string, "for"))
+        return parse_statement_for();
+
     lexer_unget(token);
 
     ast = parse_expression(0);

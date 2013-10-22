@@ -179,6 +179,18 @@ data_type_t *ast_new_array(data_type_t *type, int size) {
     return data;
 }
 
+ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, list_t *body) {
+    ast_t *ast        = ast_new_node();
+    ast->type         = AST_TYPE_FOR;
+    ast->ctype        = NULL;
+    ast->forstmt.init = init;
+    ast->forstmt.cond = cond;
+    ast->forstmt.step = step;
+    ast->forstmt.body = body;
+
+    return ast;
+}
+
 static ast_t *ast_find_variable_subsitute(list_t *list, const char *name) {
     for (list_iter_t *it = list_iterator(list); !list_iterator_end(it); ) {
         ast_t *v = list_iterator_next(it);
@@ -328,6 +340,15 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             if (ast->ifstmt.last)
                 string_appendf(string, " %s", ast_block_string(ast->ifstmt.last));
             string_append(string, ')');
+            break;
+
+        case AST_TYPE_FOR:
+            string_appendf(string, "(for %s %s %s %s)",
+                ast_string(ast->forstmt.init),
+                ast_string(ast->forstmt.cond),
+                ast_string(ast->forstmt.step),
+                ast_block_string(ast->forstmt.body)
+            );
             break;
 
         default:

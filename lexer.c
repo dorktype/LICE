@@ -174,6 +174,7 @@ static lexer_token_t *lexer_read_token(void) {
         case '[': case ']':
         case '{': case '}':
         case ',': case ';':
+        case '<': case '>':
         case '&':
             return lexer_punct(c);
 
