@@ -37,6 +37,7 @@ Support currently is as follows:
             ==      - Equality operator
             <       - Less than operator
             >       - Greater than operator
+            (,)     - Only supported in pointer dereferencing, e.g *(a + b)
 
         Lice doesn't support the terse version of those operators, e.g
             +=, -=, ... aren't supported.
@@ -47,6 +48,10 @@ Support currently is as follows:
         There is no support for structures, switches or unions. There
         is however support for array initializer lists, e.g
             int a[] = { 1, 2, 3 };
+            int a[2] = { 1, 2 };
+
+        There is also support for multidimensionala arrays:
+            int a[1][2][3][4];
 
         Statement block constructs must exist for every statement, e.g
             if (a)
@@ -59,7 +64,7 @@ Support currently is as follows:
         take the address of one and have as many layers of referencing
         and dereferencing as you want. Pointer arithmetic works as well.
         Pointers to functions aren't supported. You can also dereference
-        pointers into assignments, e.g *a=b; works.
+        pointers into assignments, e.g *a=b; works, as does *(a+N)=b;
 
     Comments:
         Currently the source can contain no C or C++ style comments.
