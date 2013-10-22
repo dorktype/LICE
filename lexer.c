@@ -130,7 +130,7 @@ static lexer_token_t *lexer_read_number(int c) {
             ungetc(p, stdin);
             return lexer_int(n);
         }
-        n = n * 10 + (c - '0');
+        n = n * 10 + (p - '0');
     }
     return NULL;
 }
