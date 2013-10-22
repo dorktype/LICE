@@ -54,7 +54,7 @@ ast_t *ast_new_binary(char type, data_type_t *data, ast_t *left, ast_t *right) {
 
 ast_t *ast_new_func_call(char *name, int size, ast_t **nodes) {
     ast_t *ast     = ast_new_node();
-    ast->type      = ast_type_func_call;
+    ast->type      = AST_TYPE_CALL;
     ast->ctype     = data_int;
     ast->call.name = name;
     ast->call.size = size;
@@ -65,7 +65,7 @@ ast_t *ast_new_func_call(char *name, int size, ast_t **nodes) {
 
 ast_t *ast_new_variable(data_type_t *type, char *name) {
     ast_t *ast              = ast_new_node();
-    ast->type               = ast_type_data_var;
+    ast->type               = AST_TYPE_VAR;
     ast->ctype              = type;
     ast->variable.name      = name;
     ast->variable.placement = (var_list)
@@ -78,7 +78,7 @@ ast_t *ast_new_variable(data_type_t *type, char *name) {
 
 ast_t *ast_new_int(int value) {
     ast_t *ast   = ast_new_node();
-    ast->type    = ast_type_data_literal;
+    ast->type    = AST_TYPE_LITERAL;
     ast->ctype   = data_int;
     ast->integer = value;
 
@@ -87,7 +87,7 @@ ast_t *ast_new_int(int value) {
 
 ast_t *ast_new_char(char value) {
     ast_t *ast     = ast_new_node();
-    ast->type      = ast_type_data_literal;
+    ast->type      = AST_TYPE_LITERAL;
     ast->ctype     = data_char;
     ast->character = value;
 
@@ -96,7 +96,7 @@ ast_t *ast_new_char(char value) {
 
 ast_t *ast_new_string(char *value) {
     ast_t *ast       = ast_new_node();
-    ast->type        = ast_type_data_literal;
+    ast->type        = AST_TYPE_LITERAL;
     ast->ctype       = data_str;
     ast->string.data = value;
 
@@ -115,7 +115,7 @@ ast_t *ast_new_string(char *value) {
 
 ast_t *ast_new_decl(ast_t *var, ast_t *init) {
     ast_t *ast     = ast_new_node();
-    ast->type      = ast_type_decl;
+    ast->type      = AST_TYPE_DECL;
     ast->ctype     = NULL;
     ast->decl.var  = var;
     ast->decl.init = init;
@@ -159,7 +159,7 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
     size_t i;
     if (!ast) return;
     switch (ast->type) {
-        case ast_type_data_literal:
+        case AST_TYPE_LITERAL:
             switch (ast->ctype->type) {
                 case TYPE_INT:
                     string_appendf(string, "%d", ast->integer);
@@ -176,11 +176,11 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
             }
             break;
 
-        case ast_type_data_var:
+        case AST_TYPE_VAR:
             string_appendf(string, "%s", ast->variable.name);
             break;
 
-        case ast_type_func_call:
+        case AST_TYPE_CALL:
             string_appendf(string, "%s(", ast->call.name);
             for(i = 0; i < ast->call.size; i++) {
                 ast_dump_string_impl(string, ast->call.args[i]);
@@ -190,15 +190,15 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
             string_appendf(string, ")");
             break;
 
-        case ast_type_addr:
+        case AST_TYPE_ADDR:
             string_appendf(string, "(& %s)", ast_dump_string(ast->unary.operand));
             break;
 
-        case ast_type_deref:
+        case AST_TYPE_DEREF:
             string_appendf(string, "(* %s)", ast_dump_string(ast->unary.operand));
             break;
 
-        case ast_type_decl:
+        case AST_TYPE_DECL:
             string_appendf(
                 string,
                 "(decl %s %s %s)",

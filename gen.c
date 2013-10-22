@@ -55,7 +55,7 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
     int   i;
 
     switch (ast->type) {
-        case ast_type_data_literal:
+        case AST_TYPE_LITERAL:
             switch (ast->ctype->type) {
                 case TYPE_INT:
                     fprintf(as, "mov $%d, %%eax\n", ast->integer);
@@ -71,7 +71,7 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
             }
             break;
 
-        case ast_type_data_var:
+        case AST_TYPE_VAR:
             switch ((size = gen_type_size(ast->ctype))) {
                 case 1:
                     fprintf(as, "mov $0, %%eax\nmov -%d(%%rbp), %%al\n", ast->variable.placement * 8);
@@ -87,7 +87,7 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
             }
             break;
 
-        case ast_type_func_call:
+        case AST_TYPE_CALL:
             for (i = 1; i < ast->call.size; i++)
                 fprintf(as, "push %%%s\n", registers[i]);
             for (i = 0; i < ast->call.size; i++) {
@@ -106,15 +106,15 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
                 fprintf(as, "pop %%%s\n", registers[i]);
             break;
 
-        case ast_type_decl:
+        case AST_TYPE_DECL:
             gen_emit_assignment(as, ast->decl.var, ast->decl.init);
             break;
 
-        case ast_type_addr:
+        case AST_TYPE_ADDR:
             fprintf(as, "lea -%d(%%rbp), %%rax\n", ast->unary.operand->variable.placement * 8);
             break;
 
-        case ast_type_deref:
+        case AST_TYPE_DEREF:
             gen_emit_expression(as, ast->unary.operand);
             switch (gen_type_size(ast->ctype)) {
                 case 1: reg = "%bl";  break;

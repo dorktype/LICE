@@ -217,6 +217,8 @@ static lexer_token_t *lexer_read_token(void) {
         // punctuation
         case '+': case '-': case '/': case '*': case '=':
         case '(': case ')':
+        case '[': case ']': // todo
+        case '{': case '}': // todo
         case ',': case ';':
         case '&':
             return lexer_punct(c);

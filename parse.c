@@ -149,7 +149,7 @@ static data_type_t *parse_semantic_result(char op, ast_t *a, ast_t *b) {
 // parser semantic enforcers
 static void parse_semantic_lvalue(ast_t *ast) {
     // enforce lvalue semantics
-    if (ast->type != ast_type_data_var)
+    if (ast->type != AST_TYPE_VAR)
         compile_error("Expected lvalue");
 }
 
@@ -163,14 +163,14 @@ static ast_t *parse_expression_unary(void) {
     if (lexer_ispunc(token, '&')) {
         ast_t *operand = parse_expression_unary();
         parse_semantic_lvalue(operand);
-        return ast_new_unary(ast_type_addr, ast_new_pointer(operand->ctype), operand);
+        return ast_new_unary(AST_TYPE_ADDR, ast_new_pointer(operand->ctype), operand);
     }
 
     if (lexer_ispunc(token, '*')) {
         ast_t *operand = parse_expression_unary();
         if (operand->ctype->type != TYPE_PTR)
             compile_error("Expected pointer type, cannot dereference expression <%s>", ast_dump_string(operand));
-        return ast_new_unary(ast_type_deref, operand->ctype->pointer, operand);
+        return ast_new_unary(AST_TYPE_DEREF, operand->ctype->pointer, operand);
     }
 
     lexer_unget(token);

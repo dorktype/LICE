@@ -52,18 +52,18 @@ ast_t *var_find(const char *name);
 // represents what type of ast node it is
 typedef enum {
     // data storage
-    ast_type_data_literal,
-    ast_type_data_var,
+    AST_TYPE_LITERAL,
+    AST_TYPE_VAR,
 
     // function stuff
-    ast_type_func_call,
+    AST_TYPE_CALL,
 
     // misc
-    ast_type_decl,
+    AST_TYPE_DECL,
 
     // pointer stuff
-    ast_type_addr,
-    ast_type_deref
+    AST_TYPE_ADDR,
+    AST_TYPE_DEREF
 
 } ast_type_t;
 
