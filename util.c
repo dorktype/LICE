@@ -21,7 +21,7 @@ static void string_reallocate(string_t *string) {
     string->allocated = size;
 }
 
-void string_appendf(string_t *string, const char *fmt, ...) {
+void string_catf(string_t *string, const char *fmt, ...) {
     va_list  va;
     for (;;) {
         int left  = string->allocated - string->length;
@@ -53,7 +53,7 @@ char *string_buffer(string_t *string) {
     return string->buffer;
 }
 
-void string_append(string_t *string, char ch) {
+void string_cat(string_t *string, char ch) {
     if (string->allocated == (string->length + 1))
         string_reallocate(string);
     string->buffer[string->length++] = ch;
@@ -64,11 +64,11 @@ char *string_quote(char *p) {
     string_t *string = string_create();
     while (*p) {
         if (*p == '\"' || *p == '\\')
-            string_appendf(string, "\\%c", *p);
+            string_catf(string, "\\%c", *p);
         else if (*p == '\n')
-            string_appendf(string, "\\n");
+            string_catf(string, "\\n");
         else
-            string_append(string, *p);
+            string_cat(string, *p);
         p++;
     }
     return string->buffer;
@@ -79,7 +79,7 @@ struct list_node_s {
     list_node_t *next;
 };
 
-struct list_iter_s {
+struct list_iterator_s {
     list_node_t *pointer;
 };
 
@@ -114,13 +114,13 @@ int list_length(list_t *list) {
     return list->length;
 }
 
-list_iter_t *list_iterator(list_t *list) {
-    list_iter_t *iter = (list_iter_t*)malloc(sizeof(list_iter_t));
+list_iterator_t *list_iterator(list_t *list) {
+    list_iterator_t *iter = (list_iterator_t*)malloc(sizeof(list_iterator_t));
     iter->pointer     = list->head;
     return iter;
 }
 
-void *list_iterator_next(list_iter_t *iter) {
+void *list_iterator_next(list_iterator_t *iter) {
     void *ret;
 
     if (!iter->pointer)
@@ -132,6 +132,6 @@ void *list_iterator_next(list_iter_t *iter) {
     return ret;
 }
 
-bool list_iterator_end(list_iter_t *iter) {
+bool list_iterator_end(list_iterator_t *iter) {
     return !iter->pointer;
 }

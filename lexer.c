@@ -126,7 +126,7 @@ static lexer_token_t *lexer_read_string(void) {
             }
         }
 
-        string_append(string, c); // append character
+        string_cat(string, c); // append character
     }
     return lexer_strtok(string);
 }
@@ -134,7 +134,7 @@ static lexer_token_t *lexer_read_string(void) {
 // read an indentifier and build identifier token for the token stream
 static lexer_token_t *lexer_read_identifier(int c1) {
     string_t *string = string_create();
-    string_append(string, (char)c1);
+    string_cat(string, (char)c1);
 
     for (;;) {
         int c2 = getc(stdin);
@@ -142,7 +142,7 @@ static lexer_token_t *lexer_read_identifier(int c1) {
         // underscores are allowed in identifiers, as is
         // $ (GNU extension)
         if (isalnum(c2) || c2 == '_' || c2 == '$') {
-            string_append(string, c2);
+            string_cat(string, c2);
         } else {
             ungetc(c2, stdin);
             return lexer_identifier(string);
@@ -233,20 +233,20 @@ char *lexer_tokenstr(lexer_token_t *token) {
     switch (token->type) {
         case LEXER_TOKEN_PUNCT:
             if (token->punct == ':') {
-                string_appendf(string, "==");
+                string_catf(string, "==");
                 return string_buffer(string);
             }
             // fall
         case LEXER_TOKEN_CHAR:
-            string_append(string, token->character);
+            string_cat(string, token->character);
             return string_buffer(string);
 
         case LEXER_TOKEN_INT:
-            string_appendf(string, "%d", token->integer);
+            string_catf(string, "%d", token->integer);
             return string_buffer(string);
 
         case LEXER_TOKEN_STRING:
-            string_appendf(string, "\"%s\"", token->string);
+            string_catf(string, "\"%s\"", token->string);
             return string_buffer(string);
 
         case LEXER_TOKEN_IDENT:

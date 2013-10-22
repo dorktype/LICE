@@ -15,11 +15,11 @@ void compile_error(const char *fmt, ...) {
     exit(EXIT_FAILURE);
 }
 
-int compile(bool dump) {
+int compile_begin(bool dump) {
     list_t *block = parse_function_list();
     if (!dump) {
         gen_data_section();
-        for (list_iter_t *it = list_iterator(block); !list_iterator_end(it); )
+        for (list_iterator_t *it = list_iterator(block); !list_iterator_end(it); )
             gen_function(list_iterator_next(it));
     } else {
         printf("%s\n", ast_block_string(block));
@@ -30,7 +30,7 @@ int compile(bool dump) {
 int main(int argc, char **argv) {
     argc--;
     argv++;
-    return compile(!!(argc && !strcmp(*argv, "--dump-ast")))
+    return compile_begin(!!(argc && !strcmp(*argv, "--dump-ast")))
             ? EXIT_SUCCESS
             : EXIT_FAILURE;
 }

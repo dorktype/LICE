@@ -22,16 +22,16 @@ string_t *string_create(void);
 char *string_buffer(string_t *string);
 
 /*
- * Function: string_append
+ * Function: string_cat
  *  Append a character to a string object
  */
-void string_append(string_t *string, char ch);
+void string_cat(string_t *string, char ch);
 
 /*
- * Function: string_appendf
+ * Function: string_catf
  *  Append a formatted string to a string object
  */
-void string_appendf(string_t *string, const char *fmt, ...);
+void string_catf(string_t *string, const char *fmt, ...);
 
 /*
  * Function: string_quote
@@ -41,10 +41,10 @@ char *string_quote(char *p);
 
 
 /*
- * Type: list_iter_t
+ * Type: list_iterator_t
  *  A type capable of representing an itrator for a <list>
  */
-typedef struct list_iter_s list_iter_t;
+typedef struct list_iterator_s list_iterator_t;
 
 /*
  * Type: list_t
@@ -75,19 +75,19 @@ int list_length(list_t *list);
  * Function: list_iterator
  *  Create an iterator for a given list object
  */
-list_iter_t *list_iterator(list_t *list);
+list_iterator_t *list_iterator(list_t *list);
 
 /*
  * Function: list_iterator_next
  *  Increment the list iterator while returning the given element
  */
-void *list_iterator_next(list_iter_t *iter);
+void *list_iterator_next(list_iterator_t *iter);
 
 /*
  * Function: list_iterator_end
  *  Test if the iterator is at the end of the list
  */
-bool list_iterator_end(list_iter_t *iter);
+bool list_iterator_end(list_iterator_t *iter);
 
 
 typedef struct list_node_s list_node_t;

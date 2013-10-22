@@ -218,7 +218,7 @@ void gen_data_section(void) {
     if (!ast_globals)
         return;
 
-    for (list_iter_t *it = list_iterator(ast_globals); !list_iterator_end(it); ) {
+    for (list_iterator_t *it = list_iterator(ast_globals); !list_iterator_end(it); ) {
         ast_t *ast = list_iterator_next(it);
         printf("%s:\n\t", ast->string.label);
         printf(".string \"%s\"\n", string_quote(ast->string.data));
@@ -238,14 +238,14 @@ static void gen_function_prologue(ast_t *ast) {
     int r = 0;
     int o = 0;
 
-    for (list_iter_t *it = list_iterator(ast->function.params); !list_iterator_end(it); r++) {
+    for (list_iterator_t *it = list_iterator(ast->function.params); !list_iterator_end(it); r++) {
         ast_t *value = list_iterator_next(it);
         printf("push %%%s\n\t", registers[r]);
         o += gen_data_padding(gen_type_size(value->ctype));
         value->local.off = o;
     }
 
-    for (list_iter_t *it = list_iterator(ast->function.locals); !list_iterator_end(it); ) {
+    for (list_iterator_t *it = list_iterator(ast->function.locals); !list_iterator_end(it); ) {
         ast_t *value = list_iterator_next(it);
         o += gen_data_padding(gen_type_size(value->ctype));
         value->local.off = o;
@@ -267,7 +267,7 @@ void gen_function(ast_t *ast) {
 }
 
 static void gen_block(list_t *block) {
-    for (list_iter_t *it = list_iterator(block); !list_iterator_end(it); )
+    for (list_iterator_t *it = list_iterator(block); !list_iterator_end(it); )
         gen_expression(list_iterator_next(it));
 }
 
@@ -339,7 +339,7 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_CALL:
             for (i = 1; i < list_length(ast->function.call.args); i++)
                 printf("push %%%s\n\t", registers[i]);
-            for (list_iter_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
+            for (list_iterator_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 gen_expression(list_iterator_next(it));
                 printf("push %%rax\n\t");
             }
@@ -357,7 +357,7 @@ static void gen_expression(ast_t *ast) {
 
             if (ast->decl.init->type == AST_TYPE_ARRAY_INIT) {
                 i = 0;
-                for (list_iter_t *it = list_iterator(ast->decl.init->array); !list_iterator_end(it);) {
+                for (list_iterator_t *it = list_iterator(ast->decl.init->array); !list_iterator_end(it);) {
                     gen_expression(list_iterator_next(it));
                     gen_save_local(ast->decl.var->ctype->pointer, ast->decl.var->local.off, -i);
                     i++;
