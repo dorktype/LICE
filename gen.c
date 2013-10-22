@@ -420,6 +420,12 @@ static void gen_expression(ast_t *ast) {
             printf("%s:\n\t", end);
             break;
 
+        case AST_TYPE_RETURN:
+            gen_expression(ast->returnstmt);
+            printf("leave\n\t");
+            printf("ret\n");
+            break;
+
         default:
             gen_binary(ast);
     }

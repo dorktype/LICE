@@ -63,12 +63,10 @@ typedef enum {
     AST_TYPE_ADDR,
     AST_TYPE_DEREF,
 
-    // conditions
-    AST_TYPE_IF,
-
-
     // statements
-    AST_TYPE_FOR
+    AST_TYPE_IF,
+    AST_TYPE_FOR,
+    AST_TYPE_RETURN
 } ast_type_t;
 
 // language types
@@ -177,6 +175,8 @@ struct ast_s {
             ast_t  *step;
             list_t *body;
         } forstmt;
+
+        ast_t *returnstmt;
     };
 };
 
@@ -197,6 +197,7 @@ ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_array_init(list_t *init);
 ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last);
 ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, list_t *body);
+ast_t *ast_new_return(ast_t *val);
 
 ast_t *ast_find_variable(const char *name);
 

@@ -481,14 +481,23 @@ list_t *parse_function_list(void) {
     return NULL;
 }
 
+static bool parse_statement_try(lexer_token_t *token, const char *type) {
+    return (token->type == LEXER_TOKEN_IDENT && !strcmp(token->string, type));
+}
+
+static ast_t *parse_statement_return(void) {
+    ast_t *val = parse_expression(0);
+    parse_expect(';');
+    return ast_new_return(val);
+}
+
 static ast_t *parse_statement(void) {
     lexer_token_t *token = lexer_next();
     ast_t         *ast;
 
-    if (token->type == LEXER_TOKEN_IDENT && !strcmp(token->string, "if"))
-        return parse_statement_if();
-    if (token->type == LEXER_TOKEN_IDENT && !strcmp(token->string, "for"))
-        return parse_statement_for();
+    if (parse_statement_try(token, "if"))     return parse_statement_if();
+    if (parse_statement_try(token, "for"))    return parse_statement_for();
+    if (parse_statement_try(token, "return")) return parse_statement_return();
 
     lexer_unget(token);
 
