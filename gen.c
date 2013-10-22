@@ -7,6 +7,7 @@ static const char *registers[] = {
 
 static void gen_expression(ast_t *ast);
 static void gen_pointer_dereference(ast_t *var, ast_t *value);
+static void gen_block(list_t *block);
 
 static int gen_type_size(data_type_t *type) {
     switch (type->type) {
@@ -192,37 +193,58 @@ static int gen_data_padding(int n) {
 
 
 void gen_data_section(void) {
-    int offset = 0;
-
     if (!ast_globals)
         return;
-
-    // padding
-    for (list_iter_t *it = list_iterator(ast_locals); !list_iterator_end(it); ) {
-        ast_t *block     = list_iterator_next(it);
-        offset          += gen_data_padding(gen_type_size(block->ctype));
-        block->local.off = offset;
-    }
 
     for (list_iter_t *it = list_iterator(ast_globals); !list_iterator_end(it); ) {
         ast_t *ast = list_iterator_next(it);
         printf("%s:\n\t", ast->string.label);
         printf(".string \"%s\"\n", string_quote(ast->string.data));
     }
+}
+
+static void gen_function_prologue(ast_t *ast) {
+    if (list_length(ast->function.params) > sizeof(registers)/sizeof(registers[0]))
+        compile_error("Too many params for function");
 
     printf(".text\n\t");
-    printf(".global entry\n");
-    printf("entry:\n\t");
+    printf(".global %s\n", ast->function.name);
+    printf("%s:\n\t", ast->function.name);
     printf("push %%rbp\n\t");
     printf("mov %%rsp, %%rbp\n\t");
 
-    if (ast_locals)
-        printf("sub $%d, %%rsp\n\t", offset);
+    int r = 0;
+    int o = 0;
 
+    for (list_iter_t *it = list_iterator(ast->function.params); !list_iterator_end(it); r++) {
+        ast_t *value = list_iterator_next(it);
+        printf("push %%%s\n\t", registers[r]);
+        o += gen_data_padding(gen_type_size(value->ctype));
+        value->local.off = o;
+    }
 
+    for (list_iter_t *it = list_iterator(ast->function.locals); !list_iterator_end(it); ) {
+        ast_t *value = list_iterator_next(it);
+        o += gen_data_padding(gen_type_size(value->ctype));
+        value->local.off = o;
+    }
+
+    if (o)
+        printf("sub $%d, %%rsp\n\t", o);
 }
 
-void gen_block(list_t *block) {
+static void gen_function_epilogue(void) {
+    printf("leave\n\t");
+    printf("ret\n");
+}
+
+void gen_function(ast_t *ast) {
+    gen_function_prologue(ast);
+    gen_block(ast->function.body);
+    gen_function_epilogue();
+}
+
+static void gen_block(list_t *block) {
     for (list_iter_t *it = list_iterator(block); !list_iterator_end(it); )
         gen_expression(list_iterator_next(it));
 }
@@ -292,17 +314,17 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_CALL:
-            for (i = 1; i < list_length(ast->call.args); i++)
+            for (i = 1; i < list_length(ast->function.call.args); i++)
                 printf("push %%%s\n\t", registers[i]);
-            for (list_iter_t *it = list_iterator(ast->call.args); !list_iterator_end(it); ) {
+            for (list_iter_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 gen_expression(list_iterator_next(it));
                 printf("push %%rax\n\t");
             }
-            for (i = list_length(ast->call.args) - 1; i >= 0; i--)
+            for (i = list_length(ast->function.call.args) - 1; i >= 0; i--)
                 printf("pop %%%s\n\t", registers[i]);
             printf("mov $0, %%eax\n\t");
-            printf("call %s\n\t", ast->call.name);
-            for (i = list_length(ast->call.args) - 1; i > 0; i--)
+            printf("call %s\n\t", ast->function.name);
+            for (i = list_length(ast->function.call.args) - 1; i > 0; i--)
                 printf("pop %%%s\n\t", registers[i]);
             break;
 

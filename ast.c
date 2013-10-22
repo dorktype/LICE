@@ -8,7 +8,8 @@ static int ast_label_index = 0;
 data_type_t *ast_data_int  = &(data_type_t) { TYPE_INT,  NULL };
 data_type_t *ast_data_char = &(data_type_t) { TYPE_CHAR, NULL };
 list_t      *ast_globals   = &(list_t){ .length = 0, .head = NULL, .tail = NULL };
-list_t      *ast_locals    = &(list_t){ .length = 0, .head = NULL, .tail = NULL };
+list_t      *ast_locals    = NULL;
+list_t      *ast_params    = NULL;
 
 // creates a new ast node
 #define ast_new_node() \
@@ -63,7 +64,8 @@ ast_t *ast_new_variable_local(data_type_t *type, char *name) {
     ast->ctype      = type;
     ast->local.name = name;
 
-    list_push(ast_locals, ast);
+    if (ast_locals)
+        list_push(ast_locals, ast);
     return ast;
 }
 
@@ -108,12 +110,24 @@ ast_t *ast_new_string(char *value) {
     return ast;
 }
 
-ast_t *ast_new_call(char *name, list_t *args) {
-    ast_t *ast     = ast_new_node();
-    ast->type      = AST_TYPE_CALL;
-    ast->ctype     = ast_data_int;
-    ast->call.name = name;
-    ast->call.args = args;
+ast_t *ast_new_call(data_type_t *type, char *name, list_t *args) {
+    ast_t *ast              = ast_new_node();
+    ast->type               = AST_TYPE_CALL;
+    ast->ctype              = type;
+    ast->function.call.args = args;
+    ast->function.name      = name;
+
+    return ast;
+}
+
+ast_t *ast_new_function(data_type_t *ret, char *name, list_t *params, list_t *body, list_t *locals) {
+    ast_t *ast           = ast_new_node();
+    ast->type            = AST_TYPE_FUNCTION;
+    ast->ctype           = ret;
+    ast->function.name   = name;
+    ast->function.params = params;
+    ast->function.locals = locals;
+    ast->function.body   = body;
 
     return ast;
 }
@@ -166,17 +180,22 @@ data_type_t *ast_new_array(data_type_t *type, int size) {
     return data;
 }
 
+static ast_t *ast_find_variable_subsitute(list_t *list, const char *name) {
+    for (list_iter_t *it = list_iterator(list); !list_iterator_end(it); ) {
+        ast_t *v = list_iterator_next(it);
+        if (!strcmp(name, v->local.name))
+            return v;
+    }
+    return NULL;
+}
+
 ast_t *ast_find_variable(const char *name) {
-    for (list_iter_t *it = list_iterator(ast_locals); !list_iterator_end(it); ) {
-        ast_t *v = list_iterator_next(it);
-        if (!strcmp(name, v->local.name))
-            return v;
-    }
-    for (list_iter_t *it = list_iterator(ast_globals); !list_iterator_end(it); ) {
-        ast_t *v = list_iterator_next(it);
-        if (!strcmp(name, v->local.name))
-            return v;
-    }
+    ast_t *r;
+
+    if ((r = ast_find_variable_subsitute(ast_locals,  name))) return r;
+    if ((r = ast_find_variable_subsitute(ast_params,  name))) return r;
+    if ((r = ast_find_variable_subsitute(ast_globals, name))) return r;
+
     return NULL;
 }
 
@@ -250,8 +269,8 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
             break;
 
         case AST_TYPE_CALL:
-            string_appendf(string, "%s(", ast->call.name);
-            for (it = list_iterator(ast->call.args); !list_iterator_end(it); ) {
+            string_appendf(string, "%s(", ast->function.name);
+            for (it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 ast_dump_string_impl(string, list_iterator_next(it));
                 if (!list_iterator_end(it))
                     string_appendf(string, ",");
@@ -285,6 +304,17 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
                 ast->decl.var->local.name,
                 ast_dump_string(ast->decl.init)
             );
+            break;
+
+        case AST_TYPE_FUNCTION:
+            string_appendf(string, "(%s)%s(", ast_type_string(ast->ctype), ast->function.name);
+            for (list_iter_t *it = list_iterator(ast->function.params); !list_iterator_end(it); ) {
+                ast_t *param = list_iterator_next(it);
+                string_appendf(string, "5s %s", ast_type_string(param->ctype), ast_dump_string(param));
+                if (!list_iterator_end(it))
+                    string_append(string, ',');
+            }
+            string_appendf(string, ")%s", ast_dump_block_string(ast->function.body));
             break;
 
         case AST_TYPE_IF:

@@ -19,7 +19,8 @@ static int parse_operator_priority(char operator) {
     return -1;
 }
 
-static ast_t *parse_expression(int lastpri);
+static ast_t  *parse_expression(int lastpri);
+static list_t *parse_block(void);
 
 static ast_t *parse_function_call(char *name) {
     list_t *list = list_create();
@@ -41,7 +42,7 @@ static ast_t *parse_function_call(char *name) {
     if (PARSE_CALLS < list_length(list))
         compile_error("too many arguments");
 
-    return ast_new_call(name, list);
+    return ast_new_call(ast_data_int, name, list);
 }
 
 
@@ -242,7 +243,7 @@ static ast_t *parse_expression(int lastpri) {
 }
 
 static data_type_t *parse_type_get(lexer_token_t *token) {
-    if (token->type != LEXER_TOKEN_IDENT)
+    if (!token || token->type != LEXER_TOKEN_IDENT)
         return NULL;
 
     if (!strcmp(token->string, "int"))
@@ -300,25 +301,34 @@ ast_t *parse_decl_initializer(data_type_t *type) {
     return parse_expression(0);
 }
 
-static ast_t *parse_declaration(void) {
-    lexer_token_t *token;
-    ast_t         *var;
-    data_type_t   *type = parse_type_get(lexer_next());
+static data_type_t *parse_declaration_spec(void) {
+    lexer_token_t *token = lexer_next();
+    data_type_t   *type  = parse_type_get(token);
+
+    if (!type)
+        compile_error("Expected type");
 
     for (;;) {
         token = lexer_next();
-        if (!lexer_ispunc(token, '*'))
-            break;
+        if (!lexer_ispunc(token, '*')) {
+            lexer_unget(token);
+            return type;
+        }
 
         type = ast_new_pointer(type);
     }
+    return NULL;
+}
 
-    if (token->type != LEXER_TOKEN_IDENT)
-        compile_error("Expected identifier, got `%s` instead", lexer_tokenstr(token));
+static ast_t *parse_declaration(void) {
+    data_type_t   *type = parse_declaration_spec();
+    lexer_token_t *name = lexer_next();
 
-    lexer_token_t *varname = token;
+    if (name->type != LEXER_TOKEN_IDENT)
+        compile_error("Expected identifier");
+
     for (;;) {
-        token = lexer_next();
+        lexer_token_t *token = lexer_next();
         if (lexer_ispunc(token, '[')) {
             ast_t *size = parse_expression(0);
             if (size->type != AST_TYPE_LITERAL || size->ctype->type != TYPE_INT)
@@ -331,7 +341,7 @@ static ast_t *parse_declaration(void) {
         }
     }
 
-    var = ast_new_variable_local(type, varname->string);
+    ast_t *var = ast_new_variable_local(type, name->string);
     parse_expect('=');
     ast_t *init = parse_decl_initializer(type);
     parse_expect(';');
@@ -341,7 +351,7 @@ static ast_t *parse_declaration(void) {
 
 ast_t *parse_statement_if(void) {
     lexer_token_t *token; //= lexer_next();
-    ast_t *cond;
+    ast_t  *cond;
     list_t *then;
     list_t *last;
 
@@ -350,10 +360,9 @@ ast_t *parse_statement_if(void) {
     parse_expect(')');
 
     parse_expect('{');
-    then = parse_block();
-    parse_expect('}');
-
+    then  = parse_block();
     token = lexer_next();
+
     if (!token || token->type != LEXER_TOKEN_IDENT || strcmp(token->string, "else")) {
         lexer_unget(token);
         return ast_new_if(cond, then, NULL);
@@ -361,9 +370,68 @@ ast_t *parse_statement_if(void) {
 
     parse_expect('{');
     last = parse_block();
-    parse_expect('}');
 
     return ast_new_if(cond, then, last);
+}
+
+static list_t *parse_params(void) {
+    list_t        *params = list_create();
+    lexer_token_t *token  = lexer_next();
+
+    if (lexer_ispunc(token, ')'))
+        return params;
+
+    lexer_unget(token);
+
+    for (;;) {
+        data_type_t   *type = parse_declaration_spec();
+        lexer_token_t *name = lexer_next();
+        if (name->type != LEXER_TOKEN_IDENT)
+            compile_error("Expected identifier");
+
+        list_push(params, ast_new_variable_local(type, name->string));
+        lexer_token_t *next = lexer_next();
+        if (lexer_ispunc(next, ')'))
+            return params;
+        if (!lexer_ispunc(next, ','))
+            compile_error("Expected comma");
+    }
+    return NULL;
+}
+
+static ast_t *parse_function_declaration(void) {
+    lexer_token_t *token = lexer_peek();
+    if (!token)
+        return NULL;
+
+    void *ret = parse_declaration_spec();
+    lexer_token_t *name = lexer_next();
+    if (name->type != LEXER_TOKEN_IDENT)
+        compile_error("Expected function name");
+
+    parse_expect('(');
+    ast_params = parse_params();
+    parse_expect('{');
+
+    ast_locals = list_create();
+    list_t *body = parse_block();
+    ast_t  *next = ast_new_function(ret, name->string, ast_params, body, ast_locals);
+
+    ast_locals = NULL;
+    ast_params = NULL;
+
+    return next;
+}
+
+list_t *parse_function_list(void) {
+    list_t *list = list_create();
+    for (;;) {
+        ast_t *func = parse_function_declaration();
+        if (!func)
+            return list;
+        list_push(list, func);
+    }
+    return NULL;
 }
 
 static ast_t *parse_statement(void) {
@@ -389,15 +457,21 @@ static ast_t *parse_decl_statement(void) {
     return parse_type_check(token) ? parse_declaration() : parse_statement();
 }
 
-list_t *parse_block(void) {
+static list_t *parse_block(void) {
     list_t *statements = list_create();
     for (;;) {
         ast_t *statement = parse_decl_statement();
         if (statement)
             list_push(statements, statement);
 
-        if (!statement || lexer_ispunc(lexer_peek(), '}'))
+        if (!statement)
             break;
+
+        lexer_token_t *token = lexer_next();
+        if (lexer_ispunc(token, '}'))
+            break;
+
+        lexer_unget(token);
     }
     return statements;
 }

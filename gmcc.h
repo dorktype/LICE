@@ -53,6 +53,7 @@ typedef enum {
 
     // function stuff
     AST_TYPE_CALL,
+    AST_TYPE_FUNCTION,
 
     // misc
     AST_TYPE_DECL,
@@ -129,8 +130,14 @@ struct ast_s {
         // function call
         struct {
             char   *name;
-            list_t *args;
-        } call;
+            struct {
+                list_t *args;
+            } call;
+
+            list_t *params;
+            list_t *locals;
+            list_t *body;
+        } function;
 
         // unary
         struct {
@@ -175,7 +182,8 @@ ast_t *ast_new_reference_local(data_type_t *type, ast_t *var, int off);
 ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file);
 ast_t *ast_new_reference_global(data_type_t *type, ast_t *var, int off);
 ast_t *ast_new_string(char *value);
-ast_t *ast_new_call(char *name, list_t *args);
+ast_t *ast_new_call(data_type_t *type, char *name, list_t *args);
+ast_t *ast_new_function(data_type_t *type, char *name, list_t *params, list_t *body, list_t *locals);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_array_init(int size, list_t *init);
 ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last);
@@ -186,10 +194,13 @@ data_type_t *ast_new_pointer(data_type_t *type);
 data_type_t *ast_new_array(data_type_t *type, int size);
 
 
+// data
 extern data_type_t *ast_data_int;
 extern data_type_t *ast_data_char;
+
 extern list_t      *ast_globals;
 extern list_t      *ast_locals;
+extern list_t      *ast_params;
 
 // debug
 char *ast_dump_string(ast_t *ast);
@@ -200,9 +211,9 @@ void compile_error(const char *fmt, ...);
 
 // gen.c
 void gen_data_section(void);
-void gen_block(list_t *block);
+void gen_function(ast_t *function);
 
 // parse
-list_t *parse_block(void);
+list_t *parse_function_list(void);
 
 #endif

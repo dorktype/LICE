@@ -16,16 +16,17 @@ void compile_error(const char *fmt, ...) {
 
 int compile(int dump) {
 
-    list_t *block = parse_block();
+    list_t *block = parse_function_list();
 
     if (!dump) {
         gen_data_section();
-        gen_block(block);
-        printf("leave\n\t");
-        printf("ret\n");
+    }
 
-    } else {
-        printf("%s\n", ast_dump_block_string(block));
+    for (list_iter_t *it = list_iterator(block); !list_iterator_end(it); ) {
+        if (!dump)
+            gen_function(list_iterator_next(it));
+        else
+            printf("%s\n", ast_dump_block_string(list_iterator_next(it)));
     }
 
     return 1;
