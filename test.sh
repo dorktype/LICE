@@ -7,22 +7,22 @@ assert() {
 }
 
 test_ast() {
-    out="$(echo "$1" | ./gmcc --dump-ast)"
+    out="$(echo "int f(){$1}" | ./gmcc --dump-ast)"
     if [ $? -ne 0 ]; then
         echo "failed $1"
         exit
     fi
-    assert "$out" "$2"
+    assert "$out" "{(int)f()$2;}"
 }
 
 test_gm() {
-    echo $1 | ./gmcc > /tmp/gmcc.S
+    echo "int f(){$1} int main(){printf(\"%d\", f());}" | ./gmcc > /tmp/gmcc.S
     if [ $? -ne 0 ]; then
-        echo "failed to compile \"$1\" [$(cat /tmp/gmcc_log)]"
+        echo "failed to compile"
         exit
     fi
 
-    gcc /tmp/gmcc.S invoke.c -o program
+    gcc /tmp/gmcc.S -o program
     out=$(./program)
     assert "$out" "$2"
 }
@@ -33,16 +33,15 @@ test_ast       "'a';"                      "{'a';}"
 test_ast       '"hello";'                  '{"hello";}'
 test_ast       'int a=1;'                  '{(decl int a 1);}'
 test_ast       'int a=1;a;'                '{(decl int a 1);a;}'
-test_ast       'a();'                      '{a();}'
-test_ast       'a(1);'                     '{a(1);}'
-test_ast       'a(1,2,3,4);'               '{a(1,2,3,4);}'
-test_ast       'int a=1;b(a);'             '{(decl int a 1);b(a);}'
+test_ast       'a();'                      '{(int)a();}'
+test_ast       'a(1);'                     '{(int)a(1);}'
+test_ast       'a(1,2,3,4);'               '{(int)a(1,2,3,4);}'
+test_ast       'int a=1;b(a);'             '{(decl int a 1);(int)b(a);}'
 test_ast       '1+2-3+4;'                  '{(+ (- (+ 1 2) 3) 4);}'
 test_ast       '1+2*3+4;'                  '{(+ (+ 1 (* 2 3)) 4);}'
 test_ast       '1*2+3*4;'                  '{(+ (* 1 2) (* 3 4));}'
 test_ast       '1/2+3/4;'                  '{(+ (/ 1 2) (/ 3 4));}'
 test_ast       '1/2/3/4;'                  '{(/ (/ (/ 1 2) 3) 4);}'
-test_ast       'int a=1;&a;'               '{(decl int a 1);(& a);}'
 test_ast       'int a=1;*&a;'              '{(decl int a 1);(* (& a));}'
 test_ast       'int a[3]={1,2,3};'         '{(decl int[3] a {1,2,3});}'
 
