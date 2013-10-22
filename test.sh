@@ -16,12 +16,13 @@ test_ast() {
 }
 
 test_gm() {
-    echo $1 | ./gmcc 2> /tmp/gmcc_log
+    echo $1 | ./gmcc > /tmp/gmcc.S
     if [ $? -ne 0 ]; then
         echo "failed to compile \"$1\" [$(cat /tmp/gmcc_log)]"
         exit
     fi
 
+    gcc /tmp/gmcc.S invoke.c -o program
     out=$(./program)
     assert "$out" "$2"
 }

@@ -49,7 +49,7 @@ static ast_t *parse_function_call(char *name) {
         compile_error("too many arguments");
 
     // now build the node! :D
-    return ast_new_func_call(name, wrote, args);
+    return ast_new_call(name, wrote, args);
 }
 
 
@@ -62,7 +62,7 @@ static ast_t *parse_generic(char *name) {
 
     lexer_unget(token);
 
-    if (!(var = var_find(name)))
+    if (!(var = ast_find_variable(name)))
         compile_error("Undefined variable: %s", name);
 
     return var;
@@ -101,27 +101,34 @@ static data_type_t *parse_semantic_result_impl(jmp_buf *jmpbuf, char op, data_ty
     if (b->type == TYPE_PTR) {
         if (op != '+' && op != '-')
             goto error;
+        if (a->type != TYPE_INT)
+            goto error;
 
-        if (a->type != TYPE_PTR) {
-            // warning
-            return b;
-        }
-
-        data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
-        data->type        = TYPE_PTR;
-        data->pointer     = parse_semantic_result_impl(jmpbuf, op, a->pointer, b->pointer);
-        return data;
+        return b;
     }
-
 
     switch (a->type) {
         case TYPE_VOID:
             goto error;
         case TYPE_INT:
         case TYPE_CHAR:
-            return ast_data_int();
+            switch (b->type) {
+                case TYPE_INT:
+                case TYPE_CHAR:
+                    return ast_data_int();
+
+                case TYPE_ARRAY:
+                case TYPE_PTR:
+                    return b;
+
+                case TYPE_VOID:
+                    goto error;
+            }
+            compile_error("Internal error");
+            break;
+
         case TYPE_ARRAY:
-            return parse_semantic_result_impl(jmpbuf, op, ast_new_pointer(a->pointer), b);
+            goto error;
         default:
             compile_error("Internal error %s", __func__);
     }
@@ -132,25 +139,26 @@ error:
     return NULL;
 }
 
-static data_type_t *parse_semantic_result(char op, ast_t *a, ast_t *b) {
+static data_type_t *parse_semantic_result(char op, data_type_t *a, data_type_t *b) {
     jmp_buf jmpbuf;
     if (setjmp(jmpbuf) == 0)
-        return parse_semantic_result_impl(&jmpbuf, op, a->ctype, b->ctype);
+        return parse_semantic_result_impl(&jmpbuf, op, a, b);
 
-    compile_error("Incompatible types in expression: <%s> %c <%s>",
-        op,
-        ast_dump_string(a),
-        ast_dump_string(b)
-    );
 
+    compile_error("Incompatible types in expression");
     return NULL;
 }
 
 // parser semantic enforcers
 static void parse_semantic_lvalue(ast_t *ast) {
-    // enforce lvalue semantics
-    if (ast->type != AST_TYPE_VAR)
-        compile_error("Expected lvalue");
+    switch (ast->type) {
+        case AST_TYPE_VAR_LOCAL:
+        case AST_TYPE_REF_LOCAL:
+        case AST_TYPE_VAR_GLOBAL:
+        case AST_TYPE_REF_GLOBAL:
+            return;
+    }
+    compile_error("<%s> isn't a valid lvalue", ast_dump_string(ast));
 }
 
 static bool parse_semantic_rightassoc(char operator) {
@@ -175,6 +183,20 @@ static ast_t *parse_expression_unary(void) {
 
     lexer_unget(token);
     return parse_expression_primary();
+}
+
+static ast_t *parse_array_decay(ast_t *ast) {
+    if (ast->type == AST_TYPE_STRING)
+        return ast_new_reference_global(ast_new_pointer(ast_data_char()), ast, 0);
+    if (ast->ctype->type != TYPE_ARRAY)
+        return ast;
+
+    if (ast->type == AST_TYPE_VAR_LOCAL)
+        return ast_new_reference_local(ast_new_pointer(ast->ctype->pointer), ast, 0);
+    if (ast->type != AST_TYPE_VAR_GLOBAL)
+        compile_error("Internal error");
+
+    return ast_new_reference_global(ast_new_pointer(ast->ctype->pointer), ast, 0);
 }
 
 // handles operator precedence climbing as well
@@ -202,12 +224,14 @@ static ast_t *parse_expression(int lastpri) {
 
         if (lexer_ispunc(token, '='))
             parse_semantic_lvalue(ast);
+        else
+            ast = parse_array_decay(ast);
 
         next = parse_expression(pri + !parse_semantic_rightassoc(token->punct));
-        data = parse_semantic_result(token->punct, ast, next);
+        data = parse_semantic_result(token->punct, ast->ctype, next->ctype);
 
         // swap
-        if (data->type == TYPE_PTR && ast->ctype->type != TYPE_PTR) {
+        if (!lexer_ispunc(token, '=') && data->type == TYPE_PTR && ast->ctype->type != TYPE_PTR) {
             ast_t *t = ast;
             ast  = next;
             next = t;
@@ -240,6 +264,41 @@ static void parse_expect(char punct) {
         compile_error("Expected `%c`, got %s instead", punct, lexer_tokenstr(token));
 }
 
+static ast_t *parse_decl_array_initializer(data_type_t *type) {
+    lexer_token_t *token = lexer_next();
+    if (type->pointer->type == TYPE_CHAR && token->type == LEXER_TOKEN_STRING)
+        return ast_new_string(token->string);
+
+    if (!lexer_ispunc(token, '{'))
+        compile_error("Expected initializer list");
+
+    ast_t **init = (ast_t**)malloc(sizeof(ast_t*) * type->size);
+    int i;
+    for (i = 0; i < type->size; i++) {
+        init[i] = parse_expression(0);
+        parse_semantic_result('=', init[i]->ctype, type->pointer);
+        token = lexer_next();
+        if (lexer_ispunc(token, '}') && (i == type->size - 1))
+            break;
+        if (!lexer_ispunc(token, ','))
+            compile_error("Expected comma in initializer list");
+
+        if (i == type->size - 1) {
+            token = lexer_next();
+            if (!lexer_ispunc(token, '}'))
+                compile_error("Expected `}`");
+            break;
+        }
+    }
+
+    return ast_new_array_init(type->size, init);
+}
+
+ast_t *parse_decl_initializer(data_type_t *type) {
+    if (type->type == TYPE_ARRAY)
+        return parse_decl_array_initializer(type);
+    return parse_expression(0);
+}
 
 static ast_t *parse_declaration(void) {
     lexer_token_t *token;
@@ -257,15 +316,27 @@ static ast_t *parse_declaration(void) {
     if (token->type != LEXER_TOKEN_IDENT)
         compile_error("Expected identifier, got `%s` instead", lexer_tokenstr(token));
 
-    var = ast_new_variable(type, token->string);
+    lexer_token_t *varname = token;
+    for (;;) {
+        token = lexer_next();
+        if (lexer_ispunc(token, '[')) {
+            ast_t *size = parse_expression(0);
+            if (size->type != AST_TYPE_LITERAL || size->ctype->type != TYPE_INT)
+                compile_error("Expected integer expression for array size, got <%s>", ast_dump_string(size));
+            parse_expect(']');
+            type = ast_new_array(type, size->integer);
+        } else {
+            lexer_unget(token);
+            break;
+        }
+    }
 
-    // expect for init
+    var = ast_new_variable_local(type, varname->string);
     parse_expect('=');
-
     return ast_new_decl(var, parse_expression(0));
 }
 
-static ast_t *parse_statement(void) {
+ast_t *parse_statement(void) {
     lexer_token_t *token = lexer_peek();
     ast_t         *ast;
 
@@ -281,45 +352,4 @@ static ast_t *parse_statement(void) {
         compile_error("Expected termination of expression: %s", lexer_tokenstr(token));
 
     return ast;
-}
-
-
-// compile stage
-void parse_compile(FILE *as, int dump) {
-    ast_t *ast[1024];
-    int    i;
-    int    n;
-
-    for (i = 0; i < 1024; i++) {
-        ast_t *load = parse_statement();
-        if   (!load) break;
-        ast[i] = load;
-    }
-
-    // emit the entry
-    if (!dump) {
-        gen_emit_data(as, ast_strings());
-        fprintf(
-            as,"\
-            .text\n\
-            .global " GMCC_ENTRY "\n"
-            GMCC_ENTRY ":\n\
-                push %%rbp\n\
-                mov %%rsp, %%rbp\n"
-        );
-
-        if (ast_variables())
-            fprintf(as, "sub $%d, %%rsp\n", ast_variables()->variable.placement * 8);
-    }
-
-    for (n = 0; n < i; n++) {
-        if (dump)
-            printf("%s", ast_dump_string(ast[n]));
-        else
-            gen_emit_expression(as, ast[n]);
-    }
-
-    if (!dump) {
-        fprintf(as, "leave\nret\n");
-    }
 }

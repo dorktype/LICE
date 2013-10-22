@@ -45,26 +45,27 @@ char *lexer_tokenstr(lexer_token_t *token);
 // ast.c
 typedef struct ast_s ast_t;
 
-// var.c
-ast_t *var_find(const char *name);
-
 // ast.c
 // represents what type of ast node it is
 typedef enum {
     // data storage
     AST_TYPE_LITERAL,
-    AST_TYPE_VAR,
+    AST_TYPE_STRING,
+    AST_TYPE_VAR_LOCAL,
+    AST_TYPE_REF_LOCAL,
+    AST_TYPE_VAR_GLOBAL,
+    AST_TYPE_REF_GLOBAL,
 
     // function stuff
     AST_TYPE_CALL,
 
     // misc
     AST_TYPE_DECL,
+    AST_TYPE_ARRAY_INIT,
 
     // pointer stuff
     AST_TYPE_ADDR,
     AST_TYPE_DEREF
-
 } ast_type_t;
 
 // language types
@@ -80,6 +81,7 @@ typedef struct data_type_s data_type_t;
 struct data_type_s {
     type_t       type;
     data_type_t *pointer;
+    int          size;
 };
 
 
@@ -89,6 +91,7 @@ struct data_type_s {
 struct ast_s {
     char         type;
     data_type_t *ctype; // C type
+    ast_t       *next;
 
     // node crap occupies same memory location
     // to keep ram footprint minimal
@@ -96,19 +99,35 @@ struct ast_s {
         int    integer;
         char   character;
 
-        // variable
-        struct {
-            char  *name;
-            int    placement;
-            ast_t *next;
-        } variable;
-
         // string
         struct {
-            char  *data;
-            int    id;
-            ast_t *next;
+            char *data;
+            char *label;
         } string;
+
+        // local variable
+        struct {
+            char *name;
+            int   off;
+        } local;
+
+        // global variable
+        struct {
+            char *name;
+            char *label;
+        } global;
+
+        // local reference
+        struct {
+            ast_t *ref;
+            int    off;
+        } local_ref;
+
+        // global reference
+        struct {
+            ast_t *ref;
+            int    off;
+        } global_ref;
 
         // function call
         struct {
@@ -133,39 +152,51 @@ struct ast_s {
             ast_t *var;
             ast_t *init;
         } decl;
+
+        // array initializer
+        struct {
+            int     size;
+            ast_t **init;
+        } array;
     };
 };
 
-data_type_t *ast_data_int(void);
-data_type_t *ast_data_char(void);
-data_type_t *ast_data_array(void);
-
 ast_t *ast_new_unary(char type, data_type_t *data, ast_t *operand);
 ast_t *ast_new_binary(char type, data_type_t *data, ast_t *left, ast_t *right);
-ast_t *ast_new_string(char *value);
 ast_t *ast_new_int(int value);
 ast_t *ast_new_char(char value);
-ast_t *ast_new_variable(data_type_t *type, char *name);
+char *ast_new_label(void);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
-ast_t *ast_new_func_call(char *name, int size, ast_t **nodes);
+ast_t *ast_new_variable_local(data_type_t *type, char *name);
+ast_t *ast_new_reference_local(data_type_t *type, ast_t *var, int off);
+ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file);
+ast_t *ast_new_reference_global(data_type_t *type, ast_t *var, int off);
+ast_t *ast_new_string(char *value);
+ast_t *ast_new_call(char *name, int size, ast_t **args);
+ast_t *ast_new_decl(ast_t *var, ast_t *init);
+ast_t *ast_new_array_init(int size, ast_t **init);
+ast_t *ast_find_variable(const char *name);
 
 data_type_t *ast_new_pointer(data_type_t *type);
-const char *ast_type_string(data_type_t *type);
+data_type_t *ast_new_array(data_type_t *type, int size);
 
-// data singletons
-ast_t *ast_strings(void);
-ast_t *ast_variables(void);
+ast_t       *ast_data_globals(void);
+ast_t       *ast_data_locals(void);
+
+data_type_t *ast_data_int(void);
+data_type_t *ast_data_char(void);
 
 // debug
 char *ast_dump_string(ast_t *ast);
-
-// parse.c
-void parse_compile(FILE *as, int dump);
 
 // gmcc.c
 void compile_error(const char *fmt, ...);
 
 // gen.c
-void gen_emit_data(FILE *as, ast_t *strings);
-void gen_emit_expression(FILE *as, ast_t *ast);
+void gen_data_section(void);
+void gen_expression(ast_t *ast);
+
+// parse
+ast_t *parse_statement(void);
+
 #endif

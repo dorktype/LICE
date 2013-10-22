@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-extern int gmcc_entry(void);
+extern int entry(void);
 
 int main(int argc, char **argv) {
-    printf("%d\n", gmcc_entry());
+    printf("%d\n", entry());
     return EXIT_SUCCESS;
 }
