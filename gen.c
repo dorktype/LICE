@@ -39,7 +39,7 @@ static void gen_emit_assignment(FILE *as, ast_t *left, ast_t *right) {
 static int gen_type_shift(data_type_t *type) {
     switch (type->type) {
         case TYPE_CHAR: return 0;
-        case TYPE_INT:  return 1;
+        case TYPE_INT:  return 2;
         default:        return 3;
     }
     return 3;
@@ -51,6 +51,7 @@ static int gen_type_size(data_type_t *type) {
 
 void gen_emit_expression(FILE *as, ast_t *ast) {
     char *reg; // derefence register
+    int   size;
     int   i;
 
     switch (ast->type) {
@@ -66,12 +67,12 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
                     fprintf(as, "lea .s%d(%%rip), %%rax\n", ast->string.id);
                     break;
                 default:
-                    compile_error("Internal error");
+                    compile_error("Internal error %s %d", __func__, ast->ctype->type);
             }
             break;
 
         case ast_type_data_var:
-            switch (gen_type_size(ast->ctype)) {
+            switch ((size = gen_type_size(ast->ctype))) {
                 case 1:
                     fprintf(as, "mov $0, %%eax\nmov -%d(%%rbp), %%al\n", ast->variable.placement * 8);
                     break;
@@ -82,7 +83,7 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
                     fprintf(as, "mov -%d(%%rbp), %%rax\n", ast->variable.placement * 8);
                     break;
                 default:
-                    compile_error("Internal error");
+                    compile_error("Internal error %s (size)%d", __func__, size);
             }
             break;
 
@@ -120,7 +121,7 @@ void gen_emit_expression(FILE *as, ast_t *ast) {
                 case 4: reg = "%ebx"; break;
                 case 8: reg = "%rbx"; break;
                 default:
-                    compile_error("Internal error");
+                    compile_error("Internal error %s", __func__);
             }
             fprintf(
                 as,"\

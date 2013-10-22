@@ -171,7 +171,7 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
                     string_appendf(string, "\"%s\"", string_quote(ast->string.data));
                     break;
                 default:
-                    compile_error("Internal error");
+                    compile_error("Internal error %s", __func__);
                     break;
             }
             break;

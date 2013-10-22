@@ -87,7 +87,7 @@ static ast_t *parse_expression_primary(void) {
             compile_error("Unexpected punctuation: `%c`", token->punct);
             return NULL;
     }
-    compile_error("Internal error: Expected token");
+    compile_error("Internal error %s", __func__);
     return NULL;
 }
 
@@ -123,7 +123,7 @@ static data_type_t *parse_semantic_result_impl(jmp_buf *jmpbuf, char op, data_ty
         case TYPE_ARRAY:
             return parse_semantic_result_impl(jmpbuf, op, ast_new_pointer(a->pointer), b);
         default:
-            compile_error("Internal error");
+            compile_error("Internal error %s", __func__);
     }
 
 error:

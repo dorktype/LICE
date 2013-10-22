@@ -234,7 +234,7 @@ static lexer_token_t *lexer_read_token(void) {
 
 bool lexer_ispunc(lexer_token_t *token, char c) {
     if (!token)
-        compile_error("Internal error: null token");
+        compile_error("Internal error %s", __func__);
     return token->type == LEXER_TOKEN_PUNCT && token->punct == c;
 }
 

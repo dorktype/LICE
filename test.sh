@@ -50,3 +50,6 @@ test_gm        '1+2+3+4;'                  '10'
 test_gm        '1 + 2;'                    '3'  # whitespace test
 test_gm        '4/2+6/3;'                  '4'
 test_gm        "'a'+1;"                    '98' # ascii 98 == 'a'
+
+test_gm        'printf("a");3;'            'a3'
+test_gm        'printf("%s", "abc");3;'    'abc3'
