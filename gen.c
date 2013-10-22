@@ -188,7 +188,6 @@ void gen_data_section(void) {
         printf("%s:\n\t", ast->string.label);
         printf(".string \"%s\"\n", string_quote(ast->string.data));
     }
-    printf("\t");
 }
 
 void gen_block(ast_t **block) {
