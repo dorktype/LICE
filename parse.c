@@ -158,7 +158,7 @@ static void parse_semantic_lvalue(ast_t *ast) {
         case AST_TYPE_DEREF:
             return;
     }
-    compile_error("<%s> isn't a valid lvalue", ast_dump_string(ast));
+    compile_error("TODO");
 }
 
 static bool parse_semantic_rightassoc(char operator) {
@@ -177,7 +177,7 @@ static ast_t *parse_expression_unary(void) {
     if (lexer_ispunc(token, '*')) {
         ast_t *operand = parse_expression_unary();
         if (operand->ctype->type != TYPE_PTR)
-            compile_error("Expected pointer type, cannot dereference expression <%s>", ast_dump_string(operand));
+            compile_error("TODO");
         return ast_new_unary(AST_TYPE_DEREF, operand->ctype->pointer, operand);
     }
 
@@ -332,7 +332,7 @@ static ast_t *parse_declaration(void) {
         if (lexer_ispunc(token, '[')) {
             ast_t *size = parse_expression(0);
             if (size->type != AST_TYPE_LITERAL || size->ctype->type != TYPE_INT)
-                compile_error("Expected integer expression for array size, got <%s>", ast_dump_string(size));
+                compile_error("TODO");
             parse_expect(']');
             type = ast_new_array(type, size->integer);
         } else {

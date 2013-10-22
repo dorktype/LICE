@@ -225,10 +225,21 @@ const char *ast_type_string(data_type_t *type) {
     return NULL;
 }
 
-static void ast_dump_string_impl(string_t *string, ast_t *ast) {
-    char        *left;
-    char        *right;
-    list_iter_t *it;
+static void ast_string_impl(string_t *string, ast_t *ast);
+char *ast_block_string(list_t *block) {
+    string_t *string = string_create();
+    string_append(string, '{');
+    for (list_iter_t *it = list_iterator(block); !list_iterator_end(it); ) {
+        ast_string_impl(string, list_iterator_next(it));
+        string_append(string, ';');
+    }
+    string_append(string, '}');
+    return string_buffer(string);
+}
+
+static void ast_string_impl(string_t *string, ast_t *ast) {
+    char *left;
+    char *right;
 
     if (!ast) {
         string_appendf(string, "(null)");
@@ -238,14 +249,10 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
     switch (ast->type) {
         case AST_TYPE_LITERAL:
             switch (ast->ctype->type) {
-                case TYPE_INT:
-                    string_appendf(string, "%d", ast->integer);
-                    break;
-                case TYPE_CHAR:
-                    string_appendf(string, "'%c'", ast->character);
-                    break;
+                case TYPE_INT:  string_appendf(string, "%d",   ast->integer);   break;
+                case TYPE_CHAR: string_appendf(string, "'%c'", ast->character); break;
                 default:
-                    compile_error("Internal error %s", __func__);
+                    compile_error("Internal error");
                     break;
             }
             break;
@@ -257,100 +264,83 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
         case AST_TYPE_VAR_LOCAL:
             string_appendf(string, "%s", ast->local.name);
             break;
+
         case AST_TYPE_VAR_GLOBAL:
             string_appendf(string, "%s", ast->global.name);
             break;
 
         case AST_TYPE_REF_LOCAL:
-            string_appendf(string, "%s[%d]", ast_dump_string(ast->local_ref.ref), ast->local_ref.off);
+            string_appendf(string, "%s[%d]", ast_string(ast->local_ref.ref), ast->local_ref.off);
             break;
+
         case AST_TYPE_REF_GLOBAL:
-            string_appendf(string, "%s[%d]", ast_dump_string(ast->global_ref.ref), ast->global_ref.off);
+            string_appendf(string, "%s[%d]", ast_string(ast->global_ref.ref), ast->global_ref.off);
             break;
 
         case AST_TYPE_CALL:
-            string_appendf(string, "%s(", ast->function.name);
-            for (it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
-                ast_dump_string_impl(string, list_iterator_next(it));
+            string_appendf(string, "(%s)%s(", ast_type_string(ast->ctype), ast->function.name);
+            for (list_iter_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
+                string_appendf(string, "%s", ast_string(list_iterator_next(it)));
                 if (!list_iterator_end(it))
-                    string_appendf(string, ",");
+                    string_append(string, ',');
             }
-            string_appendf(string, ")");
-            break;
-
-
-        case AST_TYPE_ARRAY_INIT:
-            string_appendf(string, "{");
-            for (it = list_iterator(ast->array.init); !list_iterator_end(it); ) {
-                ast_dump_string_impl(string, list_iterator_next(it));
-                if (!list_iterator_end(it))
-                    string_appendf(string, ",");
-            }
-            string_appendf(string, "}");
-            break;
-
-        case AST_TYPE_ADDR:
-            string_appendf(string, "(& %s)", ast_dump_string(ast->unary.operand));
-            break;
-        case AST_TYPE_DEREF:
-            string_appendf(string, "(* %s)", ast_dump_string(ast->unary.operand));
-            break;
-
-        case AST_TYPE_DECL:
-            string_appendf(
-                string,
-                "(decl %s %s %s)",
-                ast_type_string(ast->decl.var->ctype),
-                ast->decl.var->local.name,
-                ast_dump_string(ast->decl.init)
-            );
+            string_append(string, ')');
             break;
 
         case AST_TYPE_FUNCTION:
             string_appendf(string, "(%s)%s(", ast_type_string(ast->ctype), ast->function.name);
             for (list_iter_t *it = list_iterator(ast->function.params); !list_iterator_end(it); ) {
                 ast_t *param = list_iterator_next(it);
-                string_appendf(string, "5s %s", ast_type_string(param->ctype), ast_dump_string(param));
+                string_appendf(string, "%s %s", ast_type_string(param->ctype), ast_string(param));
                 if (!list_iterator_end(it))
                     string_append(string, ',');
             }
-            string_appendf(string, ")%s", ast_dump_block_string(ast->function.body));
+            string_appendf(string, ")%s", ast_block_string(ast->function.body));
+            break;
+
+        case AST_TYPE_DECL:
+            string_appendf(string, "(decl %s %s %s)",
+                    ast_type_string(ast->decl.var->ctype),
+                    ast->decl.var->local.name,
+                    ast_string(ast->decl.init)
+            );
+            break;
+
+        case AST_TYPE_ARRAY_INIT:
+            string_append(string, '{');
+            for(list_iter_t *it = list_iterator(ast->array.init); !list_iterator_end(it); ) {
+                ast_string_impl(string, list_iterator_next(it));
+                if (!list_iterator_end(it))
+                    string_append(string, ',');
+            }
+            string_append(string, '}');
+            break;
+
+        case AST_TYPE_ADDR:
+            string_appendf(string, "(& %s)", ast_string(ast->unary.operand));
+            break;
+
+        case AST_TYPE_DEREF:
+            string_appendf(string, "(* %s)", ast_string(ast->unary.operand));
             break;
 
         case AST_TYPE_IF:
-            string_appendf(
-                string,
-                "(if %s %s",
-                ast_dump_string(ast->ifstmt.cond),
-                ast_dump_block_string(ast->ifstmt.then)
-            );
+            string_appendf(string, "(if %s %s", ast_string(ast->ifstmt.cond), ast_block_string(ast->ifstmt.then));
             if (ast->ifstmt.last)
-                string_appendf(string, " %s", ast_dump_block_string(ast->ifstmt.last));
+                string_appendf(string, " %s", ast_block_string(ast->ifstmt.last));
             string_append(string, ')');
             break;
 
         default:
-            left  = ast_dump_string(ast->left);
-            right = ast_dump_string(ast->right);
+            left  = ast_string(ast->left);
+            right = ast_string(ast->right);
             string_appendf(string, "(%c %s %s)", ast->type, left, right);
             break;
     }
 }
 
-
-char *ast_dump_block_string(list_t *block) {
+char *ast_string(ast_t *ast) {
     string_t *string = string_create();
-    string_appendf(string, "{");
-    for (list_iter_t *it = list_iterator(block); !list_iterator_end(it); ) {
-        ast_dump_string_impl(string, list_iterator_next(it));
-        string_append(string, ';');
-    }
-    string_append(string, '}');
-    return string_buffer(string);
-}
-
-char *ast_dump_string(ast_t *ast) {
-    string_t *string = string_create();
-    ast_dump_string_impl(string, ast);
+    ast_string_impl(string, ast);
     return string_buffer(string);
 }

@@ -20,13 +20,10 @@ int compile(int dump) {
 
     if (!dump) {
         gen_data_section();
-    }
-
-    for (list_iter_t *it = list_iterator(block); !list_iterator_end(it); ) {
-        if (!dump)
+        for (list_iter_t *it = list_iterator(block); !list_iterator_end(it); )
             gen_function(list_iterator_next(it));
-        else
-            printf("%s\n", ast_dump_block_string(list_iterator_next(it)));
+    } else {
+        printf("%s\n", ast_block_string(block));
     }
 
     return 1;

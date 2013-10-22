@@ -203,8 +203,8 @@ extern list_t      *ast_locals;
 extern list_t      *ast_params;
 
 // debug
-char *ast_dump_string(ast_t *ast);
-char *ast_dump_block_string(list_t *block);
+char *ast_string(ast_t *ast);
+char *ast_block_string(list_t *block);
 
 // gmcc.c
 void compile_error(const char *fmt, ...);
