@@ -227,7 +227,7 @@ static ast_t *parse_expression(int lastpri) {
         else
             ast = parse_array_decay(ast);
 
-        next = parse_expression(pri + !parse_semantic_rightassoc(token->punct));
+        next = parse_array_decay(parse_expression(pri + !parse_semantic_rightassoc(token->punct)));
         data = parse_semantic_result(token->punct, ast->ctype, next->ctype);
 
         // swap
@@ -333,23 +333,77 @@ static ast_t *parse_declaration(void) {
 
     var = ast_new_variable_local(type, varname->string);
     parse_expect('=');
-    return ast_new_decl(var, parse_decl_initializer(type));
+    ast_t *init = parse_decl_initializer(type);
+    parse_expect(';');
+
+    return ast_new_decl(var, init);
 }
 
-ast_t *parse_statement(void) {
-    lexer_token_t *token = lexer_peek();
+ast_t *parse_statement_if(void) {
+    lexer_token_t *token; //= lexer_next();
+    ast_t *cond;
+    ast_t **then;
+    ast_t **last;
+
+    parse_expect('(');
+    cond = parse_expression(0);
+    parse_expect(')');
+
+    parse_expect('{');
+    then = parse_block();
+    parse_expect('}');
+
+    token = lexer_next();
+    if (!token || token->type != LEXER_TOKEN_IDENT || strcmp(token->string, "else")) {
+        lexer_unget(token);
+        return ast_new_if(cond, then, NULL);
+    }
+
+    parse_expect('{');
+    last = parse_block();
+    parse_expect('}');
+
+    return ast_new_if(cond, then, last);
+}
+
+static ast_t *parse_statement(void) {
+    lexer_token_t *token = lexer_next();
     ast_t         *ast;
+
+    if (token->type == LEXER_TOKEN_IDENT && !strcmp(token->string, "if"))
+        return parse_statement_if();
+    lexer_unget(token);
+
+    ast = parse_expression(0);
+    parse_expect(';');
+
+    return ast;
+}
+
+static ast_t *parse_decl_statement(void) {
+    lexer_token_t *token = lexer_peek();
 
     if (!token)
         return NULL;
 
-    ast = parse_type_check(token)
-            ? parse_declaration()
-            : parse_expression(0);
+    return parse_type_check(token) ? parse_declaration() : parse_statement();
+    //return parse_statement();
+}
 
-    token = lexer_next();
-    if (!lexer_ispunc(token, ';'))
-        compile_error("Expected termination of expression: %s", lexer_tokenstr(token));
+ast_t **parse_block(void) {
+    ast_t **statements = (ast_t**)malloc(sizeof(ast_t*) * 1024);
+    int i;
+    for (i = 0; i < 1024 - 1; i++) {
+        lexer_token_t *token;
+        statements[i] = parse_decl_statement();
+        token         = lexer_peek();
+        if (!statements[i] || lexer_ispunc(token, '}'))
+            break;
+    }
 
-    return ast;
+    if (i == 1024 - 1)
+        compile_error("Internal error: OOM");
+
+    statements[i + 1] = NULL;
+    return statements;
 }

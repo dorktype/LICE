@@ -217,8 +217,8 @@ static lexer_token_t *lexer_read_token(void) {
         // punctuation
         case '+': case '-': case '/': case '*': case '=':
         case '(': case ')':
-        case '[': case ']': // todo
-        case '{': case '}': // todo
+        case '[': case ']':
+        case '{': case '}':
         case ',': case ';':
         case '&':
             return lexer_punct(c);
@@ -235,12 +235,13 @@ static lexer_token_t *lexer_read_token(void) {
 }
 
 bool lexer_ispunc(lexer_token_t *token, char c) {
-    if (!token)
-        compile_error("Internal error %s", __func__);
-    return token->type == LEXER_TOKEN_PUNCT && token->punct == c;
+    return token && (token->type == LEXER_TOKEN_PUNCT) && (token->punct == c);
 }
 
 void lexer_unget(lexer_token_t *token) {
+    if (!token)
+        return;
+
     if (lexer_ungotton)
         compile_error("Internal error: OOM");
     lexer_ungotton = token;
@@ -264,6 +265,10 @@ lexer_token_t *lexer_peek(void) {
 
 char *lexer_tokenstr(lexer_token_t *token) {
     string_t *string;
+
+    if (!token)
+        return "(null)";
+
     switch (token->type) {
         // overlaps same memory
         case LEXER_TOKEN_PUNCT:

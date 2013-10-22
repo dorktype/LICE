@@ -168,6 +168,17 @@ ast_t *ast_new_array_init(int size, ast_t **init) {
     return ast;
 }
 
+ast_t *ast_new_if(ast_t *cond, ast_t **then, ast_t **last) {
+    ast_t *ast       = ast_new_node();
+    ast->type        = AST_TYPE_IF;
+    ast->ctype       = NULL;
+    ast->ifstmt.cond = cond;
+    ast->ifstmt.then = then;
+    ast->ifstmt.last = last;
+
+    return ast;
+}
+
 data_type_t *ast_new_pointer(data_type_t *type) {
     data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
     data->type        = TYPE_PTR;
@@ -226,9 +237,13 @@ const char *ast_type_string(data_type_t *type) {
 static void ast_dump_string_impl(string_t *string, ast_t *ast) {
     char *left;
     char *right;
-
     size_t i;
-    if (!ast) return;
+
+    if (!ast) {
+        string_appendf(string, "(null)");
+        return;
+    }
+
     switch (ast->type) {
         case AST_TYPE_LITERAL:
             switch (ast->ctype->type) {
@@ -300,12 +315,37 @@ static void ast_dump_string_impl(string_t *string, ast_t *ast) {
             );
             break;
 
+        case AST_TYPE_IF:
+            string_appendf(
+                string,
+                "(if %s %s",
+                ast_dump_string(ast->ifstmt.cond),
+                ast_dump_block_string(ast->ifstmt.then)
+            );
+            if (ast->ifstmt.last)
+                string_appendf(string, " %s", ast_dump_block_string(ast->ifstmt.last));
+            string_append(string, ')');
+            break;
+
         default:
             left  = ast_dump_string(ast->left);
             right = ast_dump_string(ast->right);
             string_appendf(string, "(%c %s %s)", ast->type, left, right);
             break;
     }
+}
+
+
+char *ast_dump_block_string(ast_t **block) {
+    string_t *string = string_create();
+    int i;
+    string_appendf(string, "{");
+    for (i = 0; block[i]; i++) {
+        ast_dump_string_impl(string, block[i]);
+        string_append(string, ';');
+    }
+    string_append(string, '}');
+    return string_buffer(string);
 }
 
 char *ast_dump_string(ast_t *ast) {

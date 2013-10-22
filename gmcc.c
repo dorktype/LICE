@@ -38,15 +38,7 @@ static int compile_type_size(data_type_t *type) {
 
 int compile(int dump) {
 
-    ast_t *nodes[1024];
-    int    total = 0;
-
-    for (int i = 0; i < 1024; i++, total++) {
-        ast_t *next = parse_statement();
-        if (!next)
-            break;
-        nodes[i] = next;
-    }
+    ast_t **block = parse_block();
 
     if (!dump) {
         int offset = 0;
@@ -65,20 +57,13 @@ int compile(int dump) {
 
         if (ast_data_locals())
             printf("sub $%d, %%rsp\n\t", offset);
-    }
 
-    for (int i = 0; i < total; i++) {
-        if (dump)
-            printf("%s", ast_dump_string(nodes[i]));
-        else
-            gen_expression(nodes[i]);
-    }
-
-    if (!dump) {
+        gen_block(block);
         printf("leave\n\t");
         printf("ret\n");
+
     } else {
-        printf("\n");
+        printf("%s\n", ast_dump_block_string(block));
     }
 
     return 1;

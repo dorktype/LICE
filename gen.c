@@ -5,6 +5,8 @@ static const char *registers[] = {
     "rdi", "rsi", "rdx", "rcx", "r8", "r9"
 };
 
+static void gen_expression(ast_t *ast);
+
 static int gen_type_size(data_type_t *type) {
     switch (type->type) {
         case TYPE_CHAR: return 1;
@@ -189,7 +191,16 @@ void gen_data_section(void) {
     printf("\t");
 }
 
-void gen_expression(ast_t *ast) {
+void gen_block(ast_t **block) {
+    int i;
+    for (i = 0; block[i]; i++)
+        gen_expression(block[i]);
+}
+
+static void gen_expression(ast_t *ast) {
+    char *l1;
+    char *l2;
+
     char *r;
     int   i;
 
@@ -282,6 +293,23 @@ void gen_expression(ast_t *ast) {
             printf("mov $0, %%ebx\n\t");
             printf("mov (%%rax), %s\n\t", r);
             printf("mov %%rbx, %%rax\n\t");
+            break;
+
+        case AST_TYPE_IF:
+            gen_expression(ast->ifstmt.cond);
+            l1 = ast_new_label();
+            printf("test %%rax, %%rax\n\t");
+            printf("je %s\n\t", l1);
+            gen_block(ast->ifstmt.then);
+            if (ast->ifstmt.last) {
+                l2 = ast_new_label();
+                printf("jmp %s\n\t", l2);
+                printf("%s:\n\t", l1);
+                gen_block(ast->ifstmt.last);
+                printf("%s:\n\t", l2);
+            } else {
+                printf("%s:\n\t", l1);
+            }
             break;
 
         default:

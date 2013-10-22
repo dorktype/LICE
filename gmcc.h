@@ -65,7 +65,10 @@ typedef enum {
 
     // pointer stuff
     AST_TYPE_ADDR,
-    AST_TYPE_DEREF
+    AST_TYPE_DEREF,
+
+    // conditions
+    AST_TYPE_IF
 } ast_type_t;
 
 // language types
@@ -158,6 +161,13 @@ struct ast_s {
             int     size;
             ast_t **init;
         } array;
+
+        // if statement
+        struct {
+            ast_t *cond;
+            ast_t **then;
+            ast_t **last;
+        } ifstmt;
     };
 };
 
@@ -175,6 +185,8 @@ ast_t *ast_new_string(char *value);
 ast_t *ast_new_call(char *name, int size, ast_t **args);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_array_init(int size, ast_t **init);
+ast_t *ast_new_if(ast_t *cond, ast_t **then, ast_t **last);
+
 ast_t *ast_find_variable(const char *name);
 
 data_type_t *ast_new_pointer(data_type_t *type);
@@ -188,15 +200,16 @@ data_type_t *ast_data_char(void);
 
 // debug
 char *ast_dump_string(ast_t *ast);
+char *ast_dump_block_string(ast_t **block);
 
 // gmcc.c
 void compile_error(const char *fmt, ...);
 
 // gen.c
 void gen_data_section(void);
-void gen_expression(ast_t *ast);
+void gen_block(ast_t **block);
 
 // parse
-ast_t *parse_statement(void);
+ast_t **parse_block(void);
 
 #endif
