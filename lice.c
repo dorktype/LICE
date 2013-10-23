@@ -24,7 +24,7 @@ int compile_begin(bool dump) {
         if (!dump) {
             gen_function(list_iterator_next(it));
         } else {
-            printf("%s\n", ast_string(list_iterator_next(it)));
+            printf("%s", ast_string(list_iterator_next(it)));
         }
     }
     return true;
