@@ -27,7 +27,7 @@ You can also call malloc/free for heap allocations.
 Lice supports the following statements
 
 
-Statement | Description 
+Statement | Description
 ----------|:-----------
 if        | Standard if statement
 for       | standard for statement
@@ -37,18 +37,18 @@ return    | Standard return statement
 Lice supports the following operators
 
 
-Operators | Description                                             
+Operators | Description
 ----------|:-------------------------------------------------------
-+,-,/,*   | Arithmetic operators                                    
-=         | Assignment operator                                     
-==        | Equality operator                                       
-<         | Less than operator                                      
-\>        | Greater than operator                                   
-!         | Boolean not operator                                    
-(,)       | Only supported in pointer dereferencing, e.g *(a + b)   
-[]        | Array subscript operator                                
-++,--     | Postfix operators only (e.g a++)                        
-?,:       | Ternary operator                                        
++,-,/,*   | Arithmetic operators
+=         | Assignment operator
+==        | Equality operator
+<         | Less than operator
+\>        | Greater than operator
+!         | Boolean not operator
+(,)       | Only supported in pointer dereferencing, e.g *(a + b)
+[]        | Array subscript operator
+++,--     | Postfix operators only (e.g a++)
+?,:       | Ternary operator
 
 Lice doesn't support the short-hand operators `+=, -=, *=, /= ...`
 
@@ -75,9 +75,6 @@ pointers into assignments, e.g *a=b; works, as does *(a+N)=b;
 ### Comments
 C block comments and C++ line comments are supported, as well as
 line continuation.
-
-### Globals
-Currently unimplemented
 
 ### Code generation
 The codegen is unoptimal crap, it produces a 'stack machine'
