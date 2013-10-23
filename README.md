@@ -25,7 +25,7 @@ You can also call malloc/free for heap allocations.
 
 ### Statements
 Lice currently supports three statements
-<table>
+<table align="right">
  <tr><th>Statement</th><th>Description</th></tr>
  <tr><th>if</th><th>Your standard if statement</th></tr>
  <tr><th>for</th><th>Your standard for statement</th></tr>
@@ -34,7 +34,7 @@ Lice currently supports three statements
 
 ### Operators
 Lice only supports the following operators
-<table>
+<table align="right">
  <tr><th>Operators</th><th>Description</th></tr>
  <tr><th>+,-,/,*</th><th>Arithmetic operators</th></tr>
  <tr><th>=</th><th>Assignment operator</th></tr>
