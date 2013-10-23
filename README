@@ -65,9 +65,8 @@ Support currently is as follows:
         pointers into assignments, e.g *a=b; works, as does *(a+N)=b;
 
     Comments:
-        The lexer won't strip comments, leave that to the job of the
-        C preprocessor. So if you need to preprocess any source you'll
-        have to invoke cpp on it before passing it into lice.
+        C block comments and C++ line comments are supported, as well as
+        line continuation.
 
     Globals:
         Currently unimplemented

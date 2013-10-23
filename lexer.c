@@ -44,6 +44,33 @@ static lexer_token_t *lexer_char(char value) {
     return token;
 }
 
+static void lexer_skip_comment_line(void) {
+    for (;;) {
+        int c = getc(stdin);
+        if (c == '\n' || c == EOF)
+            return;
+    }
+}
+
+static void lexer_skip_comment_block(void) {
+    enum {
+        comment_outside,
+        comment_astrick
+    } state = comment_outside;
+
+    for (;;) {
+        int c = getc(stdin);
+        switch (state) {
+            case comment_outside:
+                if (c == '*')
+                    state = comment_astrick;
+            default:
+                if (c == '/')
+                    return;
+        }
+    }
+}
+
 // skip whitespace
 static int lexer_skip(void) {
     int c;
@@ -176,8 +203,21 @@ static lexer_token_t *lexer_read_token(void) {
         case '_':
             return lexer_read_identifier(c);
 
+        case '/':
+            c = getc(stdin);
+            switch (c) {
+                case '/':
+                    lexer_skip_comment_line();
+                    return lexer_read_token();
+                case '*':
+                    lexer_skip_comment_block();
+                    return lexer_read_token();
+            }
+            ungetc(c, stdin);
+            return lexer_punct('/');
+
         // punctuation
-        case '/': case '*':
+        case '*':
         case '(': case ')':
         case '[': case ']':
         case '{': case '}':
