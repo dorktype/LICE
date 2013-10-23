@@ -2,7 +2,7 @@ LICE is an experiment to see how close I can get to a C compiler looking
 at the sources of existing ones like TCC, GCC and SubC, while still
 keeping the code easy to understand and well documented for my own sake.
 
-# Types
+### Types
 There are currently only two types supported, int and char, as
 well as the pointer and array versions of those types. There is
 no support for signed/unsigned keywords, all types are handled
@@ -15,7 +15,7 @@ boundry yet to accomodate it, and the registers themselfs aren't
 properly saved/restored to allow it, so calling external float-aware
 functions will likely crash.
 
-# Functions
+### Functions
 Functions are supported but function prototyping isn't which means
 the function has to be implemented where it's declared. Functions
 are limited to six arguments, and variable arguments are not
@@ -23,67 +23,69 @@ supported. Calling external C variable argument functions such
 as printf are allowed but the argument count is also limited to six.
 You can also call malloc/free for heap allocations.
 
-# Statements
+### Statements
 Lice currently supports three statements:
-|if      | Your standard if statement     |
-|for     | Your standard for statement    |
-|return  | Your standard return statement |
+| Statement | Description                    |
+| --------- | ------------------------------ |
+|if         | Your standard if statement     |
+|for        | Your standard for statement    |
+|return     | Your standard return statement |
 
-# Operators
+### Operators
 Lice only supports the following operators
-|    +,-,/,* | Arithmetic operators
-|    =       | Assignment operator
-|    ==      | Equality operator
-|    <       | Less than operator
-|    >       | Greater than operator
-|    !       | Boolean not operator
-|    (,)     | Only supported in pointer dereferencing, e.g *(a + b)
-|    []      | Array subscript operator
-|    ++,--   | Postfix operators only (e.g a++)
-|    ?,:     | Ternary operator
+| Operators  | Description                                             |
+| ---------- | --------------------------------------------------------|
+|    +,-,/,* | Arithmetic operators                                    |
+|    =       | Assignment operator                                     |
+|    ==      | Equality operator                                       |
+|    <       | Less than operator                                      |
+|    >       | Greater than operator                                   |
+|    !       | Boolean not operator                                    |
+|    (,)     | Only supported in pointer dereferencing, e.g *(a + b)   |
+|    []      | Array subscript operator                                |
+|    ++,--   | Postfix operators only (e.g a++)                        |
+|    ?,:     | Ternary operator                                        |
 
-Lice doesn't support the terse version of those operators, e.g
-    `+=, -=, *=, /= ...` aren't supported.
+Lice doesn't support the short-hand arithmetic operators:
+    `+=, -=, *=, /= ...`
+There is also no prefix operators
 
-There is no prefix operators
+### Constructs:
+There is no support for structures, switches or unions. There
+is however support for array initializer lists, e.g
+```
+int a[] = { 1, 2, 3 };
+int a[2] = { 1, 2 };
+```
 
-Constructs:
-    There is no support for structures, switches or unions. There
-    is however support for array initializer lists, e.g
-    ```
-    int a[] = { 1, 2, 3 };
-    int a[2] = { 1, 2 };
-    ```
+There is also support for multidimensional arrays:
+`int a[1][2][3][4];`
 
-    There is also support for multidimensional arrays:
-    ```int a[1][2][3][4];```
+### Pointers
+Pointers work how they typically would work, you can define one,
+take the address of one and have as many layers of referencing
+and dereferencing as you want. Pointer arithmetic works as well.
+Pointers to functions aren't supported. You can also dereference
+pointers into assignments, e.g *a=b; works, as does *(a+N)=b;
 
-# Pointers
-    Pointers work how they typically would work, you can define one,
-    take the address of one and have as many layers of referencing
-    and dereferencing as you want. Pointer arithmetic works as well.
-    Pointers to functions aren't supported. You can also dereference
-    pointers into assignments, e.g *a=b; works, as does *(a+N)=b;
+### Comments
+C block comments and C++ line comments are supported, as well as
+line continuation.
 
-# Comments
-    C block comments and C++ line comments are supported, as well as
-    line continuation.
+### Globals
+Currently unimplemented
 
-# Globals
-    Currently unimplemented
+### Code generation
+The codegen is unoptimal crap, it produces a 'stack machine'
+model which isn't exactly efficent. All registers are saved
+and restored while they mostly may not need to be. Return
+statements need to emit leave instructions even though they
+might not need to be. Operations will always load operands
+into the first closest registers and store the result back
+into the first, even though that operation may already
+put the result into the first.
 
-# Code generation
-    The codegen is unoptimal crap, it produces a 'stack machine'
-    model which isn't exactly efficent. All registers are saved
-    and restored while they mostly may not need to be. Return
-    statements need to emit leave instructions even though they
-    might not need to be. Operations will always load operands
-    into the first closest registers and store the result back
-    into the first, even though that operation may already
-    put the result into the first.
-
-
-# Platforms
-    The code generator produces code compatible in accordance to
-    the SysV ABI for AMD64. So it should function on any AMD64
-    Linux or FreeBSD system.
+### Platforms
+The code generator produces code compatible in accordance to
+the SysV ABI for AMD64. So it should function on any AMD64
+Linux or FreeBSD system.
