@@ -76,7 +76,7 @@ data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b) {
 #define ast_new_node() \
     ((ast_t*)malloc(sizeof(ast_t)))
 
-ast_t *ast_new_unary(char type, data_type_t *data, ast_t *operand) {
+ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand) {
     ast_t *ast         = ast_new_node();
     ast->type          = type;
     ast->ctype         = data;
@@ -85,7 +85,7 @@ ast_t *ast_new_unary(char type, data_type_t *data, ast_t *operand) {
     return ast;
 }
 
-ast_t *ast_new_binary(char type, ast_t *left, ast_t *right) {
+ast_t *ast_new_binary(int type, ast_t *left, ast_t *right) {
     ast_t *ast         = ast_new_node();
     ast->type          = type;
     ast->ctype         = ast_result_type(type, left->ctype, right->ctype);
@@ -422,10 +422,19 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_catf(string, "(! %s)", ast_string(ast->unary.operand));
             break;
 
+        // deal with reclassified tokens
+        case LEXER_TOKEN_INCREMENT:
+            string_catf(string, "(++ %s)", ast_string(ast->unary.operand));
+            break;
+
+        case LEXER_TOKEN_DECREMENT:
+            string_catf(string, "(-- %s)", ast_string(ast->unary.operand));
+            break;
+
         default:
             left  = ast_string(ast->left);
             right = ast_string(ast->right);
-            if (ast->type == ':')
+            if (ast->type == LEXER_TOKEN_EQUAL)
                 string_catf(string, "(== %s %s)", left, right);
             else
                 string_catf(string, "(%c %s %s)", ast->type, left, right);

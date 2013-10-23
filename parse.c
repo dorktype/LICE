@@ -59,11 +59,11 @@ static void parse_expect(char punct) {
 
 static int parse_operator_priority(lexer_token_t *token) {
     switch (token->punct) {
-        case '=':           return 1;
-        case ':':           return 2;
-        case '<': case '>': return 3;
-        case '+': case '-': return 4;
-        case '/': case '*': return 5;
+        case '=':                         return 1;
+        case LEXER_TOKEN_EQUAL:           return 2;
+        case '<': case '>':               return 3;
+        case '+': case '-':               return 4;
+        case '/': case '*':               return 5;
     }
     return -1;
 }
@@ -114,8 +114,11 @@ static ast_t *parse_expression_primary(void) {
         case LEXER_TOKEN_PUNCT:
             compile_error("Unexpected punctuation: `%c`", token->punct);
             return NULL;
+
+        default:
+            break;
     }
-    compile_error("Internal error %s", __func__);
+    compile_error("Internal error: parse_expression_primary");
     return NULL;
 }
 
@@ -148,7 +151,7 @@ static ast_t *parse_expression_unary(void) {
         ast_t *operand = parse_expression_unary();
         data_type_t *type = ast_array_convert(operand->ctype);
         if (type->type != TYPE_POINTER)
-            compile_error("TODO");
+            compile_error("Internal error: parse_expression_unary");
         return ast_new_unary(AST_TYPE_DEREF, operand->ctype->pointer, operand);
     }
 
@@ -215,7 +218,12 @@ static ast_t *parse_expression_postfix(void) {
             return node;
         if (lexer_ispunct(token, '['))
             node = parse_expression_subscript(node);
-        else {
+        else if(lexer_ispunct(token, LEXER_TOKEN_INCREMENT) ||
+                lexer_ispunct(token, LEXER_TOKEN_DECREMENT))
+        {
+            parse_semantic_lvalue(node);
+            node = ast_new_unary(token->punct, node->ctype, node);
+        } else {
             lexer_unget(token);
             return node;
         }
@@ -237,7 +245,7 @@ static void parse_semantic_lvalue(ast_t *ast) {
         case AST_TYPE_DEREF:
             return;
     }
-    compile_error("TODO");
+    compile_error("Internal error: parse_semantic_lvalue %s", ast_string(ast));
 }
 
 static bool parse_semantic_rightassoc(lexer_token_t *token) {
@@ -264,7 +272,7 @@ static data_type_t *parse_array_dimensions_impl(void) {
         if (size->type        != AST_TYPE_LITERAL ||
             size->ctype->type != TYPE_INT) {
 
-            compile_error("TODO");
+            compile_error("Internal error: parse_array_dimensions_impl (1)");
 
         }
 
@@ -277,7 +285,7 @@ static data_type_t *parse_array_dimensions_impl(void) {
     data_type_t *next = parse_array_dimensions_impl();
     if (next) {
         if (next->size == -1 && dimension == -1)
-            compile_error("TODO");
+            compile_error("Internal error: parse_array_dimensions_impl (2)");
         return ast_new_array(next, dimension);
     }
     return ast_new_array(NULL, dimension);
@@ -343,7 +351,7 @@ static ast_t *parse_declaration_array_initializer(ast_t *var) {
     if (var->ctype->size == -1) {
         var->ctype->size = len;
     } else if (var->ctype->size != len)
-        compile_error("TODO");
+        compile_error("Internal error: parse_declaration_array_initializer");
     } else {
         init = parse_expression(0);
     }

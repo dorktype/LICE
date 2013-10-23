@@ -31,7 +31,7 @@ void gen_emit_impl(int line, const char *annotate, char *fmt, ...) {
 }
 
 static void gen_expression(ast_t *ast);
-static void gen_pointer_dereference(ast_t *var, ast_t *value);
+static void gen_pointer_dereference(ast_t *var);
 static void gen_block(list_t *block);
 
 static int gen_type_size(data_type_t *type) {
@@ -130,8 +130,11 @@ static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
     gen_emit("pointer arithmetic", "add %%rcx, %%rax");
 }
 
-static void gen_assignment(ast_t *var, ast_t *value) {
-    gen_expression(value);
+static void gen_assignment(ast_t *var) {
+    if (var->type == AST_TYPE_DEREF) {
+        gen_pointer_dereference(var);
+        return;
+    }
     switch (var->type) {
         case AST_TYPE_VAR_LOCAL:
             gen_save_local(var->ctype, var->local.off, 0);
@@ -139,10 +142,6 @@ static void gen_assignment(ast_t *var, ast_t *value) {
 
         case AST_TYPE_VAR_GLOBAL:
             gen_save_global(var);
-            break;
-
-        case AST_TYPE_DEREF:
-            gen_pointer_dereference(var, value);
             break;
 
         default:
@@ -163,11 +162,12 @@ static void gen_comparision(char *operation, ast_t *a, ast_t *b) {
 
 static void gen_binary(ast_t *ast) {
     if (ast->type == '=') {
-        gen_assignment(ast->left, ast->right);
+        gen_expression(ast->right);
+        gen_assignment(ast->left);
         return;
     }
 
-    if (ast->type == ':') {
+    if (ast->type == LEXER_TOKEN_EQUAL) {
         gen_comparision("sete", ast->left, ast->right);
         return;
     }
@@ -210,6 +210,14 @@ static void gen_binary(ast_t *ast) {
         gen_emit("operation", "pop %%rcx");
         gen_emit("operation", "%s %%rcx, %%rax", op);
     }
+}
+
+static void gen_emit_postfix(ast_t *ast, const char *op) {
+    gen_expression(ast->unary.operand);
+    gen_emit_basic("push %%rax");
+    gen_emit_basic("%s $1, %%rax", op);
+    gen_assignment(ast->unary.operand);
+    gen_emit_basic("pop %%rax");
 }
 
 static int gen_data_padding(int n) {
@@ -277,21 +285,20 @@ static void gen_block(list_t *block) {
         gen_expression(list_iterator_next(it));
 }
 
-static void gen_pointer_dereference(ast_t *var, ast_t *value) {
+static void gen_pointer_dereference(ast_t *var) {
     char *reg;
 
-    gen_expression(var->unary.operand);
     gen_emit_basic("push %%rax");
-    gen_expression(value);
+    gen_expression(var->unary.operand);
     gen_emit_basic("pop %%rcx");
 
     switch (gen_type_size(var->unary.operand->ctype)) {
-        case 1: reg = "al";  break;
-        case 4: reg = "eax"; break;
-        case 8: reg = "rax"; break;
+        case 1: reg = "cl";  break;
+        case 4: reg = "ecx"; break;
+        case 8: reg = "rcx"; break;
     }
 
-    gen_emit("pointer dereference", "mov %%%s, (%%rcx)", reg);
+    gen_emit("pointer dereference", "mov %%%s, (%%rax)", reg);
 }
 
 static void gen_expression(ast_t *ast) {
@@ -375,12 +382,16 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_DEREF:
             gen_expression(ast->unary.operand);
             switch (gen_type_size(ast->ctype)) {
-                case 1: r = "%cl";  break;
-                case 4: r = "%ecx"; break;
-                case 8: r = "%rcx"; break;
+                case 1:
+                    // special
+                    gen_emit_basic("mov $0, %%ecx");
+                    r = "cl";
+                    break;
+
+                case 4: r = "ecx"; break;
+                case 8: r = "rcx"; break;
             }
-            gen_emit("dereference", "mov $0, %%ecx");
-            gen_emit("dereference", "mov (%%rax), %s", r);
+            gen_emit("dereference", "mov (%%rax), %%%s", r);
             gen_emit("dereference", "mov %%rcx, %%rax");
             break;
 
@@ -432,6 +443,9 @@ static void gen_expression(ast_t *ast) {
             gen_emit("boolean not", "sete %%al");
             gen_emit("boolean not", "movzb %%al, %%eax");
             break;
+
+        case LEXER_TOKEN_INCREMENT: gen_emit_postfix(ast, "add"); break;
+        case LEXER_TOKEN_DECREMENT: gen_emit_postfix(ast, "sub"); break;
 
         default:
             gen_binary(ast);

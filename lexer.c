@@ -25,7 +25,7 @@ static lexer_token_t *lexer_strtok(string_t *str) {
     token->string        = string_buffer(str);
     return token;
 }
-static lexer_token_t *lexer_punct(char punct) {
+static lexer_token_t *lexer_punct(int punct) {
     lexer_token_t *token = lexer_token_new();
     token->type          = LEXER_TOKEN_PUNCT;
     token->punct         = punct;
@@ -151,6 +151,14 @@ static lexer_token_t *lexer_read_identifier(int c1) {
     return NULL;
 }
 
+static lexer_token_t *lexer_read_reclassify(int expect, int a, int b) {
+    int c = getc(stdin);
+    if (c == expect)
+        return lexer_punct(b);
+    ungetc(c, stdin);
+    return lexer_punct(a);
+}
+
 // read an token and build a token for the token stream
 static lexer_token_t *lexer_read_token(void) {
     int c;
@@ -169,7 +177,7 @@ static lexer_token_t *lexer_read_token(void) {
             return lexer_read_identifier(c);
 
         // punctuation
-        case '+': case '-': case '/': case '*':
+        case '/': case '*':
         case '(': case ')':
         case '[': case ']':
         case '{': case '}':
@@ -179,11 +187,9 @@ static lexer_token_t *lexer_read_token(void) {
         case '!':
             return lexer_punct(c);
 
-        case '=':
-            if ((c = getc(stdin)) == '=')
-                return lexer_punct(':');
-            ungetc(c, stdin);
-            return lexer_punct('=');
+        case '=': return lexer_read_reclassify('=', '=', LEXER_TOKEN_EQUAL);
+        case '+': return lexer_read_reclassify('+', '+', LEXER_TOKEN_INCREMENT);
+        case '-': return lexer_read_reclassify('-', '-', LEXER_TOKEN_DECREMENT);
 
         case EOF:
             return NULL;
@@ -196,7 +202,7 @@ static lexer_token_t *lexer_read_token(void) {
     return NULL;
 }
 
-bool lexer_ispunct(lexer_token_t *token, char c) {
+bool lexer_ispunct(lexer_token_t *token, int c) {
     return token && (token->type == LEXER_TOKEN_PUNCT) && (token->punct == c);
 }
 
@@ -233,7 +239,7 @@ char *lexer_tokenstr(lexer_token_t *token) {
 
     switch (token->type) {
         case LEXER_TOKEN_PUNCT:
-            if (token->punct == ':') {
+            if (token->punct == LEXER_TOKEN_EQUAL) {
                 string_catf(string, "==");
                 return string_buffer(string);
             }
@@ -252,6 +258,9 @@ char *lexer_tokenstr(lexer_token_t *token) {
 
         case LEXER_TOKEN_IDENT:
             return token->string;
+
+        default:
+            break;
     }
     compile_error("Internal error: unexpected token");
     return NULL;

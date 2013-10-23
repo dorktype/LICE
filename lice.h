@@ -12,21 +12,27 @@ typedef enum {
     LEXER_TOKEN_PUNCT,
     LEXER_TOKEN_INT,
     LEXER_TOKEN_CHAR,
-    LEXER_TOKEN_STRING
+    LEXER_TOKEN_STRING,
+
+    // reclassified tokens need to not conflict with
+    // the ast types
+    LEXER_TOKEN_EQUAL     = 0x200,
+    LEXER_TOKEN_INCREMENT,
+    LEXER_TOKEN_DECREMENT
 } lexer_token_type_t;
 
 typedef struct {
     lexer_token_type_t type;
     union {
         int   integer;
+        int   punct;
         char *string;
-        char  punct;
         char  character;
     };
 } lexer_token_t;
 
 
-bool lexer_ispunct(lexer_token_t *token, char c);
+bool lexer_ispunct(lexer_token_t *token, int c);
 void lexer_unget(lexer_token_t *token);
 lexer_token_t *lexer_next(void);
 lexer_token_t *lexer_peek(void);
@@ -39,7 +45,7 @@ typedef struct ast_s ast_t;
 
 typedef enum {
     // data storage
-    AST_TYPE_LITERAL,
+    AST_TYPE_LITERAL   = 0x100,
     AST_TYPE_STRING,
     AST_TYPE_VAR_LOCAL,
     AST_TYPE_VAR_GLOBAL,
@@ -61,6 +67,7 @@ typedef enum {
     AST_TYPE_STATEMENT_FOR,
     AST_TYPE_STATEMENT_RETURN
 } ast_type_t;
+
 
 // language types
 typedef enum {
@@ -130,7 +137,7 @@ typedef struct {
 } ast_for_t;
 
 struct ast_s {
-    char         type;
+    int           type;
     data_type_t *ctype;
 
     // all the possible nodes
@@ -154,8 +161,8 @@ struct ast_s {
     };
 };
 
-ast_t *ast_new_unary(char type, data_type_t *data, ast_t *operand);
-ast_t *ast_new_binary(char type, ast_t *left, ast_t *right);
+ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand);
+ast_t *ast_new_binary(int type, ast_t *left, ast_t *right);
 ast_t *ast_new_int(int value);
 ast_t *ast_new_char(char value);
 char *ast_new_label(void);
