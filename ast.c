@@ -4,15 +4,33 @@
 
 #include "lice.h"
 
+
+// todo remove
 static int ast_label_index = 0;
 
-data_type_t *ast_data_int  = &(data_type_t) { TYPE_INT,  NULL };
-data_type_t *ast_data_char = &(data_type_t) { TYPE_CHAR, NULL };
-list_t      *ast_globals   = &(list_t){ .length = 0, .head = NULL, .tail = NULL };
-list_t      *ast_locals    = NULL;
-list_t      *ast_params    = NULL;
+data_type_t *ast_data_int  = &(data_type_t) { TYPE_INT,       NULL };
+data_type_t *ast_data_char = &(data_type_t) { TYPE_CHAR,      NULL };
+env_t       *ast_globalenv = &(env_t)       { &SENTINEL_LIST, NULL };
+env_t       *ast_localenv  = NULL;
+list_t      *ast_localvars = NULL;
 
+////////////////////////////////////////////////////////////////////////
+// ast enviroment
+env_t *ast_env_new(env_t *next) {
+    env_t *env     = (env_t*)malloc(sizeof(env_t));
+    env->next      = next;
+    env->variables = list_create();
 
+    return env;
+}
+
+void ast_env_push(env_t *env, ast_t *var) {
+    // assertion?
+    list_push(env->variables, var);
+}
+
+////////////////////////////////////////////////////////////////////////
+// ast result
 static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *a, data_type_t *b) {
     if (a->type > b->type) {
         data_type_t *t = a;
@@ -75,7 +93,8 @@ data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b) {
     return NULL;
 }
 
-// creates a new ast node
+////////////////////////////////////////////////////////////////////////
+// ast nodes
 #define ast_new_node() \
     ((ast_t*)malloc(sizeof(ast_t)))
 
@@ -131,24 +150,26 @@ char *ast_new_label(void) {
 }
 
 ast_t *ast_new_variable_local(data_type_t *type, char *name) {
-    ast_t *ast      = ast_new_node();
-    ast->type       = AST_TYPE_VAR_LOCAL;
-    ast->ctype      = type;
-    ast->local.name = name;
+    ast_t *ast         = ast_new_node();
+    ast->type          = AST_TYPE_VAR_LOCAL;
+    ast->ctype         = type;
+    ast->variable.name = name;
 
-    if (ast_locals)
-        list_push(ast_locals, ast);
+    ast_env_push(ast_localenv, ast);
+    if (ast_localvars)
+        list_push(ast_localvars, ast);
+
     return ast;
 }
 
 ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file) {
-    ast_t *ast        = ast_new_node();
-    ast->type         = AST_TYPE_VAR_GLOBAL;
-    ast->ctype        = type;
-    ast->global.name  = name;
-    ast->global.label = (file) ? ast_new_label() : name;
+    ast_t *ast          = ast_new_node();
+    ast->type           = AST_TYPE_VAR_GLOBAL;
+    ast->ctype          = type;
+    ast->variable.name  = name;
+    ast->variable.label = (file) ? ast_new_label() : name;
 
-    list_push(ast_globals, ast);
+    ast_env_push(ast_globalenv, ast);
     return ast;
 }
 
@@ -263,6 +284,7 @@ ast_t *ast_new_compound(list_t *statements) {
     ast->type     = AST_TYPE_STATEMENT_COMPOUND;
     ast->ctype    = NULL;
     ast->compound = statements;
+
     return ast;
 }
 
@@ -277,22 +299,14 @@ ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last)
     return ast;
 }
 
-static ast_t *ast_find_variable_subsitute(list_t *list, const char *name) {
-    for (list_iterator_t *it = list_iterator(list); !list_iterator_end(it); ) {
-        ast_t *v = list_iterator_next(it);
-        if (!strcmp(name, v->local.name))
-            return v;
-    }
-    return NULL;
-}
-
 ast_t *ast_find_variable(const char *name) {
-    ast_t *r;
-
-    if ((r = ast_find_variable_subsitute(ast_locals,  name))) return r;
-    if ((r = ast_find_variable_subsitute(ast_params,  name))) return r;
-    if ((r = ast_find_variable_subsitute(ast_globals, name))) return r;
-
+    for (env_t *p = ast_localenv; p; p = p->next) {
+        for (list_iterator_t *it = list_iterator(p->variables); !list_iterator_end(it); ) {
+            ast_t *load = list_iterator_next(it);
+            if (!strcmp(name, load->variable.name))
+                return load;
+        }
+    }
     return NULL;
 }
 
@@ -356,11 +370,8 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             break;
 
         case AST_TYPE_VAR_LOCAL:
-            string_catf(string, "%s", ast->local.name);
-            break;
-
         case AST_TYPE_VAR_GLOBAL:
-            string_catf(string, "%s", ast->global.name);
+            string_catf(string, "%s", ast->variable.name);
             break;
 
         case AST_TYPE_CALL:
@@ -388,7 +399,7 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
         case AST_TYPE_DECLARATION:
             string_catf(string, "(decl %s %s",
                     ast_type_string(ast->decl.var->ctype),
-                    ast->decl.var->local.name
+                    ast->decl.var->variable.name
             );
             if (ast->decl.init)
                 string_catf(string, " %s)", ast_string(ast->decl.init));

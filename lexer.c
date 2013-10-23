@@ -12,7 +12,6 @@
 
 static lexer_token_t *lexer_ungotton = NULL;
 
-
 static lexer_token_t *lexer_identifier(string_t *str) {
     lexer_token_t *token = lexer_token_new();
     token->type          = LEXER_TOKEN_IDENT;

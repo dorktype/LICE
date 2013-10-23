@@ -46,6 +46,7 @@ char *lexer_tokenstr(lexer_token_t *token);
 // ast
 
 typedef struct ast_s ast_t;
+typedef struct env_s env_t;
 
 typedef enum {
     // data storage
@@ -99,15 +100,13 @@ typedef struct {
     char *label;
 } ast_string_t;
 
-typedef struct  {
-    char *name;
-    int   off;
-} ast_local_t;
-
 typedef struct {
     char *name;
-    char *label;
-} ast_global_t;
+    struct {
+        int   off;
+        char *label;
+    };
+} ast_variable_t;
 
 typedef struct {
     char *name;
@@ -146,6 +145,13 @@ typedef struct {
     ast_t  *body;
 } ast_for_t;
 
+// a scopes enviroment is represented as a list of variables
+// and a pointer to the next enviroment within it.
+struct env_s {
+    list_t *variables;
+    env_t  *next;
+};
+
 struct ast_s {
     int           type;
     data_type_t *ctype;
@@ -155,8 +161,7 @@ struct ast_s {
         int            integer;         // integer
         char           character;       // character
         ast_string_t   string;          // string
-        ast_local_t    local;           // local variables
-        ast_global_t   global;          // global variables
+        ast_variable_t variable;        // local and global variable
         ast_function_t function;        // function
         ast_unary_t    unary;           // unary operations
         ast_decl_t     decl;            // declarations
@@ -201,14 +206,16 @@ data_type_t *ast_array_convert(data_type_t *ast);
 
 data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b);
 
-
 // data
 extern data_type_t *ast_data_int;
 extern data_type_t *ast_data_char;
+extern env_t       *ast_globalenv;
+extern env_t       *ast_localenv;
+extern list_t      *ast_localvars;
 
-extern list_t      *ast_globals;
-extern list_t      *ast_locals;
-extern list_t      *ast_params;
+// enviroment handling
+env_t *ast_env_new(env_t *next);
+void  ast_env_push(env_t *env, ast_t *var);
 
 // debug
 char *ast_string(ast_t *ast);

@@ -138,7 +138,7 @@ static ast_t *parse_expression_primary(void) {
         case LEXER_TOKEN_CHAR:   return ast_new_char(token->character);
         case LEXER_TOKEN_STRING:
             ast = ast_new_string(token->string);
-            list_push(ast_globals, ast);
+            ast_env_push(ast_globalenv, ast);
             return ast;
 
         case LEXER_TOKEN_PUNCT:
@@ -399,16 +399,22 @@ static list_t *parse_function_parameters(void) {
 }
 
 static ast_t *parse_function_definition(data_type_t *ret, char *name) {
+    list_t *params;
+    ast_t  *body;
+    ast_t  *next;
+
     parse_expect('(');
-    ast_params = parse_function_parameters();
+    ast_localenv = ast_env_new(ast_globalenv);
+    params       = parse_function_parameters();
     parse_expect('{');
 
-    ast_locals = list_create();
-    ast_t *body = parse_statement_compound();
-    ast_t *next = ast_new_function(ret, name, ast_params, body, ast_locals);
+    ast_localenv  = ast_env_new(ast_localenv);
+    ast_localvars = list_create();
 
-    ast_locals = NULL;
-    ast_params = NULL;
+    body = parse_statement_compound();
+    next = ast_new_function(ret, name, params, body, ast_localvars);
+
+    ast_localvars = NULL;
 
     return next;
 }
@@ -592,12 +598,14 @@ static ast_t *parse_statement_if(void) {
 
 static ast_t *parse_statement_for(void) {
     parse_expect('(');
+    ast_localenv = ast_env_new(ast_localenv);
     ast_t *init = parse_statement_declaration_semicolon();
     ast_t *cond = parse_expression_semicolon();
     ast_t *step = lexer_ispunct(lexer_peek(), ')') ? NULL : parse_expression(0);
     parse_expect(')');
-
-    return ast_new_for(init, cond, step, parse_statement());
+    ast_t *body = parse_statement();
+    ast_localenv = ast_localenv->next;
+    return ast_new_for(init, cond, step, body);
 }
 
 static ast_t *parse_statement(void) {
@@ -635,6 +643,7 @@ static ast_t *parse_statement_declaration_semicolon(void) {
 }
 
 static ast_t *parse_statement_compound(void) {
+    ast_localenv = ast_env_new(ast_localenv);
     list_t *statements = list_create();
     for (;;) {
         ast_t *statement = parse_statement_declaration();
@@ -650,5 +659,6 @@ static ast_t *parse_statement_compound(void) {
 
         lexer_unget(token);
     }
+    ast_localenv = ast_localenv->next;
     return ast_new_compound(statements);
 }

@@ -39,6 +39,15 @@ void string_catf(string_t *string, const char *fmt, ...);
  */
 char *string_quote(char *p);
 
+/*
+ * Macro: SENTINEL_LIST
+ *  Initialize an empty list in place
+ */
+#define SENTINEL_LIST ((list_t) {      \
+        .length    = 0,                \
+        .head      = NULL,             \
+        .tail      = NULL              \
+})
 
 /*
  * Type: list_iterator_t
