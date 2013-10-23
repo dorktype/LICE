@@ -333,6 +333,25 @@ static void gen_pointer_dereference(ast_t *var) {
     gen_emit("mov %%%s, (%%rax)", reg);
 }
 
+static void gen_expression(ast_t *ast);
+static void gen_expression_logical(ast_t *ast) {
+    char *end  = ast_new_label();
+    bool  flop = !!(ast->type == LEXER_TOKEN_AND);
+    char *j    = (flop) ? "je" : "jne";
+    int   a1   = (flop) ? 0    : 1;
+
+    gen_expression(ast->left);
+    gen_emit("test %%rax, %%rax");
+    gen_emit("mov $%d, %%rax", a1);
+    gen_emit("%s %s", j, end);
+    gen_expression(ast->right);
+    gen_emit("test %%rax, %%rax");
+    gen_emit("mov $%d, %%rax", a1);
+    gen_emit("%s %s", j, end);
+    gen_emit("mov $%d, %%rax", (a1) ? 0 : 1);
+    gen_emit("%s:", end);
+}
+
 static void gen_expression(ast_t *ast) {
     char *begin;
     char *ne;
@@ -490,6 +509,11 @@ static void gen_expression(ast_t *ast) {
             gen_emit("cmp $0, %%rax");
             gen_emit("sete %%al");
             gen_emit("movzb %%al, %%eax");
+            break;
+
+        case LEXER_TOKEN_AND:
+        case LEXER_TOKEN_OR:
+            gen_expression_logical(ast);
             break;
 
         case '&':

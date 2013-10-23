@@ -224,10 +224,11 @@ static lexer_token_t *lexer_read_token(void) {
         case ',': case ';':
         case '<': case '>':
         case '?': case ':':
-        case '&':
         case '!':
             return lexer_punct(c);
 
+        case '|': return lexer_read_reclassify('|', '|', LEXER_TOKEN_OR);
+        case '&': return lexer_read_reclassify('&', '&', LEXER_TOKEN_AND);
         case '=': return lexer_read_reclassify('=', '=', LEXER_TOKEN_EQUAL);
         case '+': return lexer_read_reclassify('+', '+', LEXER_TOKEN_INCREMENT);
         case '-': return lexer_read_reclassify('-', '-', LEXER_TOKEN_DECREMENT);

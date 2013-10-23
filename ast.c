@@ -453,6 +453,8 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
         case '!':                   ast_string_unary (string, "!",  ast); break;
         case '&':                   ast_string_binary(string, "&",  ast); break;
         case '|':                   ast_string_binary(string, "|",  ast); break;
+        case LEXER_TOKEN_AND:       ast_string_binary(string, "&&", ast); break;
+        case LEXER_TOKEN_OR:        ast_string_binary(string, "||", ast); break;
 
         default:
             left  = ast_string(ast->left);

@@ -18,7 +18,11 @@ typedef enum {
     // the ast types
     LEXER_TOKEN_EQUAL     = 0x200,
     LEXER_TOKEN_INCREMENT,
-    LEXER_TOKEN_DECREMENT
+    LEXER_TOKEN_DECREMENT,
+
+    // logical, not bitwise
+    LEXER_TOKEN_AND,
+    LEXER_TOKEN_OR
 } lexer_token_type_t;
 
 typedef struct {

@@ -77,21 +77,25 @@ static void parse_expect(char punct) {
 static int parse_operator_priority(lexer_token_t *token) {
     switch (token->punct) {
         case '[':
-            return 10;
+            return 12;
         case LEXER_TOKEN_INCREMENT:
         case LEXER_TOKEN_DECREMENT:
-            return 9;
+            return 11;
         case '/': case '*':
-            return 8;
+            return 10;
         case '+': case '-':
-            return 7;
+            return 9;
         case '<': case '>':
+            return 8;
+        case '&':
+            return 7;
+        case '|':
             return 6;
         case LEXER_TOKEN_EQUAL:
             return 5;
-        case '&':
+        case LEXER_TOKEN_AND:
             return 4;
-        case '|':
+        case LEXER_TOKEN_OR:
             return 3;
         case '?':
             return 2;
