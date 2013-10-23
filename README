@@ -56,12 +56,6 @@ Support currently is as follows:
         There is also support for multidimensional arrays:
             int a[1][2][3][4];
 
-        Statement block constructs must exist for every statement, e.g
-            if (a)
-        Must have a block { } on it. Eliding the block will result
-        in a compiler error. This will be fixed once compound statements
-        are implemented.
-
     Pointers:
         Pointers work how they typically would work, you can define one,
         take the address of one and have as many layers of referencing
@@ -70,17 +64,12 @@ Support currently is as follows:
         pointers into assignments, e.g *a=b; works, as does *(a+N)=b;
 
     Comments:
-        Currently the source can contain no C or C++ style comments.
+        The lexer won't strip comments, leave that to the job of the
+        C preprocessor. So if you need to preprocess any source you'll
+        have to invoke cpp on it before passing it into lice.
 
     Globals:
-        While support for global data generation exists in the code
-        generator, globals aren't supported since scoping doesn't
-        exist yet. Which means code like:
-            int f() { { int a; } }
-
-        Won't compile. Once compound statements are implemented those
-        blocks of code will be interpeted as a compound statement.
-
+        Currently unimplemented
 
     Code generation:
         The codegen is unoptimal crap, it produces a 'stack machine'
@@ -92,8 +81,6 @@ Support currently is as follows:
         into the first, even though that operation may already
         put the result into the first.
 
-    Rescurive functions:
-        Recursive functions work as you'd expect them to.
 
     Supported platforms:
         The code generator produces code compatible in accordance to
