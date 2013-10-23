@@ -61,3 +61,5 @@ test_gm        'int a=61;int *b=&a;*b;'    '61'
 test_gm        'int a[]={1};int *b=a;*b;'  '1'
 test_gm        'if(0){1;}else{0;}'         '0'
 test_gm        'if(1){0;}else{1;}'         '0'
+
+cat tests/beer.c | ./lice | gcc -xassembler - -o beer; ./beer
