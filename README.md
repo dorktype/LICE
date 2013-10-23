@@ -50,11 +50,13 @@ There is no prefix operators
 Constructs:
     There is no support for structures, switches or unions. There
     is however support for array initializer lists, e.g
-        int a[] = { 1, 2, 3 };
-        int a[2] = { 1, 2 };
+    ```
+    int a[] = { 1, 2, 3 };
+    int a[2] = { 1, 2 };
+    ```
 
     There is also support for multidimensional arrays:
-        int a[1][2][3][4];
+    ```int a[1][2][3][4];```
 
 # Pointers
     Pointers work how they typically would work, you can define one,
