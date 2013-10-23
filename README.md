@@ -3,7 +3,7 @@ at the sources of existing ones like TCC, GCC and SubC, while still
 keeping the code easy to understand and well documented for my own sake.
 
 ### Types
-There are currently only two types supported, int and char, as
+There are currently only two types supported, `int` and `char`, as
 well as the pointer and array versions of those types. There is
 no support for signed/unsigned keywords, all types are handled
 as signed integer types.
@@ -24,33 +24,35 @@ as printf are allowed but the argument count is also limited to six.
 You can also call malloc/free for heap allocations.
 
 ### Statements
-Lice currently supports three statements
-<table align="right">
- <tr><th>Statement</th><th>Description</th></tr>
- <tr><th>if</th><th>Your standard if statement</th></tr>
- <tr><th>for</th><th>Your standard for statement</th></tr>
- <tr><th>return</th><th>Your standard return statement</th></tr>
-</table>
+Lice supports the following statements
+
+
+Statement | Description 
+----------|:-----------
+if        | Standard if statement
+for       | standard for statement
+return    | Standard return statement
 
 ### Operators
-Lice only supports the following operators
-<table align="right">
- <tr><th>Operators</th><th>Description</th></tr>
- <tr><th>+,-,/,*</th><th>Arithmetic operators</th></tr>
- <tr><th>=</th><th>Assignment operator</th></tr>
- <tr><th>==</th><th>Equality operator</th></tr>
- <tr><th>&lt;</th><th>Less than operator</th></tr>
- <tr><th>&gt;</th><th>Greater than operator</th></tr>
- <tr><th>!</th><th>Boolean not operator</th></tr>
- <tr><th>(,)</th><th>Parethesis</th></tr>
- <tr><th>[]</th><th>Array subscript operator</th></tr>
- <tr><th>++,--</th><th>Postfix operators only (e.g a++) </th></tr>
- <tr><th>?,:</th><th>Ternary operator</th></tr>
-</table>
+Lice supports the following operators
 
-Lice doesn't support the short-hand operators:
-    `+=, -=, *=, /= ...`
-There is also no prefix operators
+
+Operators | Description                                             
+----------|:-------------------------------------------------------
++,-,/,*   | Arithmetic operators                                    
+=         | Assignment operator                                     
+==        | Equality operator                                       
+<         | Less than operator                                      
+\>        | Greater than operator                                   
+!         | Boolean not operator                                    
+(,)       | Only supported in pointer dereferencing, e.g *(a + b)   
+[]        | Array subscript operator                                
+++,--     | Postfix operators only (e.g a++)                        
+?,:       | Ternary operator                                        
+
+Lice doesn't support the short-hand operators `+=, -=, *=, /= ...`
+
+Lice doesn't support prefix operators `++, --`
 
 ### Constructs:
 There is no support for structures, switches or unions. There
