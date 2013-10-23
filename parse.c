@@ -15,7 +15,6 @@ static ast_t       *parse_expression_unary(void);
 static ast_t       *parse_expression(int);
 static ast_t       *parse_expression_semicolon(void);
 static ast_t       *parse_expression_subscript(ast_t *);
-static ast_t       *parse_expression_postfix(void);
 static ast_t       *parse_expression_condition(ast_t *);
 
 static ast_t       *parse_function_call(char *);
@@ -77,14 +76,27 @@ static void parse_expect(char punct) {
 
 static int parse_operator_priority(lexer_token_t *token) {
     switch (token->punct) {
-        case '=':                         return 1;
-        case LEXER_TOKEN_EQUAL:           return 2;
-        case '<': case '>':               return 3;
-        case '+': case '-':               return 4;
-        case '/': case '*':               return 5;
-        case '?':                         return 6;
-        case '&':                         return 7;
-        case '|':                         return 8;
+        case '[':
+            return 10;
+        case LEXER_TOKEN_INCREMENT:
+        case LEXER_TOKEN_DECREMENT:
+            return 9;
+        case '/': case '*':
+            return 8;
+        case '+': case '-':
+            return 7;
+        case '<': case '>':
+            return 6;
+        case LEXER_TOKEN_EQUAL:
+            return 5;
+        case '&':
+            return 4;
+        case '|':
+            return 3;
+        case '?':
+            return 2;
+        case '=':
+            return 1;
     }
     return -1;
 }
@@ -141,7 +153,7 @@ static ast_t *parse_expression_unary(void) {
 
     if (token->type != LEXER_TOKEN_PUNCT) {
         lexer_unget(token);
-        return parse_expression_postfix();
+        return parse_expression_primary();
     }
 
     // for *(expression) and &(expression)
@@ -200,10 +212,25 @@ static ast_t *parse_expression(int lastpri) {
             continue;
         }
 
+        if (lexer_ispunct(token, '[')) {
+            ast = parse_expression_subscript(ast);
+            continue;
+        }
+
+        if (lexer_ispunct(token, LEXER_TOKEN_INCREMENT) ||
+            lexer_ispunct(token, LEXER_TOKEN_DECREMENT)) {
+
+            parse_semantic_lvalue(ast);
+            ast = ast_new_unary(token->punct, ast->ctype, ast);
+            continue;
+        }
+
         if (lexer_ispunct(token, '='))
             parse_semantic_lvalue(ast);
 
         next = parse_expression(pri + !parse_semantic_rightassoc(token));
+        if (!next)
+            compile_error("Internal error");
         ast  = ast_new_binary(token->punct, ast, next);
     }
     return NULL;
@@ -227,27 +254,6 @@ static ast_t *parse_expression_subscript(ast_t *ast) {
     parse_expect(']');
     ast_t *node = ast_new_binary('+', ast, subscript);
     return ast_new_unary(AST_TYPE_DEREFERENCE, node->ctype->pointer, node);
-}
-
-static ast_t *parse_expression_postfix(void) {
-    ast_t *node = parse_expression_primary();
-    for (;;) {
-        lexer_token_t *token = lexer_next();
-        if (!token)
-            return node;
-        if (lexer_ispunct(token, '['))
-            node = parse_expression_subscript(node);
-        else if(lexer_ispunct(token, LEXER_TOKEN_INCREMENT) ||
-                lexer_ispunct(token, LEXER_TOKEN_DECREMENT))
-        {
-            parse_semantic_lvalue(node);
-            node = ast_new_unary(token->punct, node->ctype, node);
-        } else {
-            lexer_unget(token);
-            return node;
-        }
-    }
-    return NULL;
 }
 
 static ast_t *parse_expression_condition(ast_t *condition) {
