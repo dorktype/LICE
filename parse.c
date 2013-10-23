@@ -2,14 +2,61 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <setjmp.h>
 
 #include "lice.h"
 
 #define PARSE_BUFFER 1024
 #define PARSE_CALLS  6    // only six registers to use for amd64
 
-// what priority does the following operator get?
+////////////////////////////////////////////////////////////////////////
+//  prototypes
+//      function
+static ast_t  *parse_function_call(char *);
+//      expression
+static ast_t  *parse_expression(int);
+static ast_t  *parse_expression_postfix(void);
+//      semantic
+static void    parse_semantic_lvalue(ast_t *);
+static bool    parse_semantic_rightassoc(lexer_token_t *);
+//      statement
+static ast_t  *parse_statement_declaration_semicolon(void);
+//      block
+static list_t *parse_block(void);
+
+
+////////////////////////////////////////////////////////////////////////
+// type
+//  type_get    -- type for given token
+//  type_check  -- check if type exists for given token
+
+static data_type_t *parse_type_get(lexer_token_t *token) {
+    if (!token || token->type != LEXER_TOKEN_IDENT)
+        return NULL;
+
+    if (!strcmp(token->string, "int"))
+        return ast_data_int;
+    if (!strcmp(token->string, "char"))
+        return ast_data_char;
+
+    return NULL;
+}
+
+static bool parse_type_check(lexer_token_t *token) {
+    return parse_type_get(token) != NULL;
+}
+
+///////////////////////////////////////////////////////////////////////
+// misc
+//  parse_expect            -- expecting punctuation
+//  parse_operator_priority -- get operator priority (precedence)
+//  parse_generic           -- dispatch to correct parse routine
+
+static void parse_expect(char punct) {
+    lexer_token_t *token = lexer_next();
+    if (!lexer_ispunct(token, punct))
+        compile_error("Expected `%c`, got %s instead", punct, lexer_tokenstr(token));
+}
+
 static int parse_operator_priority(lexer_token_t *token) {
     switch (token->punct) {
         case '=':           return 1;
@@ -20,36 +67,6 @@ static int parse_operator_priority(lexer_token_t *token) {
     }
     return -1;
 }
-
-static void         parse_expect(char punct);
-static ast_t       *parse_expression(int lastpri);
-static list_t      *parse_block(void);
-static ast_t       *parse_declaration_statement(void);
-static data_type_t *parse_array_convert(ast_t *ast);
-
-static ast_t *parse_function_call(char *name) {
-    list_t *list = list_create();
-    for (;;) {
-        // break when call is done
-        lexer_token_t *token = lexer_next();
-        if (lexer_ispunct(token, ')'))
-            break;
-        lexer_unget(token);
-        list_push(list, parse_expression(0));
-        // deal with call done here as well
-        token = lexer_next();
-        if (lexer_ispunct(token, ')'))
-            break;
-        if (!lexer_ispunct(token, ','))
-            compile_error("Unexpected character in function call");
-    }
-
-    if (PARSE_CALLS < list_length(list))
-        compile_error("too many arguments");
-
-    return ast_new_call(ast_data_int, name, list);
-}
-
 
 static ast_t *parse_generic(char *name) {
     ast_t         *var   = NULL;
@@ -65,6 +82,15 @@ static ast_t *parse_generic(char *name) {
 
     return var;
 }
+
+////////////////////////////////////////////////////////////////////////
+// expressions:
+//  primary              -- primary expression
+//  unary                -- unary expression
+//  expression           -- dispatcher
+//  expression_semicolon -- dispatcher expecting semicolon
+//  expression_subscript -- subscripting expression
+//  expression_postfix   -- postfix expression
 
 static ast_t *parse_expression_primary(void) {
     lexer_token_t *token;
@@ -93,116 +119,13 @@ static ast_t *parse_expression_primary(void) {
     return NULL;
 }
 
-static data_type_t *parse_semantic_result_impl(jmp_buf *jmpbuf, char op, data_type_t *a, data_type_t *b) {
-    if (a->type > b->type) {
-        data_type_t *t = a;
-        a = b;
-        b = t;
-    }
-
-    if (b->type == TYPE_PTR) {
-        if (op == '=')
-            return a;
-        if (op != '+' && op != '-')
-            goto error;
-        if (a->type != TYPE_INT)
-            goto error;
-
-        return b;
-    }
-
-    switch (a->type) {
-        case TYPE_VOID:
-            goto error;
-        case TYPE_INT:
-        case TYPE_CHAR:
-            switch (b->type) {
-                case TYPE_INT:
-                case TYPE_CHAR:
-                    return ast_data_int;
-
-                case TYPE_ARRAY:
-                case TYPE_PTR:
-                    return b;
-
-                case TYPE_VOID:
-                    goto error;
-            }
-            compile_error("Internal error");
-            break;
-
-        case TYPE_ARRAY:
-            goto error;
-        default:
-            compile_error("Internal error %s", __func__);
-    }
-
-error:
-    longjmp(*jmpbuf, 1);
-
-    return NULL;
-}
-
-static data_type_t *parse_semantic_result(char op, data_type_t *a, data_type_t *b) {
-    jmp_buf jmpbuf;
-    if (setjmp(jmpbuf) == 0)
-        return parse_semantic_result_impl(&jmpbuf, op, a, b);
-
-
-    compile_error("Incompatible types in expression");
-    return NULL;
-}
-
-// parser semantic enforcers
-static void parse_semantic_lvalue(ast_t *ast) {
-    switch (ast->type) {
-        case AST_TYPE_VAR_LOCAL:
-        case AST_TYPE_VAR_GLOBAL:
-        case AST_TYPE_DEREF:
-            return;
-    }
-    compile_error("TODO");
-}
-
-static bool parse_semantic_rightassoc(lexer_token_t *token) {
-    // enforce right associative semantics
-    return (token->punct == '=');
-}
-
-// expressions that are read up to a semicolon, usefu l for only for
-// loops which have a (init; cond; post) setup.
-static ast_t *parse_declaration_statement_semicolon(void) {
-    lexer_token_t *token = lexer_next();
-    if (lexer_ispunct(token, ';'))
-        return NULL;
-    lexer_unget(token);
-    return parse_declaration_statement();
-}
-
-static ast_t *parse_expression_semicolon(void) {
-    lexer_token_t *token = lexer_next();
-    if (lexer_ispunct(token, ';'))
-        return NULL;
-    lexer_unget(token);
-
-    ast_t *next = parse_expression(0);
-    parse_expect(';');
-    return next;
-}
-
-static ast_t *parse_statement_for(void) {
-    parse_expect('(');
-    ast_t *init = parse_declaration_statement_semicolon();
-    ast_t *cond = parse_expression_semicolon();
-    ast_t *step = lexer_ispunct(lexer_peek(), ')') ? NULL : parse_expression(0);
-    parse_expect(')');
-    parse_expect('{');
-
-    return ast_new_for(init, cond, step, parse_block());
-}
-
 static ast_t *parse_expression_unary(void) {
     lexer_token_t *token = lexer_next();
+
+    if (token->type != LEXER_TOKEN_PUNCT) {
+        lexer_unget(token);
+        return parse_expression_postfix();
+    }
 
     // for *(expression) and &(expression)
     if (lexer_ispunct(token, '(')) {
@@ -223,7 +146,7 @@ static ast_t *parse_expression_unary(void) {
 
     if (lexer_ispunct(token, '*')) {
         ast_t *operand = parse_expression_unary();
-        data_type_t *type = parse_array_convert(operand);
+        data_type_t *type = ast_array_convert(operand->ctype);
         if (type->type != TYPE_PTR)
             compile_error("TODO");
         return ast_new_unary(AST_TYPE_DEREF, operand->ctype->pointer, operand);
@@ -231,12 +154,6 @@ static ast_t *parse_expression_unary(void) {
 
     lexer_unget(token);
     return parse_expression_primary();
-}
-
-static data_type_t *parse_array_convert(ast_t *ast) {
-    if (ast->ctype->type != TYPE_ARRAY)
-        return ast->ctype;
-    return ast_new_pointer(ast->ctype->pointer);
 }
 
 // handles operator precedence climbing as well
@@ -265,21 +182,73 @@ static ast_t *parse_expression(int lastpri) {
             parse_semantic_lvalue(ast);
 
         next = parse_expression(pri + !parse_semantic_rightassoc(token));
-        data_type_t *atype = parse_array_convert(ast);
-        data_type_t *ntype = parse_array_convert(next);
-        data_type_t *rtype = parse_semantic_result(token->punct, atype, ntype);
-
-        // swap
-        if (!lexer_ispunct(token, '=') && atype->type != TYPE_PTR && rtype->type == TYPE_PTR) {
-            ast_t *t = ast;
-            ast  = next;
-            next = t;
-        }
-
-        ast  = ast_new_binary(token->punct, rtype, ast, next);
+        ast  = ast_new_binary(token->punct, ast, next);
     }
     return NULL;
 }
+
+static ast_t *parse_expression_semicolon(void) {
+    lexer_token_t *token = lexer_next();
+    if (lexer_ispunct(token, ';'))
+        return NULL;
+    lexer_unget(token);
+
+    ast_t *next = parse_expression(0);
+    parse_expect(';');
+    return next;
+}
+
+static ast_t *parse_expression_subscript(ast_t *ast) {
+    // generates the following code for subscript
+    // (deref (+ ast subscript))
+    ast_t *subscript = parse_expression(0);
+    parse_expect(']');
+    ast_t *node = ast_new_binary('+', ast, subscript);
+    return ast_new_unary(AST_TYPE_DEREF, node->ctype->pointer, node);
+}
+
+static ast_t *parse_expression_postfix(void) {
+    ast_t *node = parse_expression_primary();
+    for (;;) {
+        lexer_token_t *token = lexer_next();
+        if (!token)
+            return node;
+        if (lexer_ispunct(token, '['))
+            node = parse_expression_subscript(node);
+        else {
+            lexer_unget(token);
+            return node;
+        }
+    }
+    return NULL;
+}
+
+
+////////////////////////////////////////////////////////////////////////
+// semantics:
+//  semantic_lvalue         -- lvalue semantics
+//  semantic_rightassoc     -- right associativity semantics
+
+// parser semantic enforcers
+static void parse_semantic_lvalue(ast_t *ast) {
+    switch (ast->type) {
+        case AST_TYPE_VAR_LOCAL:
+        case AST_TYPE_VAR_GLOBAL:
+        case AST_TYPE_DEREF:
+            return;
+    }
+    compile_error("TODO");
+}
+
+static bool parse_semantic_rightassoc(lexer_token_t *token) {
+    // enforce right associative semantics
+    return (token->punct == '=');
+}
+
+////////////////////////////////////////////////////////////////////////
+// array
+//  array_dimensions_impl    -- array dimensions implementation
+//  array_dimensions         -- array dimensions dispatch
 
 static data_type_t *parse_array_dimensions_impl(void) {
     lexer_token_t *token = lexer_next();
@@ -329,27 +298,13 @@ static data_type_t *parse_array_dimensions(data_type_t *basetype) {
     return type;
 }
 
-static data_type_t *parse_type_get(lexer_token_t *token) {
-    if (!token || token->type != LEXER_TOKEN_IDENT)
-        return NULL;
 
-    if (!strcmp(token->string, "int"))
-        return ast_data_int;
-    if (!strcmp(token->string, "char"))
-        return ast_data_char;
-
-    return NULL;
-}
-
-static bool parse_type_check(lexer_token_t *token) {
-    return parse_type_get(token) != NULL;
-}
-
-static void parse_expect(char punct) {
-    lexer_token_t *token = lexer_next();
-    if (!lexer_ispunct(token, punct))
-        compile_error("Expected `%c`, got %s instead", punct, lexer_tokenstr(token));
-}
+////////////////////////////////////////////////////////////////////////
+// declaration
+//  declaration_array_initializer_impl  -- array initializer implementation
+//  declaration_array_initializer       -- array initializer dispatch
+//  declaration_specification
+//  declaration                         -- dispatch
 
 static ast_t *parse_declaration_array_initializer_impl(data_type_t *type) {
     lexer_token_t *token = lexer_next();
@@ -368,7 +323,7 @@ static ast_t *parse_declaration_array_initializer_impl(data_type_t *type) {
 
         ast_t *in = parse_expression(0);
         list_push(init, in);
-        parse_semantic_result('=', in->ctype, type->pointer);
+        ast_result_type('=', in->ctype, type->pointer);
         token = lexer_next();
         if (!lexer_ispunct(token, ','))
             lexer_unget(token);
@@ -434,29 +389,35 @@ static ast_t *parse_declaration(void) {
     return ast_new_decl(var, NULL);
 }
 
-ast_t *parse_statement_if(void) {
-    lexer_token_t *token; //= lexer_next();
-    ast_t  *cond;
-    list_t *then;
-    list_t *last;
 
-    parse_expect('(');
-    cond = parse_expression(0);
-    parse_expect(')');
+///////////////////////////////////////////////////////////////////////
+// function:
+//  function_call
+//  function_parameters
+//  function_declaration
+//  function_list           -- generated list of functions
 
-    parse_expect('{');
-    then  = parse_block();
-    token = lexer_next();
-
-    if (!token || token->type != LEXER_TOKEN_IDENT || strcmp(token->string, "else")) {
+static ast_t *parse_function_call(char *name) {
+    list_t *list = list_create();
+    for (;;) {
+        // break when call is done
+        lexer_token_t *token = lexer_next();
+        if (lexer_ispunct(token, ')'))
+            break;
         lexer_unget(token);
-        return ast_new_if(cond, then, NULL);
+        list_push(list, parse_expression(0));
+        // deal with call done here as well
+        token = lexer_next();
+        if (lexer_ispunct(token, ')'))
+            break;
+        if (!lexer_ispunct(token, ','))
+            compile_error("Unexpected character in function call");
     }
 
-    parse_expect('{');
-    last = parse_block();
+    if (PARSE_CALLS < list_length(list))
+        compile_error("too many arguments");
 
-    return ast_new_if(cond, then, last);
+    return ast_new_call(ast_data_int, name, list);
 }
 
 static list_t *parse_function_parameters(void) {
@@ -524,6 +485,16 @@ list_t *parse_function_list(void) {
     return NULL;
 }
 
+///////////////////////////////////////////////////////////////////////
+// statement
+//  statement_try                    -- statement validator
+//  statement_return                 -- return statement
+//  statement_if                     -- if statement
+//  statement_for                    -- for statement
+//  statement                        -- generic statement
+//  statement_declaration            -- dispatch statement parse or declaration?
+//  statement_declaration_semicolon  -- same as above but expecting semicolon
+
 static bool parse_statement_try(lexer_token_t *token, const char *type) {
     return (token->type == LEXER_TOKEN_IDENT && !strcmp(token->string, type));
 }
@@ -532,6 +503,42 @@ static ast_t *parse_statement_return(void) {
     ast_t *val = parse_expression(0);
     parse_expect(';');
     return ast_new_return(val);
+}
+
+ast_t *parse_statement_if(void) {
+    lexer_token_t *token;
+    ast_t  *cond;
+    list_t *then;
+    list_t *last;
+
+    parse_expect('(');
+    cond = parse_expression(0);
+    parse_expect(')');
+
+    parse_expect('{');
+    then  = parse_block();
+    token = lexer_next();
+
+    if (!token || token->type != LEXER_TOKEN_IDENT || strcmp(token->string, "else")) {
+        lexer_unget(token);
+        return ast_new_if(cond, then, NULL);
+    }
+
+    parse_expect('{');
+    last = parse_block();
+
+    return ast_new_if(cond, then, last);
+}
+
+static ast_t *parse_statement_for(void) {
+    parse_expect('(');
+    ast_t *init = parse_statement_declaration_semicolon();
+    ast_t *cond = parse_expression_semicolon();
+    ast_t *step = lexer_ispunct(lexer_peek(), ')') ? NULL : parse_expression(0);
+    parse_expect(')');
+    parse_expect('{');
+
+    return ast_new_for(init, cond, step, parse_block());
 }
 
 static ast_t *parse_statement(void) {
@@ -550,7 +557,7 @@ static ast_t *parse_statement(void) {
     return ast;
 }
 
-static ast_t *parse_declaration_statement(void) {
+static ast_t *parse_statement_declaration(void) {
     lexer_token_t *token = lexer_peek();
 
     if (!token)
@@ -559,10 +566,22 @@ static ast_t *parse_declaration_statement(void) {
     return parse_type_check(token) ? parse_declaration() : parse_statement();
 }
 
+static ast_t *parse_statement_declaration_semicolon(void) {
+    lexer_token_t *token = lexer_next();
+    if (lexer_ispunct(token, ';'))
+        return NULL;
+    lexer_unget(token);
+    return parse_statement_declaration();
+}
+
+////////////////////////////////////////////////////////////////////////
+// block:
+//  block  -- parse block
+
 static list_t *parse_block(void) {
     list_t *statements = list_create();
     for (;;) {
-        ast_t *statement = parse_declaration_statement();
+        ast_t *statement = parse_statement_declaration();
         if (statement)
             list_push(statements, statement);
 

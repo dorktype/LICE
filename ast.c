@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <setjmp.h>
 
 #include "lice.h"
 
@@ -10,6 +11,66 @@ data_type_t *ast_data_char = &(data_type_t) { TYPE_CHAR, NULL };
 list_t      *ast_globals   = &(list_t){ .length = 0, .head = NULL, .tail = NULL };
 list_t      *ast_locals    = NULL;
 list_t      *ast_params    = NULL;
+
+
+static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *a, data_type_t *b) {
+    if (a->type > b->type) {
+        data_type_t *t = a;
+        a = b;
+        b = t;
+    }
+
+    if (b->type == TYPE_PTR) {
+        if (op == '=')
+            return a;
+        if (op != '+' && op != '-')
+            goto error;
+        if (a->type != TYPE_INT)
+            goto error;
+
+        return b;
+    }
+
+    switch (a->type) {
+        case TYPE_VOID:
+            goto error;
+        case TYPE_INT:
+        case TYPE_CHAR:
+            switch (b->type) {
+                case TYPE_INT:
+                case TYPE_CHAR:
+                    return ast_data_int;
+                case TYPE_ARRAY:
+                case TYPE_PTR:
+                    return b;
+                case TYPE_VOID:
+                    goto error;
+            }
+            compile_error("Internal error");
+            break;
+        case TYPE_ARRAY:
+            goto error;
+        default:
+            compile_error("Internal error");
+    }
+error:
+    longjmp(*jmpbuf, 1);
+    return NULL;
+}
+
+data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b) {
+    jmp_buf jmpbuf;
+    if (setjmp(jmpbuf) == 0) {
+        return ast_result_type_impl(
+                    &jmpbuf,
+                    op,
+                    ast_array_convert(a),
+                    ast_array_convert(b)
+        );
+    }
+    compile_error("Incompatible types in expression");
+    return NULL;
+}
 
 // creates a new ast node
 #define ast_new_node() \
@@ -24,12 +85,20 @@ ast_t *ast_new_unary(char type, data_type_t *data, ast_t *operand) {
     return ast;
 }
 
-ast_t *ast_new_binary(char type, data_type_t *data, ast_t *left, ast_t *right) {
+ast_t *ast_new_binary(char type, ast_t *left, ast_t *right) {
     ast_t *ast         = ast_new_node();
     ast->type          = type;
-    ast->ctype         = data;
-    ast->right         = right;
-    ast->left          = left;
+    ast->ctype         = ast_result_type(type, left->ctype, right->ctype);
+    if (type != '='
+        && ast_array_convert(left->ctype)->type  != TYPE_PTR
+        && ast_array_convert(right->ctype)->type == TYPE_PTR) {
+
+        ast->left  = right;
+        ast->right = left;
+    } else {
+        ast->left  = left;
+        ast->right = right;
+    }
 
     return ast;
 }
@@ -131,6 +200,12 @@ ast_t *ast_new_array_init(list_t *init) {
     return ast;
 }
 
+data_type_t *ast_array_convert(data_type_t *type) {
+    if (type->type != TYPE_ARRAY)
+        return type;
+    return ast_new_pointer(type->pointer);
+}
+
 ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last) {
     ast_t *ast       = ast_new_node();
     ast->type        = AST_TYPE_STATEMENT_IF;
@@ -226,6 +301,10 @@ const char *ast_type_string(data_type_t *type) {
 }
 
 static void ast_string_impl(string_t *string, ast_t *ast);
+
+////////////////////////////////////////////////////////////////////////
+// ast dump
+
 char *ast_block_string(list_t *block) {
     string_t *string = string_create();
     string_cat(string, '{');
