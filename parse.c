@@ -15,6 +15,7 @@ static ast_t  *parse_function_call(char *);
 //      expression
 static ast_t  *parse_expression(int);
 static ast_t  *parse_expression_postfix(void);
+static ast_t  *parse_expression_condition(ast_t *condition);
 //      semantic
 static void    parse_semantic_lvalue(ast_t *);
 static bool    parse_semantic_rightassoc(lexer_token_t *);
@@ -64,6 +65,7 @@ static int parse_operator_priority(lexer_token_t *token) {
         case '<': case '>':               return 3;
         case '+': case '-':               return 4;
         case '/': case '*':               return 5;
+        case '?':                         return 6;
     }
     return -1;
 }
@@ -91,6 +93,7 @@ static ast_t *parse_generic(char *name) {
 //  expression_semicolon -- dispatcher expecting semicolon
 //  expression_subscript -- subscripting expression
 //  expression_postfix   -- postfix expression
+//  expression_condition -- conditional expression
 
 static ast_t *parse_expression_primary(void) {
     lexer_token_t *token;
@@ -181,6 +184,11 @@ static ast_t *parse_expression(int lastpri) {
             return ast;
         }
 
+        if (lexer_ispunct(token, '?')) {
+            ast = parse_expression_condition(ast);
+            continue;
+        }
+
         if (lexer_ispunct(token, '='))
             parse_semantic_lvalue(ast);
 
@@ -229,6 +237,13 @@ static ast_t *parse_expression_postfix(void) {
         }
     }
     return NULL;
+}
+
+static ast_t *parse_expression_condition(ast_t *condition) {
+    ast_t *then = parse_expression(0);
+    parse_expect(':'); // expecting : for ternary
+    ast_t *last = parse_expression(0);
+    return ast_new_ternary(then->ctype, condition, then, last);
 }
 
 

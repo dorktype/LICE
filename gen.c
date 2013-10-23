@@ -344,7 +344,7 @@ static void gen_expression(ast_t *ast) {
                 gen_emit("function call", "pop %%%s", registers[i]);
             break;
 
-        case AST_TYPE_DECL:
+        case AST_TYPE_DECLARATION:
             if (!ast->decl.init)
                 return;
 
@@ -390,6 +390,7 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_STATEMENT_IF:
+        case AST_TYPE_EXPRESSION_TERNARY:
             gen_expression(ast->ifstmt.cond);
             ne = ast_new_label();
             gen_emit("if statement", "test %%rax, %%rax");

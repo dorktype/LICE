@@ -55,12 +55,15 @@ typedef enum {
     AST_TYPE_FUNCTION,
 
     // misc
-    AST_TYPE_DECL,
+    AST_TYPE_DECLARATION,
     AST_TYPE_ARRAY_INIT,
 
     // pointer stuff
     AST_TYPE_ADDRESS,
     AST_TYPE_DEREFERENCE,
+
+    // expression
+    AST_TYPE_EXPRESSION_TERNARY,
 
     // statements
     AST_TYPE_STATEMENT_IF,
@@ -124,6 +127,8 @@ typedef struct {
     ast_t *init;
 } ast_decl_t;
 
+// While this named ifthan it's also used for ternary expressions
+// mostly because they evaluate to the same thing in the AST.
 typedef struct {
     ast_t  *cond;
     ast_t  *then;
@@ -182,6 +187,7 @@ ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last);
 ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body);
 ast_t *ast_new_return(ast_t *val);
 ast_t *ast_new_compound(list_t *statements);
+ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last);
 
 ast_t *ast_find_variable(const char *name);
 

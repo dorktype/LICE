@@ -49,10 +49,13 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
             compile_error("Internal error");
             break;
         case TYPE_ARRAY:
-            goto error;
+            if (b->type != TYPE_ARRAY)
+                goto error;
+            return ast_result_type_impl(jmpbuf, op, a->pointer, b->pointer);
         default:
             compile_error("Internal error");
     }
+
 error:
     longjmp(*jmpbuf, 1);
     return NULL;
@@ -183,7 +186,7 @@ ast_t *ast_new_function(data_type_t *ret, char *name, list_t *params, ast_t *bod
 
 ast_t *ast_new_decl(ast_t *var, ast_t *init) {
     ast_t *ast     = ast_new_node();
-    ast->type      = AST_TYPE_DECL;
+    ast->type      = AST_TYPE_DECLARATION;
     ast->ctype     = NULL;
     ast->decl.var  = var;
     ast->decl.init = init;
@@ -260,6 +263,17 @@ ast_t *ast_new_compound(list_t *statements) {
     ast->type     = AST_TYPE_STATEMENT_COMPOUND;
     ast->ctype    = NULL;
     ast->compound = statements;
+    return ast;
+}
+
+ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
+    ast_t *ast       = ast_new_node();
+    ast->type        = AST_TYPE_EXPRESSION_TERNARY;
+    ast->ctype       = type;
+    ast->ifstmt.cond = cond;
+    ast->ifstmt.then = then;
+    ast->ifstmt.last = last;
+
     return ast;
 }
 
@@ -365,7 +379,7 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             ast_string_impl(string, ast->function.body);
             break;
 
-        case AST_TYPE_DECL:
+        case AST_TYPE_DECLARATION:
             string_catf(string, "(decl %s %s",
                     ast_type_string(ast->decl.var->ctype),
                     ast->decl.var->local.name
@@ -403,6 +417,15 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_catf(string, "(* %s)", ast_string(ast->unary.operand));
             break;
 
+        case AST_TYPE_EXPRESSION_TERNARY:
+            string_catf(string, "(? %s %s %s)",
+                            ast_string(ast->ifstmt.cond),
+                            ast_string(ast->ifstmt.then),
+                            ast_string(ast->ifstmt.last)
+            );
+            break;
+
+        // statements
         case AST_TYPE_STATEMENT_IF:
             string_catf(string, "(if %s %s", ast_string(ast->ifstmt.cond), ast_string(ast->ifstmt.then));
             if (ast->ifstmt.last)
