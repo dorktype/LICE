@@ -59,14 +59,12 @@ static void lexer_skip_comment_block(void) {
 
     for (;;) {
         int c = getc(stdin);
-        switch (state) {
-            case comment_outside:
-                if (c == '*')
-                    state = comment_astrick;
-            default:
-                if (c == '/')
-                    return;
-        }
+        if (c == '*')
+            state = comment_astrick;
+        else if (state == comment_astrick && c == '/')
+            return;
+        else
+            state = comment_outside;
     }
 }
 
