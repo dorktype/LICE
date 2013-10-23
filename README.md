@@ -49,7 +49,7 @@ Operators | Description
 []        | Array subscript operator
 ++,--     | Postfix operators only (e.g a++)
 ?,:       | Ternary operator
-&,|       | Bitwise operators
+&,\|      | Bitwise operators
 
 Lice doesn't support the short-hand operators `+=, -=, *=, /= ...`
 
