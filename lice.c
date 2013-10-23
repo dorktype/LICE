@@ -19,10 +19,13 @@ int compile_begin(bool dump) {
     list_t *block = parse_function_list();
     if (!dump) {
         gen_data_section();
-        for (list_iterator_t *it = list_iterator(block); !list_iterator_end(it); )
+    }
+    for (list_iterator_t *it = list_iterator(block); !list_iterator_end(it); ) {
+        if (!dump) {
             gen_function(list_iterator_next(it));
-    } else {
-        printf("%s\n", ast_block_string(block));
+        } else {
+            printf("%s\n", ast_string(list_iterator_next(it)));
+        }
     }
     return true;
 }

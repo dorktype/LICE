@@ -65,7 +65,8 @@ typedef enum {
     // statements
     AST_TYPE_STATEMENT_IF,
     AST_TYPE_STATEMENT_FOR,
-    AST_TYPE_STATEMENT_RETURN
+    AST_TYPE_STATEMENT_RETURN,
+    AST_TYPE_STATEMENT_COMPOUND
 } ast_type_t;
 
 
@@ -110,7 +111,7 @@ typedef struct {
 
     list_t *params;
     list_t *locals;
-    list_t *body;
+    ast_t  *body;
 } ast_function_t;
 
 typedef struct {
@@ -125,15 +126,15 @@ typedef struct {
 
 typedef struct {
     ast_t  *cond;
-    list_t *then;
-    list_t *last;
+    ast_t  *then;
+    ast_t  *last;
 } ast_ifthan_t;
 
 typedef struct {
     ast_t  *init;
     ast_t  *cond;
     ast_t  *step;
-    list_t *body;
+    ast_t  *body;
 } ast_for_t;
 
 struct ast_s {
@@ -153,6 +154,7 @@ struct ast_s {
         ast_ifthan_t   ifstmt;          // if statement
         ast_for_t      forstmt;         // for statement
         ast_t         *returnstmt;      // return statement
+        list_t        *compound;        // compound statement
         list_t        *array;           // array initializer
         struct {                        // tree
             ast_t *left;
@@ -173,12 +175,13 @@ ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file);
 ast_t *ast_new_reference_global(data_type_t *type, ast_t *var, int off);
 ast_t *ast_new_string(char *value);
 ast_t *ast_new_call(data_type_t *type, char *name, list_t *args);
-ast_t *ast_new_function(data_type_t *type, char *name, list_t *params, list_t *body, list_t *locals);
+ast_t *ast_new_function(data_type_t *type, char *name, list_t *params, ast_t *body, list_t *locals);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_array_init(list_t *init);
-ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last);
-ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, list_t *body);
+ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last);
+ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body);
 ast_t *ast_new_return(ast_t *val);
+ast_t *ast_new_compound(list_t *statements);
 
 ast_t *ast_find_variable(const char *name);
 
@@ -199,7 +202,6 @@ extern list_t      *ast_params;
 
 // debug
 char *ast_string(ast_t *ast);
-char *ast_block_string(list_t *block);
 
 // gmcc.c
 void compile_error(const char *fmt, ...);

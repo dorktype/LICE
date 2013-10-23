@@ -42,8 +42,8 @@ void string_catf(string_t *string, const char *fmt, ...) {
 
 string_t *string_create(void) {
     string_t *string  = (string_t*)malloc(sizeof(string_t));
-    string->buffer    = malloc(16);
-    string->allocated = 16;
+    string->buffer    = malloc(64);
+    string->allocated = 64;
     string->length    = 0;
     string->buffer[0] = '\0';
     return string;

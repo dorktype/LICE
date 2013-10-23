@@ -32,7 +32,6 @@ void gen_emit_impl(int line, const char *annotate, char *fmt, ...) {
 
 static void gen_expression(ast_t *ast);
 static void gen_pointer_dereference(ast_t *var);
-static void gen_block(list_t *block);
 
 static int gen_type_size(data_type_t *type) {
     switch (type->type) {
@@ -276,13 +275,8 @@ static void gen_function_epilogue(void) {
 
 void gen_function(ast_t *ast) {
     gen_function_prologue(ast);
-    gen_block(ast->function.body);
+    gen_expression(ast->function.body);
     gen_function_epilogue();
-}
-
-static void gen_block(list_t *block) {
-    for (list_iterator_t *it = list_iterator(block); !list_iterator_end(it); )
-        gen_expression(list_iterator_next(it));
 }
 
 static void gen_pointer_dereference(ast_t *var) {
@@ -400,12 +394,12 @@ static void gen_expression(ast_t *ast) {
             ne = ast_new_label();
             gen_emit("if statement", "test %%rax, %%rax");
             gen_emit("if statement", "je %s", ne);
-            gen_block(ast->ifstmt.then);
+            gen_expression(ast->ifstmt.then);
             if (ast->ifstmt.last) {
                 end = ast_new_label();
                 gen_emit("if statement", "jmp %s", end);
                 gen_emit_label("%s:", ne);
-                gen_block(ast->ifstmt.last);
+                gen_expression(ast->ifstmt.last);
                 gen_emit_label("%s:", end);
             } else {
                 gen_emit_label("%s:", ne);
@@ -423,7 +417,7 @@ static void gen_expression(ast_t *ast) {
                 gen_emit("for loop condition", "test %%rax, %%rax");
                 gen_emit("for loop condition", "je %s", end);
             }
-            gen_block(ast->forstmt.body);
+            gen_expression(ast->forstmt.body);
             if (ast->forstmt.step)
                 gen_expression(ast->forstmt.step);
             gen_emit("for loop", "jmp %s", begin);
@@ -434,6 +428,11 @@ static void gen_expression(ast_t *ast) {
             gen_expression(ast->returnstmt);
             gen_emit_basic("leave");
             gen_emit_basic("ret");
+            break;
+
+        case AST_TYPE_STATEMENT_COMPOUND:
+            for (list_iterator_t *it = list_iterator(ast->compound); !list_iterator_end(it); )
+                gen_expression(list_iterator_next(it));
             break;
 
         case '!':

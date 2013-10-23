@@ -12,7 +12,7 @@ test_ast() {
         echo "failed $1"
         exit
     fi
-    assert "$out" "{(int)f()$2;}"
+    assert "$out" "(int)f()$2"
 }
 
 test_gm() {

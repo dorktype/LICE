@@ -169,7 +169,7 @@ ast_t *ast_new_call(data_type_t *type, char *name, list_t *args) {
     return ast;
 }
 
-ast_t *ast_new_function(data_type_t *ret, char *name, list_t *params, list_t *body, list_t *locals) {
+ast_t *ast_new_function(data_type_t *ret, char *name, list_t *params, ast_t *body, list_t *locals) {
     ast_t *ast           = ast_new_node();
     ast->type            = AST_TYPE_FUNCTION;
     ast->ctype           = ret;
@@ -206,7 +206,7 @@ data_type_t *ast_array_convert(data_type_t *type) {
     return ast_new_pointer(type->pointer);
 }
 
-ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last) {
+ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last) {
     ast_t *ast       = ast_new_node();
     ast->type        = AST_TYPE_STATEMENT_IF;
     ast->ctype       = NULL;
@@ -234,7 +234,7 @@ data_type_t *ast_new_array(data_type_t *type, int size) {
     return data;
 }
 
-ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, list_t *body) {
+ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
     ast_t *ast        = ast_new_node();
     ast->type         = AST_TYPE_STATEMENT_FOR;
     ast->ctype        = NULL;
@@ -252,6 +252,14 @@ ast_t *ast_new_return(ast_t *value) {
     ast->ctype      = NULL;
     ast->returnstmt = value;
 
+    return ast;
+}
+
+ast_t *ast_new_compound(list_t *statements) {
+    ast_t *ast    = ast_new_node();
+    ast->type     = AST_TYPE_STATEMENT_COMPOUND;
+    ast->ctype    = NULL;
+    ast->compound = statements;
     return ast;
 }
 
@@ -300,21 +308,8 @@ const char *ast_type_string(data_type_t *type) {
     return NULL;
 }
 
-static void ast_string_impl(string_t *string, ast_t *ast);
-
 ////////////////////////////////////////////////////////////////////////
 // ast dump
-
-char *ast_block_string(list_t *block) {
-    string_t *string = string_create();
-    string_cat(string, '{');
-    for (list_iterator_t *it = list_iterator(block); !list_iterator_end(it); ) {
-        ast_string_impl(string, list_iterator_next(it));
-        string_cat(string, ';');
-    }
-    string_cat(string, '}');
-    return string_buffer(string);
-}
 
 static void ast_string_impl(string_t *string, ast_t *ast) {
     char *left;
@@ -366,7 +361,8 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
                 if (!list_iterator_end(it))
                     string_cat(string, ',');
             }
-            string_catf(string, ")%s", ast_block_string(ast->function.body));
+            string_cat(string, ')');
+            ast_string_impl(string, ast->function.body);
             break;
 
         case AST_TYPE_DECL:
@@ -378,6 +374,15 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
                 string_catf(string, " %s)", ast_string(ast->decl.init));
             else
                 string_cat(string, ')');
+            break;
+
+        case AST_TYPE_STATEMENT_COMPOUND:
+            string_cat(string, '{');
+            for (list_iterator_t *it = list_iterator(ast->compound); !list_iterator_end(it); ) {
+                ast_string_impl(string, list_iterator_next(it));
+                string_cat(string, ';');
+            }
+            string_cat(string, '}');
             break;
 
         case AST_TYPE_ARRAY_INIT:
@@ -399,9 +404,9 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             break;
 
         case AST_TYPE_STATEMENT_IF:
-            string_catf(string, "(if %s %s", ast_string(ast->ifstmt.cond), ast_block_string(ast->ifstmt.then));
+            string_catf(string, "(if %s %s", ast_string(ast->ifstmt.cond), ast_string(ast->ifstmt.then));
             if (ast->ifstmt.last)
-                string_catf(string, " %s", ast_block_string(ast->ifstmt.last));
+                string_catf(string, " %s", ast_string(ast->ifstmt.last));
             string_cat(string, ')');
             break;
 
@@ -410,7 +415,7 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
                 ast_string(ast->forstmt.init),
                 ast_string(ast->forstmt.cond),
                 ast_string(ast->forstmt.step),
-                ast_block_string(ast->forstmt.body)
+                ast_string(ast->forstmt.body)
             );
             break;
 
