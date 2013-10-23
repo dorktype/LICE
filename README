@@ -39,6 +39,7 @@ Support currently is as follows:
             >       - Greater than operator
             !       - Boolean not operator
             (,)     - Only supported in pointer dereferencing, e.g *(a + b)
+            []      - Array subscript operator
 
         Lice doesn't support the terse version of those operators, e.g
             +=, -=, ... aren't supported.
