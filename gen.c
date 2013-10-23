@@ -382,11 +382,22 @@ static void gen_expression(ast_t *ast) {
                     r = "cl";
                     break;
 
-                case 4: r = "ecx"; break;
-                case 8: r = "rcx"; break;
+                case 4:
+                    r = "ecx";
+                    break;
+
+                // larger than 8 uses largest possible register
+                // e.g arrays
+                case 8:
+                default:
+                    r = "rcx";
+                    break;
             }
-            gen_emit("dereference", "mov (%%rax), %%%s", r);
-            gen_emit("dereference", "mov %%rcx, %%rax");
+            // don't emit for arrays
+            if (ast->unary.operand->ctype->pointer->type != TYPE_ARRAY) {
+                gen_emit("dereference", "mov (%%rax), %%%s", r);
+                gen_emit("dereference", "mov %%rcx, %%rax");
+            }
             break;
 
         case AST_TYPE_STATEMENT_IF:
