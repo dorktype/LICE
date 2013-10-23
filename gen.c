@@ -62,8 +62,7 @@ static void gen_load_global(data_type_t *type, char *label) {
         case 8: reg = "rax"; break;
     }
 
-    gen_emit("global load",     "mov %s(%%rip), %%%s", label, reg);
-    gen_emit("global load end", "mov (%%rax), %%%s",   reg);
+    gen_emit_basic("mov %s(%%rip), %%%s", label, reg);
 }
 
 static void gen_load_local(ast_t *var) {
@@ -91,8 +90,6 @@ static void gen_load_local(ast_t *var) {
 
 static void gen_save_global(ast_t *var) {
     char *reg;
-    gen_emit("global save", "push %%rcx");
-    gen_emit_basic("mov %s(%%rip), %%rcx", var->global.label);
     int size = gen_type_size(var->ctype);
     switch (size) {
         case 1: reg = "al";  break;
@@ -100,8 +97,7 @@ static void gen_save_global(ast_t *var) {
         case 8: reg = "rax"; break;
     }
 
-    gen_emit("global save", "mov %s, (%%rbp)", reg);
-    gen_emit("global save", "pop %%rcx");
+    gen_emit_basic("mov %%%s, %(%%rip)", reg, var->global.name);
 }
 
 static void gen_save_local(data_type_t *type, int loff, int roff) {
@@ -226,15 +222,55 @@ static int gen_data_padding(int n) {
                 : n - remainder + 8;
 }
 
-
+// data generation
 void gen_data_section(void) {
     if (!ast_globals)
         return;
 
     for (list_iterator_t *it = list_iterator(ast_globals); !list_iterator_end(it); ) {
         ast_t *ast = list_iterator_next(it);
-        gen_emit_label("%s:", ast->string.label);
-        gen_emit_inline(".string \"%s\"", string_quote(ast->string.data));
+        if (ast->type == AST_TYPE_STRING) {
+            gen_emit_label("%s:", ast->string.label);
+            gen_emit_inline(".string \"%s\"", string_quote(ast->string.data));
+        } else if (ast->type != AST_TYPE_VAR_GLOBAL) {
+            compile_error("TODO");
+        }
+    }
+}
+
+static void gen_data_integer(ast_t *data) {
+    switch (gen_type_size(data->ctype)) {
+        case 1: gen_emit_basic(".byte %d", data->integer); break;
+        case 4: gen_emit_basic(".long %d", data->integer); break;
+        case 8: gen_emit_basic(".quad %d", data->integer); break;
+        default:
+            compile_error("Internal error: failed to generate data");
+            break;
+    }
+}
+
+static void gen_data(ast_t *ast) {
+    gen_emit_label(".global %s", ast->decl.var->global.name);
+    gen_emit_label("%s:", ast->decl.var->global.name);
+
+    // emit the array initialization
+    if (ast->decl.init->type == AST_TYPE_ARRAY_INIT) {
+        for (list_iterator_t *it = list_iterator(ast->decl.init->array); !list_iterator_end(it); )
+            gen_data_integer(list_iterator_next(it));
+        return;
+    }
+    gen_data_integer(ast->decl.init);
+}
+
+static void gen_bss(ast_t *ast) {
+    gen_emit_basic(".lcomm %s, %d", ast->decl.var->global.name, gen_type_size(ast->decl.var->ctype));
+}
+
+static void gen_global(ast_t *var) {
+    if (var->decl.init) {
+        gen_data(var);
+    } else {
+        gen_bss(var);
     }
 }
 
@@ -274,9 +310,15 @@ static void gen_function_epilogue(void) {
 }
 
 void gen_function(ast_t *ast) {
-    gen_function_prologue(ast);
-    gen_expression(ast->function.body);
-    gen_function_epilogue();
+    if (ast->type == AST_TYPE_FUNCTION) {
+        gen_function_prologue(ast);
+        gen_expression(ast->function.body);
+        gen_function_epilogue();
+    } else if (ast->type == AST_TYPE_DECLARATION) {
+        gen_global(ast);
+    } else {
+        compile_error("TODO");
+    }
 }
 
 static void gen_pointer_dereference(ast_t *var) {
