@@ -40,11 +40,12 @@ Support currently is as follows:
             !       - Boolean not operator
             (,)     - Only supported in pointer dereferencing, e.g *(a + b)
             []      - Array subscript operator
+            ++,--   - Postfix operators only (e.g a++)
 
         Lice doesn't support the terse version of those operators, e.g
             +=, -=, ... aren't supported.
 
-        There is no post/pre increment operators
+        There is no prefix operators
 
     Constructs:
         There is no support for structures, switches or unions. There
