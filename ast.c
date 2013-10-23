@@ -390,11 +390,11 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_cat(string, '}');
             break;
 
-        case AST_TYPE_ADDR:
+        case AST_TYPE_ADDRESS:
             string_catf(string, "(& %s)", ast_string(ast->unary.operand));
             break;
 
-        case AST_TYPE_DEREF:
+        case AST_TYPE_DEREFERENCE:
             string_catf(string, "(* %s)", ast_string(ast->unary.operand));
             break;
 

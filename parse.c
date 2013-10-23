@@ -140,7 +140,7 @@ static ast_t *parse_expression_unary(void) {
     if (lexer_ispunct(token, '&')) {
         ast_t *operand = parse_expression_unary();
         parse_semantic_lvalue(operand);
-        return ast_new_unary(AST_TYPE_ADDR, ast_new_pointer(operand->ctype), operand);
+        return ast_new_unary(AST_TYPE_ADDRESS, ast_new_pointer(operand->ctype), operand);
     }
     if (lexer_ispunct(token, '!')) {
         ast_t *operand = parse_expression_unary();
@@ -152,7 +152,7 @@ static ast_t *parse_expression_unary(void) {
         data_type_t *type = ast_array_convert(operand->ctype);
         if (type->type != TYPE_POINTER)
             compile_error("Internal error: parse_expression_unary");
-        return ast_new_unary(AST_TYPE_DEREF, operand->ctype->pointer, operand);
+        return ast_new_unary(AST_TYPE_DEREFERENCE, operand->ctype->pointer, operand);
     }
 
     lexer_unget(token);
@@ -207,7 +207,7 @@ static ast_t *parse_expression_subscript(ast_t *ast) {
     ast_t *subscript = parse_expression(0);
     parse_expect(']');
     ast_t *node = ast_new_binary('+', ast, subscript);
-    return ast_new_unary(AST_TYPE_DEREF, node->ctype->pointer, node);
+    return ast_new_unary(AST_TYPE_DEREFERENCE, node->ctype->pointer, node);
 }
 
 static ast_t *parse_expression_postfix(void) {
@@ -242,7 +242,7 @@ static void parse_semantic_lvalue(ast_t *ast) {
     switch (ast->type) {
         case AST_TYPE_VAR_LOCAL:
         case AST_TYPE_VAR_GLOBAL:
-        case AST_TYPE_DEREF:
+        case AST_TYPE_DEREFERENCE:
             return;
     }
     compile_error("Internal error: parse_semantic_lvalue %s", ast_string(ast));

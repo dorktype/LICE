@@ -59,8 +59,8 @@ typedef enum {
     AST_TYPE_ARRAY_INIT,
 
     // pointer stuff
-    AST_TYPE_ADDR,
-    AST_TYPE_DEREF,
+    AST_TYPE_ADDRESS,
+    AST_TYPE_DEREFERENCE,
 
     // statements
     AST_TYPE_STATEMENT_IF,

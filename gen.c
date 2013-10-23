@@ -131,7 +131,7 @@ static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
 }
 
 static void gen_assignment(ast_t *var) {
-    if (var->type == AST_TYPE_DEREF) {
+    if (var->type == AST_TYPE_DEREFERENCE) {
         gen_pointer_dereference(var);
         return;
     }
@@ -375,11 +375,11 @@ static void gen_expression(ast_t *ast) {
             }
             return;
 
-        case AST_TYPE_ADDR:
+        case AST_TYPE_ADDRESS:
             gen_emit("address of", "lea %d(%%rbp), %%rax", -ast->unary.operand->local.off);
             break;
 
-        case AST_TYPE_DEREF:
+        case AST_TYPE_DEREFERENCE:
             gen_expression(ast->unary.operand);
             switch (gen_type_size(ast->ctype)) {
                 case 1:
