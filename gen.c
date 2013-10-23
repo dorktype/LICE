@@ -38,7 +38,7 @@ static int gen_type_size(data_type_t *type) {
     switch (type->type) {
         case TYPE_CHAR: return 1;
         case TYPE_INT:  return 4;
-        case TYPE_PTR:  return 8;
+        case TYPE_POINTER:  return 8;
 
         case TYPE_ARRAY:
             return gen_type_size(type->pointer) * type->size;
@@ -172,7 +172,7 @@ static void gen_binary(ast_t *ast) {
         return;
     }
 
-    if (ast->ctype->type == TYPE_PTR) {
+    if (ast->ctype->type == TYPE_POINTER) {
         gen_pointer_arithmetic(ast->type, ast->left, ast->right);
         return;
     }

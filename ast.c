@@ -20,7 +20,7 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
         b = t;
     }
 
-    if (b->type == TYPE_PTR) {
+    if (b->type == TYPE_POINTER) {
         if (op == '=')
             return a;
         if (op != '+' && op != '-')
@@ -41,7 +41,7 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
                 case TYPE_CHAR:
                     return ast_data_int;
                 case TYPE_ARRAY:
-                case TYPE_PTR:
+                case TYPE_POINTER:
                     return b;
                 case TYPE_VOID:
                     goto error;
@@ -90,8 +90,8 @@ ast_t *ast_new_binary(char type, ast_t *left, ast_t *right) {
     ast->type          = type;
     ast->ctype         = ast_result_type(type, left->ctype, right->ctype);
     if (type != '='
-        && ast_array_convert(left->ctype)->type  != TYPE_PTR
-        && ast_array_convert(right->ctype)->type == TYPE_PTR) {
+        && ast_array_convert(left->ctype)->type  != TYPE_POINTER
+        && ast_array_convert(right->ctype)->type == TYPE_POINTER) {
 
         ast->left  = right;
         ast->right = left;
@@ -219,7 +219,7 @@ ast_t *ast_new_if(ast_t *cond, list_t *then, list_t *last) {
 
 data_type_t *ast_new_pointer(data_type_t *type) {
     data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
-    data->type        = TYPE_PTR;
+    data->type        = TYPE_POINTER;
     data->pointer     = type;
 
     return data;
@@ -282,7 +282,7 @@ const char *ast_type_string(data_type_t *type) {
         case TYPE_INT:  return "int";
         case TYPE_CHAR: return "char";
 
-        case TYPE_PTR:
+        case TYPE_POINTER:
             string = string_create();
             string_catf(string, "%s*", ast_type_string(type->pointer));
             return string_buffer(string);

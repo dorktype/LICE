@@ -147,7 +147,7 @@ static ast_t *parse_expression_unary(void) {
     if (lexer_ispunct(token, '*')) {
         ast_t *operand = parse_expression_unary();
         data_type_t *type = ast_array_convert(operand->ctype);
-        if (type->type != TYPE_PTR)
+        if (type->type != TYPE_POINTER)
             compile_error("TODO");
         return ast_new_unary(AST_TYPE_DEREF, operand->ctype->pointer, operand);
     }
