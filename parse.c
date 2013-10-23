@@ -83,6 +83,8 @@ static int parse_operator_priority(lexer_token_t *token) {
         case '+': case '-':               return 4;
         case '/': case '*':               return 5;
         case '?':                         return 6;
+        case '&':                         return 7;
+        case '|':                         return 8;
     }
     return -1;
 }

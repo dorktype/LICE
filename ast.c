@@ -325,6 +325,12 @@ const char *ast_type_string(data_type_t *type) {
 ////////////////////////////////////////////////////////////////////////
 // ast dump
 
+static void ast_string_unary(string_t *string, const char *op, ast_t *ast) {
+    string_catf(string, "(%s %s)", op, ast_string(ast->unary.operand));
+}
+static void ast_string_binary(string_t *string, const char *op, ast_t *ast) {
+    string_catf(string, "(%s %s %s)", op, ast_string(ast->left), ast_string(ast->right));
+}
 static void ast_string_impl(string_t *string, ast_t *ast) {
     char *left;
     char *right;
@@ -409,14 +415,6 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_cat(string, '}');
             break;
 
-        case AST_TYPE_ADDRESS:
-            string_catf(string, "(& %s)", ast_string(ast->unary.operand));
-            break;
-
-        case AST_TYPE_DEREFERENCE:
-            string_catf(string, "(* %s)", ast_string(ast->unary.operand));
-            break;
-
         case AST_TYPE_EXPRESSION_TERNARY:
             string_catf(string, "(? %s %s %s)",
                             ast_string(ast->ifstmt.cond),
@@ -446,18 +444,15 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_catf(string, "(return %s)", ast_string(ast->returnstmt));
             break;
 
-        case '!':
-            string_catf(string, "(! %s)", ast_string(ast->unary.operand));
-            break;
 
-        // deal with reclassified tokens
-        case LEXER_TOKEN_INCREMENT:
-            string_catf(string, "(++ %s)", ast_string(ast->unary.operand));
-            break;
 
-        case LEXER_TOKEN_DECREMENT:
-            string_catf(string, "(-- %s)", ast_string(ast->unary.operand));
-            break;
+        case AST_TYPE_ADDRESS:      ast_string_unary (string, "&",  ast); break;
+        case AST_TYPE_DEREFERENCE:  ast_string_unary (string, "*",  ast); break;
+        case LEXER_TOKEN_INCREMENT: ast_string_unary (string, "++", ast); break;
+        case LEXER_TOKEN_DECREMENT: ast_string_unary (string, "--", ast); break;
+        case '!':                   ast_string_unary (string, "!",  ast); break;
+        case '&':                   ast_string_binary(string, "&",  ast); break;
+        case '|':                   ast_string_binary(string, "|",  ast); break;
 
         default:
             left  = ast_string(ast->left);

@@ -492,6 +492,15 @@ static void gen_expression(ast_t *ast) {
             gen_emit("movzb %%al, %%eax");
             break;
 
+        case '&':
+        case '|':
+            gen_expression(ast->left);
+            gen_emit("push %%rax");
+            gen_expression(ast->right);
+            gen_emit("pop %%rcx");
+            gen_emit("%s %%rcx, %%rax", (ast->type == '|') ? "or" : "and");
+            break;
+
         case LEXER_TOKEN_INCREMENT: gen_emit_postfix(ast, "add"); break;
         case LEXER_TOKEN_DECREMENT: gen_emit_postfix(ast, "sub"); break;
 

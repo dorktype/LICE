@@ -45,7 +45,7 @@ Operators | Description
 <         | Less than operator
 \>        | Greater than operator
 !         | Boolean not operator
-(,)       | Only supported in pointer dereferencing, e.g *(a + b)
+(,)       | Standard Parentheses
 []        | Array subscript operator
 ++,--     | Postfix operators only (e.g a++)
 ?,:       | Ternary operator
