@@ -14,4 +14,4 @@ c.o:
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -f $(OBJECTS) $(EXECUTABLE) blob.o program
+	rm -f $(OBJECTS) $(EXECUTABLE) *.d
