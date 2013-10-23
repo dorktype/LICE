@@ -97,7 +97,7 @@ static void gen_save_global(ast_t *var) {
         case 8: reg = "rax"; break;
     }
 
-    gen_emit_basic("mov %%%s, %(%%rip)", reg, var->global.name);
+    gen_emit_basic("mov %%%s, %s(%%rip)", reg, var->global.name);
 }
 
 static void gen_save_local(data_type_t *type, int loff, int roff) {
