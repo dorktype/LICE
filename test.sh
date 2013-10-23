@@ -64,6 +64,8 @@ test_gm        'if(1){0;}else{1;}'         '0'
 
 cat tests/beer.c | ./lice | gcc -xassembler - -o beer; ./beer
 cat tests/factorial.c | ./lice | gcc -xassembler - -o factorial; ./factorial
+cat tests/sierpinski.c | ./lice | gcc -xassembler - -o sierpinski; ./sierpinski
 
 rm -f beer
 rm -f factorial
+rm -f sierpinski
