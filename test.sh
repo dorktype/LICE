@@ -63,3 +63,7 @@ test_gm        'if(0){1;}else{0;}'         '0'
 test_gm        'if(1){0;}else{1;}'         '0'
 
 cat tests/beer.c | ./lice | gcc -xassembler - -o beer; ./beer
+cat tests/factorial.c | ./lice | gcc -xassembler - -o factorial; ./factorial
+
+rm -f beer
+rm -f factorial

@@ -190,7 +190,7 @@ static void gen_binary(ast_t *ast) {
     }
 
     gen_expression(ast->right);
-    gen_emit("operation", "push %%rax");
+    gen_emit("push %%rax");
     gen_expression(ast->left);
 
     if (ast->type == '/') {
@@ -486,7 +486,6 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case '!':
-            // this is so horribly inefficent I feel bad :(
             gen_expression(ast->unary.operand);
             gen_emit("cmp $0, %%rax");
             gen_emit("sete %%al");
