@@ -21,7 +21,7 @@ void gen_emit_impl(int line, const char *fmt, ...) {
         if (*p == '\t')
           col += 8 - 1;
 
-    col = (30 - col) > 0 ? (30 - col) : 2;
+    col = (40 - col) > 0 ? (40 - col) : 2;
     printf("%*c % 4d\n", col, '#', line);
 }
 
@@ -42,10 +42,12 @@ static void gen_pop_(const char *reg, int line) {
 static void gen_push_xmm_(int r, int line) {
     gen_emit_impl(line, "\tsub $8, %%rsp");
     gen_emit_impl(line, "\tmovss %%xmm%d, (%%rsp)", r);
+    gen_stack += 8;
 }
 static void gen_pop_xmm_(int r, int line) {
     gen_emit_impl(line, "\tmovss (%%rsp), %%xmm%d", r);
     gen_emit_impl(line, "\tadd $8, %%rsp");
+    gen_stack -= 8;
 }
 
 static const char *gen_register_integer(data_type_t *type, char r) {
@@ -443,11 +445,18 @@ static void gen_function_prologue(ast_t *ast) {
     gen_emit("mov %%rsp, %%rbp");
 
     int offset = 0;
-    int regint = 0;
+    int regi   = 0;
+    int regx   = 0;
 
     for (list_iterator_t *it = list_iterator(ast->function.params); !list_iterator_end(it); ) {
         ast_t *value = list_iterator_next(it);
-        gen_push(registers[regint++]);
+
+        if (value->ctype->type == TYPE_FLOAT) {
+            gen_emit("cvtpd2ps %%xmm%d, %%xmm%d", regx, regx);
+            gen_push_xmm(regx++);
+        } else {
+            gen_push(registers[regi++]);
+        }
         offset -= gen_alignment(value->ctype->size, 8);
         value->variable.off = offset;
     }
@@ -459,7 +468,7 @@ static void gen_function_prologue(ast_t *ast) {
 
     if (offset)
         gen_emit("sub $%d, %%rsp", gen_alignment(-offset, 16));
-    gen_stack += -(offset - 16);
+    gen_stack += -(offset - 8);
 }
 
 static void gen_function_epilogue(void) {
