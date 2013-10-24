@@ -368,6 +368,7 @@ static data_type_t *parse_type(lexer_token_t *token) {
     if (!strcmp(token->string, "long"))   return (spec == usign) ? ast_data_ulong  : ast_data_long;
     if (!strcmp(token->string, "float"))  return ast_data_float;
     if (!strcmp(token->string, "double")) return ast_data_double;
+    if (!strcmp(token->string, "void"))   return ast_data_void;
 
     // implicit integer in C, see note above
     if (spec != uspec)

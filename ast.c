@@ -8,6 +8,7 @@
 static int ast_label_index = 0;
 
 //////////////////////////////////////////////////////////////////////////
+data_type_t *ast_data_void   = &(data_type_t) { TYPE_VOID,      0, true  };
 data_type_t *ast_data_long   = &(data_type_t) { TYPE_LONG,      8, true  };
 data_type_t *ast_data_int    = &(data_type_t) { TYPE_INT,       4, true  };
 data_type_t *ast_data_short  = &(data_type_t) { TYPE_SHORT,     2, true  };

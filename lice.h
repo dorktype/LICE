@@ -253,6 +253,7 @@ bool ast_type_integer(data_type_t *type);
 bool ast_type_floating(data_type_t *type);
 
 // data
+extern data_type_t *ast_data_void;
 extern data_type_t *ast_data_int;
 extern data_type_t *ast_data_char;
 extern data_type_t *ast_data_long;
