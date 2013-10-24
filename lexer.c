@@ -220,7 +220,6 @@ static lexer_token_t *lexer_read_token(void) {
         case '{': case '}':
         case ',': case ';':
         case '?': case ':':
-        case '!':
         case '.':
             return lexer_punct(c);
 
@@ -230,6 +229,7 @@ static lexer_token_t *lexer_read_token(void) {
         case '+': return lexer_read_reclassify('+', '+', LEXER_TOKEN_INCREMENT);
         case '<': return lexer_read_reclassify('=', '<', LEXER_TOKEN_LEQUAL);
         case '>': return lexer_read_reclassify('=', '>', LEXER_TOKEN_GEQUAL);
+        case '!': return lexer_read_reclassify('=', '!', LEXER_TOKEN_NEQUAL);
 
         // special handling for ->
         case '-':

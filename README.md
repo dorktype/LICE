@@ -41,7 +41,7 @@ Operators | Description
 ----------|:-------------------------------------------------------
 +,-,/,*   | Arithmetic operators
 =         | Assignment operator
-==        | Equality operator
+==,!=     | Equality operators
 <         | Less than operator
 \>        | Greater than operator
 !         | Boolean not operator

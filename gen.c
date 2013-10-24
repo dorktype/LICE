@@ -270,6 +270,7 @@ static void gen_binary(ast_t *ast) {
         case LEXER_TOKEN_EQUAL:  gen_comparision("sete",  ast); return;
         case LEXER_TOKEN_GEQUAL: gen_comparision("setge", ast); return;
         case LEXER_TOKEN_LEQUAL: gen_comparision("setle", ast); return;
+        case LEXER_TOKEN_NEQUAL: gen_comparision("setne", ast); return;
         case '<':                gen_comparision("setl",  ast); return;
         case '>':                gen_comparision("setg",  ast); return;
 
