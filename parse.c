@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "lice.h"
 
@@ -45,9 +46,10 @@ static bool parse_identifer_check(lexer_token_t *token, const char *identifier) 
 static int parse_evaluate(ast_t *ast) {
     switch (ast->type) {
         case AST_TYPE_LITERAL:
-            if (ast->ctype->type == TYPE_INT)  return ast->integer;
-            if (ast->ctype->type == TYPE_CHAR) return ast->character;
+            if (ast_type_integer(ast->ctype))
+                return ast->integer;
             compile_error("Not a valid integer constant expression");
+            break;
 
         case '+':                return parse_evaluate(ast->left) +  parse_evaluate(ast->right);
         case '-':                return parse_evaluate(ast->left) -  parse_evaluate(ast->right);
@@ -161,8 +163,20 @@ static ast_t *parse_expression_primary(void) {
             return parse_generic(token->string);
 
         // ast generating ones
-        case LEXER_TOKEN_INT:    return ast_new_int(token->integer);
-        case LEXER_TOKEN_CHAR:   return ast_new_char(token->character);
+        case LEXER_TOKEN_NUMBER:
+            if (lexer_islong(token->string))
+                return ast_new_integer(ast_data_long, atol(token->string));
+            if (lexer_isint(token->string)) {
+                long value = atol(token->string);
+                if (value & ~(long)UINT_MAX)
+                    return ast_new_integer(ast_data_long, value);
+                return ast_new_integer(ast_data_int, value);
+            }
+            break;
+
+        case LEXER_TOKEN_CHAR:
+            return ast_new_integer(ast_data_char, token->character);
+
         case LEXER_TOKEN_STRING:
             ast = ast_new_string(token->string);
             ast_env_push(ast_globalenv, ast);
@@ -317,10 +331,9 @@ static data_type_t *parse_type_get(lexer_token_t *token) {
     if (!token || token->type != LEXER_TOKEN_IDENT)
         return NULL;
 
-    if (!strcmp(token->string, "int"))
-        return ast_data_int;
-    if (!strcmp(token->string, "char"))
-        return ast_data_char;
+    if (!strcmp(token->string, "int"))  return ast_data_int;
+    if (!strcmp(token->string, "char")) return ast_data_char;
+    if (!strcmp(token->string, "long")) return ast_data_long;
 
     return NULL;
 }
@@ -477,7 +490,7 @@ static ast_t *parse_declaration_initialization_variable(ast_t *var) {
 
     // ensure integer expression
     if (var->type == AST_TYPE_VAR_GLOBAL)
-        init = ast_new_int(parse_evaluate(init));
+        init = ast_new_integer(ast_data_int, parse_evaluate(init));
 
     return ast_new_decl(var, init);
 }

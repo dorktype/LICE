@@ -447,6 +447,11 @@ static void gen_expression(ast_t *ast) {
                 case TYPE_INT:
                     gen_emit("mov $%d, %%eax", ast->integer);
                     break;
+
+                case TYPE_LONG:
+                    gen_emit("mov $%lu, %%rax", (unsigned long)ast->integer);
+                    break;
+
                 case TYPE_CHAR:
                     gen_emit("mov $%d, %%rax", ast->character);
                     break;

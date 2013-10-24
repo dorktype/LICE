@@ -10,9 +10,9 @@
 typedef enum {
     LEXER_TOKEN_IDENT,
     LEXER_TOKEN_PUNCT,
-    LEXER_TOKEN_INT,
     LEXER_TOKEN_CHAR,
     LEXER_TOKEN_STRING,
+    LEXER_TOKEN_NUMBER,
 
     // reclassified tokens need to not conflict with
     // the ast types
@@ -32,14 +32,15 @@ typedef enum {
 typedef struct {
     lexer_token_type_t type;
     union {
-        int   integer;
+        long  integer;
         int   punct;
         char *string;
         char  character;
     };
 } lexer_token_t;
 
-
+bool lexer_islong(char *string);
+bool lexer_isint(char *string);
 bool lexer_ispunct(lexer_token_t *token, int c);
 void lexer_unget(lexer_token_t *token);
 lexer_token_t *lexer_next(void);
@@ -87,6 +88,7 @@ typedef enum {
 typedef enum {
     TYPE_VOID,
     TYPE_INT,
+    TYPE_LONG,
     TYPE_CHAR,
     TYPE_ARRAY,
     TYPE_POINTER,
@@ -174,7 +176,7 @@ struct ast_s {
 
     // all the possible nodes
     union {
-        int            integer;         // integer
+        long           integer;         // integer
         char           character;       // character
         ast_string_t   string;          // string
         ast_variable_t variable;        // local and global variable
@@ -203,7 +205,7 @@ data_type_t *ast_structure_new(list_t *fields, char *tag, int size);
 
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand);
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right);
-ast_t *ast_new_int(int value);
+ast_t *ast_new_integer(data_type_t *type, int value);
 ast_t *ast_new_char(char value);
 char *ast_new_label(void);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
@@ -233,11 +235,12 @@ data_type_t *ast_array_convert(data_type_t *ast);
 
 data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b);
 
-int ast_sizeof(data_type_t *type);
+bool ast_type_integer(data_type_t *type);
 
 // data
 extern data_type_t *ast_data_int;
 extern data_type_t *ast_data_char;
+extern data_type_t *ast_data_long;
 extern env_t       *ast_globalenv;
 extern env_t       *ast_localenv;
 extern list_t      *ast_localvars;

@@ -30,10 +30,10 @@ static lexer_token_t *lexer_punct(int punct) {
     token->punct         = punct;
     return token;
 }
-static lexer_token_t *lexer_int(int value) {
+static lexer_token_t *lexer_number(char *string) {
     lexer_token_t *token = lexer_token_new();
-    token->type          = LEXER_TOKEN_INT;
-    token->integer       = value;
+    token->type          = LEXER_TOKEN_NUMBER;
+    token->string        = string;
     return token;
 }
 static lexer_token_t *lexer_char(char value) {
@@ -82,14 +82,15 @@ static int lexer_skip(void) {
 
 // read a number and build integer token for the token stream
 static lexer_token_t *lexer_read_number(int c) {
-    int n = c - '0';
+    string_t *string = string_create();
+    string_cat(string, c);
     for (;;) {
         int p = getc(stdin);
-        if (!isdigit(p)) {
+        if (!isdigit(p) && !isalpha(p)) {
             ungetc(p, stdin);
-            return lexer_int(n);
+            return lexer_number(string_buffer(string));
         }
-        n = n * 10 + (p - '0');
+        string_cat(string, p);
     }
     return NULL;
 }
@@ -281,6 +282,23 @@ lexer_token_t *lexer_peek(void) {
     return token;
 }
 
+bool lexer_islong(char *string) {
+    // long must be all digit up to a L or l in which the last
+    // character must be a null termination
+    for (; *string; string++)
+        if (!isdigit(*string))
+            return (*string == 'L' || *string == 'l') && string[1] == '\0';
+    return false;
+}
+
+bool lexer_isint(char *string) {
+    // like long but none of the test
+    for (; *string; string++)
+        if (!isdigit(*string))
+            return false;
+    return true;
+}
+
 char *lexer_tokenstr(lexer_token_t *token) {
     string_t *string = string_create();
 
@@ -298,7 +316,7 @@ char *lexer_tokenstr(lexer_token_t *token) {
             string_cat(string, token->character);
             return string_buffer(string);
 
-        case LEXER_TOKEN_INT:
+        case LEXER_TOKEN_NUMBER:
             string_catf(string, "%d", token->integer);
             return string_buffer(string);
 

@@ -3,17 +3,22 @@ at the sources of existing ones like TCC, GCC and SubC, while still
 keeping the code easy to understand and well documented for my own sake.
 
 ### Types
-There are currently only two types supported, `int` and `char`, as
-well as the pointer and array versions of those types. There is
-no support for signed/unsigned keywords, all types are handled
-as signed integer types.
+Lice supports the following types
 
-There is no support for floating point operations, not because
-the type doesn't exist (which would potentially prevent such
-operations) but because stack space isn't aligned on 16 byte
-boundry yet to accomodate it, and the registers themselfs aren't
-properly saved/restored to allow it, so calling external float-aware
-functions will likely crash.
+Type | Description
+-----|:-----------
+char | Standard character representing type (1 byte)
+int  | Standard integer representing type (4 bytes)
+long | Standard long integer representing type (8 bytes)
+
+Lice also supports these types for arrays and pointers, these types
+are all represened as signed types. Lice doesn't support unsigned
+types as of yet.
+
+There is no support for floating point types `float` or `double`.
+Calling external functions which return those types will likely cause
+a crash as the code generator doesn't handle stack alignment for
+floating point operations.
 
 ### Functions
 Functions are supported but function prototyping isn't which means
