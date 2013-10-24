@@ -51,13 +51,13 @@ static void gen_pop_xmm_(int r, int line) {
 }
 
 static const char *gen_register_integer(data_type_t *type, char r) {
-    static const char *table[] = {
-        0,
-        /*1*/"al",  "cl",  0, 0,
-        /*4*/"eax", "ecx", 0, 0,
-        /*8*/"rax", "rcx", 0, 0
-    };
-    return table[type->size + !!(r == 'a')];
+    switch (type->size) {
+        case 1: return (r == 'a') ? "al"  : "cl";
+        case 2: return (r == 'a') ? "ax"  : "cx";
+        case 4: return (r == 'a') ? "eax" : "ecx";
+        case 8: return (r == 'a') ? "rax" : "rcx";
+    }
+    return "<<lice internal error>>";
 }
 
 static void gen_expression(ast_t *ast);
@@ -84,7 +84,7 @@ static void gen_cast_int(data_type_t *type) {
     if (type->type != TYPE_FLOAT)
         return;
     printf("# cast float to int {\n");
-    gen_emit("cvttss2i %%xmm0, %%eax");
+    gen_emit("cvttss2si %%xmm0, %%eax");
     printf("# }\n");
 }
 
@@ -107,7 +107,7 @@ static void gen_load_local(data_type_t *var, int offset) {
         return;
     }
 
-    const char *reg = gen_register_integer(var, 'r');
+    const char *reg = gen_register_integer(var, 'a');
     if (var->size == 1)
         gen_emit("mov $0, %%eax");
     gen_emit("mov %d(%%rbp), %%%s", offset, reg);
@@ -174,7 +174,6 @@ static void gen_assignment_dereference_intermediate(data_type_t *type, int offse
         gen_emit("mov %%%s, %d(%%rax)", reg, offset);
     else
         gen_emit("mov %%%s, (%%rax)", reg);
-
     gen_pop("rax");
 }
 
@@ -265,15 +264,17 @@ static void gen_comparision(char *operation, ast_t *ast) {
     if (ast->ctype->type == TYPE_FLOAT) {
         gen_expression(ast->left);
         gen_cast_float(ast->left->ctype);
-        gen_emit("pushq %%xmm0");
+        gen_push_xmm(0);
         gen_expression(ast->right);
         gen_cast_float(ast->right->ctype);
-        gen_emit("popq %xxmm1");
+        gen_pop_xmm(1);
         gen_emit("ucomiss %%xmm0, %%xmm1"); /// hahahaahahahhahahaha this thing is a cunt
     } else {
         gen_expression(ast->left);
+        gen_cast_int(ast->left->ctype);
         gen_push("rax");
         gen_expression(ast->right);
+        gen_cast_int(ast->right->ctype);
         gen_pop("rcx");
         gen_emit("cmp %%rax, %%rcx");
     }
@@ -488,7 +489,7 @@ static void gen_function_prologue(ast_t *ast) {
 
     if (offset)
         gen_emit("add $%d, %%rsp", offset);
-    gen_stack += -(offset - 8);
+    gen_stack += -(offset - 8); //enable later
 
     printf("# }\n");
 }
@@ -611,13 +612,13 @@ static void gen_expression(ast_t *ast) {
             printf("# function call {\n");
             gen_emit("mov $%d, %%eax", regx);
 
-            if (gen_stack % 16)
+            if (gen_stack % 16)// TODO: fix
                 gen_emit("sub $8, %%rsp");
 
             gen_emit("call %s", ast->function.name);
 
-            if (gen_stack % 16)
-                gen_emit("add $8, %%rsp");
+            if (gen_stack % 16)// TODO: fix
+               gen_emit("add $8, %%rsp");
 
             printf("# }\n");
 
