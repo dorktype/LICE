@@ -173,6 +173,13 @@ static ast_t *parse_expression_primary(void) {
                     return ast_new_integer(ast_data_long, value);
                 return ast_new_integer(ast_data_int, value);
             }
+            if (lexer_isfloat(token->string)) {
+                ast_t *v = ast_new_floating(atof(token->string));
+                return v;
+            } else {
+                printf("not a float: %s\n", token->string);
+            }
+            compile_error("Internal error");
             break;
 
         case LEXER_TOKEN_CHAR:
@@ -359,7 +366,10 @@ static data_type_t *parse_type(lexer_token_t *token) {
     if (!strcmp(token->string, "short")) return (spec == usign) ? ast_data_ushort : ast_data_short;
     if (!strcmp(token->string, "int"))   return (spec == usign) ? ast_data_uint   : ast_data_int;
     if (!strcmp(token->string, "long"))  return (spec == usign) ? ast_data_ulong  : ast_data_long;
-    // todo float and double
+
+    // float and double don't have signed/unsigned specs
+    if (!strcmp(token->string, "float"))
+        return ast_data_float;
 
     // implicit integer in C, see note above
     if (spec != uspec)
@@ -374,7 +384,7 @@ static bool parse_type_check(lexer_token_t *token) {
         return false;
 
     static const char *keywords[] = {
-        "char", "short", "int", "long",
+        "char", "short", "int", "long","float",
         "struct", "union", "signed", "unsigned"
     };
 

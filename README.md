@@ -11,16 +11,14 @@ char  | Standard character representing type (1 byte)
 short | Standard short integer representing type (2 bytes)
 int   | Standard integer representing type (4 bytes)
 long  | Standard long integer representing type (8 bytes)
+float | Untested for conformancy floaitng point type (4 bytes)
 
 Lice also supports these types for arrays and pointers, these types
 are all represened as signed types. Lice also supports unsigned
 and signed type specifications as well as implicit int unspecified
 typing.
 
-There is no support for floating point types `float` or `double`.
-Calling external functions which return those types will likely cause
-a crash as the code generator doesn't handle stack alignment for
-floating point operations.
+There is no support for `double`.
 
 ### Functions
 Functions are supported but function prototyping isn't which means

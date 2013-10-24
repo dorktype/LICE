@@ -77,6 +77,7 @@ char *string_quote(char *p) {
 struct list_node_s {
     void        *element;
     list_node_t *next;
+    list_node_t *prev;
 };
 
 struct list_iterator_s {
@@ -96,7 +97,7 @@ void *list_node_create(void *element) {
     list_node_t *node = (list_node_t*)malloc(sizeof(list_node_t));
     node->element     = element;
     node->next        = NULL;
-
+    node->prev        = NULL;
     return node;
 }
 
@@ -104,8 +105,10 @@ void list_push(list_t *list, void *element) {
     list_node_t *node = list_node_create(element);
     if (!list->head)
         list->head = node;
-    else
+    else {
         list->tail->next = node;
+        node->prev       = list->tail;
+    }
     list->tail = node;
     list->length++;
 }
@@ -134,6 +137,24 @@ void *list_iterator_next(list_iterator_t *iter) {
 
 bool list_iterator_end(list_iterator_t *iter) {
     return !iter->pointer;
+}
+
+static void list_shiftify(list_t *list, void *element) {
+    list_node_t *node = list_node_create(element);
+    node->next = list->head;
+    if (list->head)
+        list->head->prev = node;
+    list->head = node;
+    if (!list->tail)
+        list->tail = node;
+    list->length++;
+}
+
+list_t *list_reverse(list_t *list) {
+    list_t *ret = list_create();
+    for (list_iterator_t *it = list_iterator(list); !list_iterator_end(it); )
+        list_shiftify(ret, list_iterator_next(it));
+    return ret;
 }
 
 void *list_tail(list_t *list) {

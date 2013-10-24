@@ -41,6 +41,7 @@ typedef struct {
 
 bool lexer_islong(char *string);
 bool lexer_isint(char *string);
+bool lexer_isfloat(char *string);
 bool lexer_ispunct(lexer_token_t *token, int c);
 void lexer_unget(lexer_token_t *token);
 lexer_token_t *lexer_next(void);
@@ -87,10 +88,11 @@ typedef enum {
 // language types
 typedef enum {
     TYPE_VOID,
-    TYPE_INT,
-    TYPE_SHORT,
-    TYPE_LONG,
     TYPE_CHAR,
+    TYPE_SHORT,
+    TYPE_INT,
+    TYPE_LONG,
+    TYPE_FLOAT,
     TYPE_ARRAY,
     TYPE_POINTER,
     TYPE_STRUCTURE
@@ -190,14 +192,22 @@ struct ast_s {
         ast_t         *returnstmt;      // return statement
         list_t        *compound;        // compound statement
         list_t        *array;           // array initializer
+
         struct {                        // tree
             ast_t *left;
             ast_t *right;
         };
+
         struct {                        // struct
             ast_t       *structure;
             data_type_t *field;
         };
+
+        struct {                        // float
+            float value;
+            char *label;
+        } floating;
+
     };
 };
 
@@ -208,6 +218,7 @@ data_type_t *ast_structure_new(list_t *fields, char *tag, int size);
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand);
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right);
 ast_t *ast_new_integer(data_type_t *type, int value);
+ast_t *ast_new_floating(float value);
 ast_t *ast_new_char(char value);
 char *ast_new_label(void);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
@@ -248,12 +259,14 @@ extern data_type_t *ast_data_uint;
 extern data_type_t *ast_data_uchar;
 extern data_type_t *ast_data_ulong;
 extern data_type_t *ast_data_ushort;
+extern data_type_t *ast_data_float;
 
 extern env_t       *ast_globalenv;
 extern env_t       *ast_localenv;
 extern list_t      *ast_localvars;
 extern list_t      *ast_structures;
 extern list_t      *ast_unions;
+extern list_t      *ast_floats;
 
 // enviroment handling
 env_t *ast_env_new(env_t *next);

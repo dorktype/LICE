@@ -86,7 +86,7 @@ static lexer_token_t *lexer_read_number(int c) {
     string_cat(string, c);
     for (;;) {
         int p = getc(stdin);
-        if (!isdigit(p) && !isalpha(p)) {
+        if (!isdigit(p) && !isalpha(p) && p != '.') {
             ungetc(p, stdin);
             return lexer_number(string_buffer(string));
         }
@@ -293,6 +293,18 @@ bool lexer_islong(char *string) {
 
 bool lexer_isint(char *string) {
     // like long but none of the test
+    for (; *string; string++)
+        if (!isdigit(*string))
+            return false;
+    return true;
+}
+
+bool lexer_isfloat(char *string) {
+    for (; *string; string++)
+        if (!isdigit(*string))
+            break;
+    if (*string++ != '.')
+        return false;
     for (; *string; string++)
         if (!isdigit(*string))
             return false;

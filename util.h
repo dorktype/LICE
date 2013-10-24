@@ -81,6 +81,12 @@ void list_push(list_t *list, void *element);
 int list_length(list_t *list);
 
 /*
+ * Function: list_reverse
+ *  Reverse the contents of a list
+ */
+list_t *list_reverse(list_t *list);
+
+/*
  * Function: list_iterator
  *  Create an iterator for a given list object
  */
