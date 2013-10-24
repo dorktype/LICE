@@ -97,3 +97,29 @@ put the result into the first.
 The code generator produces code compatible in accordance to
 the SysV ABI for AMD64. So it should function on any AMD64
 Linux or FreeBSD system.
+
+
+### Sources
+The following sources where used as information and inspiration
+in the construction of LICE
+
+-   The dragon book
+    http://www.amazon.ca/Compilers-Principles-Techniques-Alfred-Aho/dp/0201100886
+
+-   C99 final draft
+    http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf
+
+-   SubC compiler sources for ideas
+    http://www.t3x.org/subc/
+
+-   TCC
+    http://bellard.org/tcc/
+
+-   x86-64/System V ABI
+    http://www.x86-64.org/documentation/abi.pdf
+
+-   The coder64 cheat sheet of opcodes and instructions
+    http://ref.x86asm.net/coder64.html
+
+-   Let's Build a Compiler, Jack Crenshaw
+    http://compilers.iecc.com/crenshaw/
