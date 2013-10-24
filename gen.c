@@ -41,7 +41,11 @@ static void gen_load_global(data_type_t *type, char *label, int offset) {
 
     char *reg;
     switch (type->size) {
-        case 1: reg = "al";  gen_emit("mov $0, %%eax"); break;
+        case 1: reg = "al";
+            gen_emit("mov $0, %%eax");
+            break;
+
+        case 2: reg = "ax";  break;
         case 4: reg = "eax"; break;
         case 8: reg = "rax"; break;
         default:
@@ -66,6 +70,9 @@ static void gen_load_local(data_type_t *var, int offset) {
             gen_emit("mov $0, %%eax");
             gen_emit("mov %d(%%rbp), %%al", offset);
             break;
+        case 2:
+            gen_emit("mov %d(%%rbp), %%ax", offset);
+            break;
 
         case 4:
             gen_emit("mov %d(%%rbp), %%eax", offset);
@@ -81,6 +88,7 @@ static void gen_save_global(char *name, data_type_t *type, int offset) {
     char *reg;
     switch (type->size) {
         case 1: reg = "al";  break;
+        case 2: reg = "ax";  break;
         case 4: reg = "eax"; break;
         case 8: reg = "rax"; break;
         default:
@@ -98,6 +106,7 @@ static void gen_save_local(data_type_t *type, int offset) {
     char *reg;
     switch (type->size) {
         case 1: reg = "al";  break;
+        case 2: reg = "ax";  break;
         case 4: reg = "eax"; break;
         case 8: reg = "rax"; break;
     }
@@ -130,6 +139,7 @@ static void gen_load_dereference(data_type_t *rtype, data_type_t *otype, int off
             gen_emit("mov $0, %%ecx");
             break;
 
+        case 2: reg = "cx";  break;
         case 4: reg = "ecx"; break;
         case 8: reg = "rcx"; break;
     }
@@ -148,6 +158,7 @@ static void gen_assignment_dereference_intermediate(data_type_t *type, int offse
 
     switch (type->size) {
         case 1: reg = "cl";  break;
+        case 2: reg = "ax";  break;
         case 4: reg = "ecx"; break;
         case 8: reg = "rcx"; break;
     }
@@ -336,6 +347,7 @@ void gen_data_section(void) {
 static void gen_data_integer(ast_t *data) {
     switch (data->ctype->size) {
         case 1: gen_emit(".byte %d", data->integer); break;
+        case 2: gen_emit(".word %d", data->integer); break;
         case 4: gen_emit(".long %d", data->integer); break;
         case 8: gen_emit(".quad %d", data->integer); break;
         default:

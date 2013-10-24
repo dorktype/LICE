@@ -71,6 +71,7 @@ static int parse_evaluate(ast_t *ast) {
         default:
             compile_error("Not a valid integer constant expression");
     }
+    return -1;
 }
 
 static int parse_operator_priority(lexer_token_t *token) {
@@ -327,21 +328,61 @@ static ast_t *parse_expression(void) {
     return parse_expression_intermediate(16);
 }
 
-static data_type_t *parse_type_get(lexer_token_t *token) {
+static data_type_t *parse_type(lexer_token_t *token) {
     if (!token || token->type != LEXER_TOKEN_IDENT)
         return NULL;
 
-    if (!strcmp(token->string, "int"))  return ast_data_int;
-    if (!strcmp(token->string, "char")) return ast_data_char;
-    if (!strcmp(token->string, "long")) return ast_data_long;
+    enum {
+        isign,
+        usign,
+        uspec
+    } spec = isign;
 
+    for (;;) {
+        if      (!strcmp(token->string, "signed"))   spec = isign;
+        else if (!strcmp(token->string, "unsigned")) spec = usign;
+        else break; // TODO register/volatile/restrict
+
+        token = lexer_next();
+        if (token->type != LEXER_TOKEN_IDENT) {
+            lexer_unget(token);
+
+            // in C there is this 'notion' of implicit integer
+            // which means "unsigned" or "signed" by itself without
+            // any type next to it automatically means integer with
+            // what ever specification on it
+            return spec == usign ? ast_data_uint : ast_data_int;
+        }
+    }
+
+    if (!strcmp(token->string, "char"))  return (spec == usign) ? ast_data_uchar  : ast_data_char;
+    if (!strcmp(token->string, "short")) return (spec == usign) ? ast_data_ushort : ast_data_short;
+    if (!strcmp(token->string, "int"))   return (spec == usign) ? ast_data_uint   : ast_data_int;
+    if (!strcmp(token->string, "long"))  return (spec == usign) ? ast_data_ulong  : ast_data_long;
+    // todo float and double
+
+    // implicit integer in C, see note above
+    if (spec != uspec)
+        return (spec == usign) ? ast_data_uint : ast_data_int;
+
+    compile_error("Expected type");
     return NULL;
 }
 
 static bool parse_type_check(lexer_token_t *token) {
-    return parse_type_get(token) != NULL
-                || parse_identifer_check(token, "struct")
-                || parse_identifer_check(token, "union");
+    if (token->type != LEXER_TOKEN_IDENT)
+        return false;
+
+    static const char *keywords[] = {
+        "char", "short", "int", "long",
+        "struct", "union", "signed", "unsigned"
+    };
+
+    for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++)
+        if (!strcmp(keywords[i], token->string))
+            return true;
+
+    return false;
 }
 
 static ast_t *parse_declaration_array_initializer_intermediate(data_type_t *type) {
@@ -449,11 +490,14 @@ static data_type_t *parse_structure_definition(void) {
 static data_type_t *parse_declaration_specification(void) {
     lexer_token_t *token = lexer_next();
 
+    if (!token)
+        return NULL;
+
     data_type_t   *type  = parse_identifer_check(token, "struct")
                                 ? parse_structure_definition()
                                 : (parse_identifer_check(token, "union"))
                                     ? parse_union_definition()
-                                    : parse_type_get(token);
+                                    : parse_type(token);
 
     if (!type)
         compile_error("Expected type");

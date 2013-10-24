@@ -7,9 +7,15 @@
 // todo remove
 static int ast_label_index = 0;
 
-data_type_t *ast_data_long  = &(data_type_t) { TYPE_LONG,      NULL, 8 };
-data_type_t *ast_data_int   = &(data_type_t) { TYPE_INT,       NULL, 4 };
-data_type_t *ast_data_char  = &(data_type_t) { TYPE_CHAR,      NULL, 1 };
+//////////////////////////////////////////////////////////////////////////
+data_type_t *ast_data_long   = &(data_type_t) { TYPE_LONG,      8, true  };
+data_type_t *ast_data_int    = &(data_type_t) { TYPE_INT,       4, true  };
+data_type_t *ast_data_short  = &(data_type_t) { TYPE_SHORT,     2, true  };
+data_type_t *ast_data_char   = &(data_type_t) { TYPE_CHAR,      1, true  };
+data_type_t *ast_data_ulong  = &(data_type_t) { TYPE_LONG,      8, false };
+data_type_t *ast_data_uint   = &(data_type_t) { TYPE_INT,       4, false };
+data_type_t *ast_data_ushort = &(data_type_t) { TYPE_SHORT,     2, false };
+data_type_t *ast_data_uchar  = &(data_type_t) { TYPE_CHAR,      1, false };
 
 env_t       *ast_globalenv  = &(env_t)       { &SENTINEL_LIST, NULL };
 env_t       *ast_localenv   = NULL;
@@ -63,9 +69,11 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
             goto error;
         case TYPE_INT:
         case TYPE_CHAR:
+        case TYPE_SHORT:
             switch (b->type) {
                 case TYPE_INT:
                 case TYPE_CHAR:
+                case TYPE_SHORT:
                     return ast_data_int;
                 case TYPE_LONG:
                     return ast_data_long;
@@ -401,10 +409,11 @@ const char *ast_type_string(data_type_t *type) {
     string_t *string;
 
     switch (type->type) {
-        case TYPE_VOID: return "void";
-        case TYPE_INT:  return "int";
-        case TYPE_CHAR: return "char";
-        case TYPE_LONG: return "long";
+        case TYPE_VOID:  return "void";
+        case TYPE_INT:   return "int";
+        case TYPE_CHAR:  return "char";
+        case TYPE_LONG:  return "long";
+        case TYPE_SHORT: return "short";
 
         case TYPE_POINTER:
             string = string_create();

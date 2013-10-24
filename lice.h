@@ -88,6 +88,7 @@ typedef enum {
 typedef enum {
     TYPE_VOID,
     TYPE_INT,
+    TYPE_SHORT,
     TYPE_LONG,
     TYPE_CHAR,
     TYPE_ARRAY,
@@ -99,9 +100,10 @@ typedef struct data_type_s data_type_t;
 
 struct data_type_s {
     type_t       type;
-    data_type_t *pointer;
     int          size;
+    bool         sign;    // signed?
     int          length;
+    data_type_t *pointer;
 
     // structure
     struct {
@@ -241,6 +243,12 @@ bool ast_type_integer(data_type_t *type);
 extern data_type_t *ast_data_int;
 extern data_type_t *ast_data_char;
 extern data_type_t *ast_data_long;
+extern data_type_t *ast_data_short;
+extern data_type_t *ast_data_uint;
+extern data_type_t *ast_data_uchar;
+extern data_type_t *ast_data_ulong;
+extern data_type_t *ast_data_ushort;
+
 extern env_t       *ast_globalenv;
 extern env_t       *ast_localenv;
 extern list_t      *ast_localvars;
