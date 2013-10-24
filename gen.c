@@ -12,7 +12,7 @@ static const char *registers[] = {
 #define gen_emit_label(...)  gen_emit_impl(__LINE__,      __VA_ARGS__)
 #define gen_emit_inline(...) gen_emit_impl(__LINE__,      __VA_ARGS__)
 
-void gen_emit_impl(int line,  char *fmt, ...) {
+void gen_emit_impl(int line, char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     int col = vprintf(fmt, args);
@@ -44,6 +44,9 @@ static void gen_load_global(data_type_t *type, char *label, int offset) {
         case 1: reg = "al";  gen_emit("mov $0, %%eax"); break;
         case 4: reg = "eax"; break;
         case 8: reg = "rax"; break;
+        default:
+            compile_error("Internal error, size too big: %d", type->size);
+            break;
     }
 
     if (offset)
@@ -141,7 +144,7 @@ static void gen_load_dereference(data_type_t *rtype, data_type_t *otype, int off
 static void gen_assignment_dereference_intermediate(data_type_t *type, int offset) {
     char *reg;
 
-    gen_emit("pop %%rcx");
+    gen_emit("mov (%%rsp), %%rcx");
 
     switch (type->size) {
         case 1: reg = "cl";  break;
@@ -153,12 +156,14 @@ static void gen_assignment_dereference_intermediate(data_type_t *type, int offse
         gen_emit("mov %%%s, %d(%%rax)", reg, offset);
     else
         gen_emit("mov %%%s, (%%rax)", reg);
+
+    gen_emit("pop %%rax");
 }
 
 static void gen_assignment_dereference(ast_t *var) {
     gen_emit("push %%rax");
     gen_expression(var->unary.operand);
-    gen_assignment_dereference_intermediate(var->unary.operand->ctype, 0);
+    gen_assignment_dereference_intermediate(var->unary.operand->ctype->pointer, 0);
 }
 
 // a field inside the structure is just an offset assignment, but there

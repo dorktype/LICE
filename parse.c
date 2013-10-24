@@ -295,7 +295,9 @@ static data_type_t *parse_type_get(lexer_token_t *token) {
 }
 
 static bool parse_type_check(lexer_token_t *token) {
-    return parse_type_get(token) != NULL || parse_identifer_check(token, "struct");
+    return parse_type_get(token) != NULL
+                || parse_identifer_check(token, "struct")
+                || parse_identifer_check(token, "union");
 }
 
 static ast_t *parse_declaration_array_initializer_intermediate(data_type_t *type) {
@@ -323,41 +325,76 @@ static ast_t *parse_declaration_array_initializer_intermediate(data_type_t *type
     return ast_new_array_init(list);
 }
 
-static data_type_t *parse_structure_definition(void) {
+// parses a union/structure tag
+static char *parse_memory_tag(void) {
     lexer_token_t *token = lexer_next();
-    char          *tag;
-
     if (token->type == LEXER_TOKEN_IDENT)
-        tag = token->string;
-    else
-        lexer_unget(token);
+        return token->string;
+    lexer_unget(token);
+    return NULL;
+}
 
-    data_type_t *type   = ast_find_structure_definition(tag);
-    list_t      *fields = list_create();
-    int          offset = 0;
-
-    if (type)
-        return type;
-
+static list_t *parse_memory_fields(void) {
+    list_t *list = list_create();
     parse_expect('{');
-
     for (;;) {
         if (!parse_type_check(lexer_peek()))
             break;
 
         lexer_token_t *name;
-        data_type_t   *fieldtype = parse_declaration_intermediate(&name);
-        int            size      = (fieldtype->size < PARSE_ALIGNMENT) ? fieldtype->size : PARSE_ALIGNMENT;
+        data_type_t   *type = parse_declaration_intermediate(&name);
+
+        list_push(list, ast_structure_field_new(type, name->string, 0));
+        parse_expect(';');
+    }
+    parse_expect('}');
+    return list;
+}
+
+static data_type_t *parse_union_definition(void) {
+    char        *tag  = parse_memory_tag();
+    data_type_t *type = ast_find_memory_definition(ast_unions, tag);
+
+    if (type)
+        return type;
+
+    list_t *fields = parse_memory_fields();
+    int     size   = 0;
+
+    // calculate the largest size for the union
+    for (list_iterator_t *it = list_iterator(fields); !list_iterator_end(it); ) {
+        data_type_t *type = list_iterator_next(it);
+        size = (size < type->size) ? type->size : size;
+    }
+
+    // a 'union' is just a structure with the largest field as the size
+    // with many fields, all of which occupy the same 'space'
+    data_type_t *fill = ast_structure_new(fields, tag, size);
+    list_push(ast_unions, fill);
+
+    return fill;
+}
+
+static data_type_t *parse_structure_definition(void) {
+    char        *tag  = parse_memory_tag();
+    data_type_t *type = ast_find_memory_definition(ast_structures, tag);
+
+    if (type)
+        return type;
+
+    list_t *fields = parse_memory_fields();
+    int     offset = 0;
+
+    for (list_iterator_t *it = list_iterator(fields); !list_iterator_end(it); ) {
+        data_type_t *fieldtype = list_iterator_next(it);
+        int          size      = (fieldtype->size < PARSE_ALIGNMENT) ? fieldtype->size : PARSE_ALIGNMENT;
 
         if (offset % size != 0)
             offset += size - offset % size;
 
-        list_push(fields, ast_structure_field_new(fieldtype, name->string, offset));
+        fieldtype->offset = offset;
         offset += fieldtype->size;
-
-        parse_expect(';');
     }
-    parse_expect('}');
 
     data_type_t *final = ast_structure_new(fields, tag, offset);
     list_push(ast_structures, final);
@@ -367,9 +404,12 @@ static data_type_t *parse_structure_definition(void) {
 
 static data_type_t *parse_declaration_specification(void) {
     lexer_token_t *token = lexer_next();
+
     data_type_t   *type  = parse_identifer_check(token, "struct")
                                 ? parse_structure_definition()
-                                : parse_type_get(token);
+                                : (parse_identifer_check(token, "union"))
+                                    ? parse_union_definition()
+                                    : parse_type_get(token);
 
     if (!type)
         compile_error("Expected type");

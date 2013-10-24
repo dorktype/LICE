@@ -58,12 +58,13 @@ Lice doesn't support the short-hand operators `+=, -=, *=, /= ...`
 Lice doesn't support prefix operators `++, --`
 
 ### Constructs:
-Lice supports only two constructs:
+Lice supports only three constructs:
 
 
  Construct | Description
 -----------|:-----------------------------------------------------------
  struct    | Plain structures only, nothing fancy supported yet
+ union     | Plain unions only, nothing fancy yet
  array     | Initializer lists arrays are supported, but only one level
 
 

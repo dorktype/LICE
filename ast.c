@@ -7,12 +7,14 @@
 // todo remove
 static int ast_label_index = 0;
 
-data_type_t *ast_data_int   = &(data_type_t) { TYPE_INT,       NULL };
-data_type_t *ast_data_char  = &(data_type_t) { TYPE_CHAR,      NULL };
+data_type_t *ast_data_int   = &(data_type_t) { TYPE_INT,       NULL, 4 };
+data_type_t *ast_data_char  = &(data_type_t) { TYPE_CHAR,      NULL, 1 };
+
 env_t       *ast_globalenv  = &(env_t)       { &SENTINEL_LIST, NULL };
 env_t       *ast_localenv   = NULL;
 list_t      *ast_localvars  = &SENTINEL_LIST;
 list_t      *ast_structures = &SENTINEL_LIST;
+list_t      *ast_unions     = &SENTINEL_LIST;
 
 ////////////////////////////////////////////////////////////////////////
 // ast enviroment
@@ -372,11 +374,11 @@ data_type_t *ast_find_structure_field(data_type_t *structure, const char *name) 
     return NULL;
 }
 
-data_type_t *ast_find_structure_definition(const char *name) {
-    for (list_iterator_t *it = list_iterator(ast_structures); !list_iterator_end(it); ) {
-        data_type_t *structure = list_iterator_next(it);
-        if (structure->tag && !strcmp(name, structure->tag))
-            return structure;
+data_type_t *ast_find_memory_definition(list_t *list, const char *name) {
+    for (list_iterator_t *it = list_iterator(list); !list_iterator_end(it); ) {
+        data_type_t *region = list_iterator_next(it);
+        if (region->tag && !strcmp(name, region->tag))
+            return region;
     }
     return NULL;
 }

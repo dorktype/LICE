@@ -225,7 +225,7 @@ ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last)
 // search
 ast_t *ast_find_variable(const char *name);
 data_type_t *ast_find_structure_field(data_type_t *structure, const char *name);
-data_type_t *ast_find_structure_definition(const char *name);
+data_type_t *ast_find_memory_definition(list_t *list, const char *name);
 
 data_type_t *ast_new_pointer(data_type_t *type);
 data_type_t *ast_new_array(data_type_t *type, int size);
@@ -242,6 +242,7 @@ extern env_t       *ast_globalenv;
 extern env_t       *ast_localenv;
 extern list_t      *ast_localvars;
 extern list_t      *ast_structures;
+extern list_t      *ast_unions;
 
 // enviroment handling
 env_t *ast_env_new(env_t *next);
