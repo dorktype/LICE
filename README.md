@@ -115,14 +115,11 @@ in the construction of LICE
 -   The dragon book
     http://www.amazon.ca/Compilers-Principles-Techniques-Alfred-Aho/dp/0201100886
 
+-   Intel 64 and IA-32 Architectures Instruction Set Reference
+    http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-instruction-set-reference-manual-325383.pdf
+
 -   C99 final draft
     http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf
-
--   SubC compiler sources for ideas
-    http://www.t3x.org/subc/
-
--   TCC
-    http://bellard.org/tcc/
 
 -   x86-64/System V ABI
     http://www.x86-64.org/documentation/abi.pdf
@@ -132,6 +129,13 @@ in the construction of LICE
 
 -   Let's Build a Compiler, Jack Crenshaw
     http://compilers.iecc.com/crenshaw/
+
+-   SubC compiler sources for ideas
+    http://www.t3x.org/subc/
+
+-   TCC
+    http://bellard.org/tcc/
+
 
 -   IEEE 754, Binary Floating-Point Arithmetic
     http://www.eecs.berkeley.edu/~wkahan/ieee754status/IEEE754.PDF
