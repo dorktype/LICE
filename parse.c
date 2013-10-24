@@ -40,6 +40,37 @@ static bool parse_identifer_check(lexer_token_t *token, const char *identifier) 
     return token->type == LEXER_TOKEN_IDENT && !strcmp(token->string, identifier);
 }
 
+// the following is a feature complete evaluator via recursiveness, yes the
+// ast nodes are prpagated .. RECURSIVELY until a value is assumed.
+static int parse_evaluate(ast_t *ast) {
+    switch (ast->type) {
+        case AST_TYPE_LITERAL:
+            if (ast->ctype->type == TYPE_INT)  return ast->integer;
+            if (ast->ctype->type == TYPE_CHAR) return ast->character;
+            compile_error("Not a valid integer constant expression");
+
+        case '+':                return parse_evaluate(ast->left) +  parse_evaluate(ast->right);
+        case '-':                return parse_evaluate(ast->left) -  parse_evaluate(ast->right);
+        case '*':                return parse_evaluate(ast->left) *  parse_evaluate(ast->right);
+        case '/':                return parse_evaluate(ast->left) /  parse_evaluate(ast->right);
+        case '<':                return parse_evaluate(ast->left) <  parse_evaluate(ast->right);
+        case '>':                return parse_evaluate(ast->left) >  parse_evaluate(ast->right);
+        case LEXER_TOKEN_AND:    return parse_evaluate(ast->left) && parse_evaluate(ast->right);
+        case LEXER_TOKEN_OR:     return parse_evaluate(ast->left) || parse_evaluate(ast->right);
+        case LEXER_TOKEN_EQUAL:  return parse_evaluate(ast->left) == parse_evaluate(ast->right);
+        case LEXER_TOKEN_LEQUAL: return parse_evaluate(ast->left) <= parse_evaluate(ast->right);
+        case LEXER_TOKEN_GEQUAL: return parse_evaluate(ast->left) >= parse_evaluate(ast->right);
+        case LEXER_TOKEN_NEQUAL: return parse_evaluate(ast->left) != parse_evaluate(ast->right);
+
+        // unary is special
+        case '!':
+            return !parse_evaluate(ast->unary.operand);
+
+        default:
+            compile_error("Not a valid integer constant expression");
+    }
+}
+
 static int parse_operator_priority(lexer_token_t *token) {
     switch (token->punct) {
         case '[':
@@ -425,11 +456,6 @@ static data_type_t *parse_declaration_specification(void) {
     return NULL;
 }
 
-static void parse_semantic_expression_integer(ast_t *var) {
-    if (var->type  != AST_TYPE_LITERAL || var->ctype->type != TYPE_INT)
-        compile_error("Internal error: parse_semantic_expression_integer");
-}
-
 static ast_t *parse_declaration_initialization_variable(ast_t *var) {
     if (var->ctype->type == TYPE_ARRAY) {
         ast_t *init = parse_declaration_array_initializer_intermediate(var->ctype);
@@ -451,7 +477,7 @@ static ast_t *parse_declaration_initialization_variable(ast_t *var) {
 
     // ensure integer expression
     if (var->type == AST_TYPE_VAR_GLOBAL)
-        parse_semantic_expression_integer(init);
+        init = ast_new_int(parse_evaluate(init));
 
     return ast_new_decl(var, init);
 }
@@ -464,18 +490,14 @@ static data_type_t *parse_array_dimensions_intermediate(data_type_t *basetype) {
     }
 
     int dimension = -1;
-    if (!lexer_ispunct(lexer_peek(), ']')) {
-        ast_t *size = parse_expression();
-        if (size->type != AST_TYPE_LITERAL || size->ctype->type != TYPE_INT)
-            compile_error("Internal error: parse_array_dimensions_impl (1)");
-        dimension = size->integer;
-    }
+    if (!lexer_ispunct(lexer_peek(), ']'))
+        dimension = parse_evaluate(parse_expression());
 
     parse_expect(']');
     data_type_t *next = parse_array_dimensions_intermediate(basetype);
     if (next) {
         if (next->length == -1 && dimension == -1)
-            compile_error("Internal error: parse_array_dimensions_impl (2)");
+            compile_error("Internal error: parse_array_dimensions_intermediate (2)");
         return ast_new_array(next, dimension);
     }
     return ast_new_array(basetype, dimension);

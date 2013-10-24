@@ -270,7 +270,7 @@ data_type_t *ast_new_array(data_type_t *type, int length) {
     data->type        = TYPE_ARRAY;
     data->pointer     = type;
     data->size        = (length < 0) ? -1 : type->size * length;
-    data->length      = 0;
+    data->length      = length;
 
     return data;
 }
