@@ -4,15 +4,15 @@
 
 #include "lice.h"
 
-
 // todo remove
 static int ast_label_index = 0;
 
-data_type_t *ast_data_int  = &(data_type_t) { TYPE_INT,       NULL };
-data_type_t *ast_data_char = &(data_type_t) { TYPE_CHAR,      NULL };
-env_t       *ast_globalenv = &(env_t)       { &SENTINEL_LIST, NULL };
-env_t       *ast_localenv  = NULL;
-list_t      *ast_localvars = NULL;
+data_type_t *ast_data_int   = &(data_type_t) { TYPE_INT,       NULL };
+data_type_t *ast_data_char  = &(data_type_t) { TYPE_CHAR,      NULL };
+env_t       *ast_globalenv  = &(env_t)       { &SENTINEL_LIST, NULL };
+env_t       *ast_localenv   = NULL;
+list_t      *ast_localvars  = &SENTINEL_LIST;
+list_t      *ast_structures = &SENTINEL_LIST;
 
 ////////////////////////////////////////////////////////////////////////
 // ast enviroment
@@ -63,15 +63,17 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
                     return b;
                 case TYPE_VOID:
                     goto error;
+                default:
+                    break;
             }
-            compile_error("Internal error");
+            compile_error("Internal error: ast_result_type (1)");
             break;
         case TYPE_ARRAY:
             if (b->type != TYPE_ARRAY)
                 goto error;
             return ast_result_type_impl(jmpbuf, op, a->pointer, b->pointer);
         default:
-            compile_error("Internal error");
+            compile_error("Internal error: ast_result_type (2)");
     }
 
 error:
@@ -93,11 +95,43 @@ data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b) {
     return NULL;
 }
 
-////////////////////////////////////////////////////////////////////////
-// ast nodes
 #define ast_new_node() \
     ((ast_t*)malloc(sizeof(ast_t)))
 
+
+////////////////////////////////////////////////////////////////////////
+// structures
+ast_t *ast_structure_reference_new(ast_t *structure, data_type_t *field) {
+    ast_t *ast     = ast_new_node();
+    ast->type      = AST_TYPE_STRUCT;
+    ast->ctype     = field;
+    ast->structure = structure;
+    ast->field     = field;
+
+    return ast;
+}
+
+data_type_t *ast_structure_field_new(data_type_t *type, char *name, int offset) {
+    data_type_t *field = (data_type_t*)malloc(sizeof(data_type_t));
+    memcpy(field, type, sizeof(data_type_t));
+
+    field->name   = name;
+    field->offset = offset;
+
+    return field;
+}
+
+data_type_t *ast_structure_new(list_t *fields, char *tag) {
+    data_type_t *structure = (data_type_t*)malloc(sizeof(data_type_t));
+    structure->type        = TYPE_STRUCTURE;
+    structure->fields      = fields;
+    structure->tag         = tag;
+
+    return structure;
+}
+
+////////////////////////////////////////////////////////////////////////
+// unary and binary
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand) {
     ast_t *ast         = ast_new_node();
     ast->type          = type;
@@ -125,6 +159,8 @@ ast_t *ast_new_binary(int type, ast_t *left, ast_t *right) {
     return ast;
 }
 
+////////////////////////////////////////////////////////////////////////
+// data types
 ast_t *ast_new_int(int value) {
     ast_t *ast   = ast_new_node();
     ast->type    = AST_TYPE_LITERAL;
@@ -143,12 +179,18 @@ ast_t *ast_new_char(char value) {
     return ast;
 }
 
-char *ast_new_label(void) {
-    string_t *string = string_create();
-    string_catf(string, ".L%d", ast_label_index++);
-    return string_buffer(string);
+ast_t *ast_new_string(char *value) {
+    ast_t *ast        = ast_new_node();
+    ast->type         = AST_TYPE_STRING;
+    ast->ctype        = ast_new_array(ast_data_char, strlen(value) + 1);
+    ast->string.data  = value;
+    ast->string.label = ast_new_label();
+
+    return ast;
 }
 
+////////////////////////////////////////////////////////////////////////
+// variables (global and local)
 ast_t *ast_new_variable_local(data_type_t *type, char *name) {
     ast_t *ast         = ast_new_node();
     ast->type          = AST_TYPE_VAR_LOCAL;
@@ -173,16 +215,8 @@ ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file) {
     return ast;
 }
 
-ast_t *ast_new_string(char *value) {
-    ast_t *ast        = ast_new_node();
-    ast->type         = AST_TYPE_STRING;
-    ast->ctype        = ast_new_array(ast_data_char, strlen(value) + 1);
-    ast->string.data  = value;
-    ast->string.label = ast_new_label();
-
-    return ast;
-}
-
+////////////////////////////////////////////////////////////////////////
+// functions and calls
 ast_t *ast_new_call(data_type_t *type, char *name, list_t *args) {
     ast_t *ast              = ast_new_node();
     ast->type               = AST_TYPE_CALL;
@@ -205,6 +239,8 @@ ast_t *ast_new_function(data_type_t *ret, char *name, list_t *params, ast_t *bod
     return ast;
 }
 
+////////////////////////////////////////////////////////////////////////
+// declarations
 ast_t *ast_new_decl(ast_t *var, ast_t *init) {
     ast_t *ast     = ast_new_node();
     ast->type      = AST_TYPE_DECLARATION;
@@ -215,6 +251,8 @@ ast_t *ast_new_decl(ast_t *var, ast_t *init) {
     return ast;
 }
 
+////////////////////////////////////////////////////////////////////////
+// constructs
 ast_t *ast_new_array_init(list_t *init) {
     ast_t *ast  = ast_new_node();
     ast->type   = AST_TYPE_ARRAY_INIT;
@@ -224,21 +262,19 @@ ast_t *ast_new_array_init(list_t *init) {
     return ast;
 }
 
+data_type_t *ast_new_array(data_type_t *type, int size) {
+    data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
+    data->type        = TYPE_ARRAY;
+    data->pointer     = type;
+    data->size        = size;
+
+    return data;
+}
+
 data_type_t *ast_array_convert(data_type_t *type) {
     if (type->type != TYPE_ARRAY)
         return type;
     return ast_new_pointer(type->pointer);
-}
-
-ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last) {
-    ast_t *ast       = ast_new_node();
-    ast->type        = AST_TYPE_STATEMENT_IF;
-    ast->ctype       = NULL;
-    ast->ifstmt.cond = cond;
-    ast->ifstmt.then = then;
-    ast->ifstmt.last = last;
-
-    return ast;
 }
 
 data_type_t *ast_new_pointer(data_type_t *type) {
@@ -249,13 +285,30 @@ data_type_t *ast_new_pointer(data_type_t *type) {
     return data;
 }
 
-data_type_t *ast_new_array(data_type_t *type, int size) {
-    data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
-    data->type        = TYPE_ARRAY;
-    data->pointer     = type;
-    data->size        = size;
+// while technically not a construct .. or an expression ternary
+// can be considered a construct
+ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
+    ast_t *ast       = ast_new_node();
+    ast->type        = AST_TYPE_EXPRESSION_TERNARY;
+    ast->ctype       = type;
+    ast->ifstmt.cond = cond;
+    ast->ifstmt.then = then;
+    ast->ifstmt.last = last;
 
-    return data;
+    return ast;
+}
+
+////////////////////////////////////////////////////////////////////////
+// statements
+ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last) {
+    ast_t *ast       = ast_new_node();
+    ast->type        = AST_TYPE_STATEMENT_IF;
+    ast->ctype       = NULL;
+    ast->ifstmt.cond = cond;
+    ast->ifstmt.then = then;
+    ast->ifstmt.last = last;
+
+    return ast;
 }
 
 ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
@@ -288,15 +341,12 @@ ast_t *ast_new_compound(list_t *statements) {
     return ast;
 }
 
-ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
-    ast_t *ast       = ast_new_node();
-    ast->type        = AST_TYPE_EXPRESSION_TERNARY;
-    ast->ctype       = type;
-    ast->ifstmt.cond = cond;
-    ast->ifstmt.then = then;
-    ast->ifstmt.last = last;
-
-    return ast;
+////////////////////////////////////////////////////////////////////////
+// misc
+char *ast_new_label(void) {
+    string_t *string = string_create();
+    string_catf(string, ".L%d", ast_label_index++);
+    return string_buffer(string);
 }
 
 ast_t *ast_find_variable(const char *name) {
@@ -310,6 +360,47 @@ ast_t *ast_find_variable(const char *name) {
     return NULL;
 }
 
+data_type_t *ast_find_structure_field(data_type_t *structure, const char *name) {
+    for (list_iterator_t *it = list_iterator(structure->fields); !list_iterator_end(it); ) {
+        data_type_t *field = list_iterator_next(it);
+        if (!strcmp(name, field->name))
+            return field;
+    }
+    return NULL;
+}
+
+data_type_t *ast_find_structure_definition(const char *name) {
+    for (list_iterator_t *it = list_iterator(ast_structures); !list_iterator_end(it); ) {
+        data_type_t *structure = list_iterator_next(it);
+        if (structure->tag && !strcmp(name, structure->tag))
+            return structure;
+    }
+    return NULL;
+}
+
+int ast_sizeof(data_type_t *type) {
+    data_type_t *structure;
+
+    switch (type->type) {
+        case TYPE_CHAR:     return 1;
+        case TYPE_INT:      return 4;
+        case TYPE_POINTER:  return 8;
+
+        case TYPE_ARRAY:
+            return ast_sizeof(type->pointer) * type->size;
+
+        case TYPE_STRUCTURE:
+            structure = list_tail(type->fields);
+            return structure->offset + ast_sizeof(structure);
+
+        default:
+            compile_error("Internal error: ast_sizeof");
+    }
+    return 0;
+}
+
+////////////////////////////////////////////////////////////////////////
+// ast debugging facilities
 const char *ast_type_string(data_type_t *type) {
     string_t *string;
 
@@ -332,19 +423,28 @@ const char *ast_type_string(data_type_t *type) {
                 type->size
             );
             return string_buffer(string);
+
+        case TYPE_STRUCTURE:
+            string = string_create();
+            string_catf(string, "(struct");
+            if (type->tag)
+                string_catf(string, " %s", type->tag);
+            for (list_iterator_t *it = list_iterator(type->fields); !list_iterator_end(it); )
+                string_catf(string, " (%s)", ast_type_string(list_iterator_next(it)));
+            string_cat(string, ')');
+            return string_buffer(string);
     }
     return NULL;
 }
 
-////////////////////////////////////////////////////////////////////////
-// ast dump
-
 static void ast_string_unary(string_t *string, const char *op, ast_t *ast) {
     string_catf(string, "(%s %s)", op, ast_string(ast->unary.operand));
 }
+
 static void ast_string_binary(string_t *string, const char *op, ast_t *ast) {
     string_catf(string, "(%s %s %s)", op, ast_string(ast->left), ast_string(ast->right));
 }
+
 static void ast_string_impl(string_t *string, ast_t *ast) {
     char *left;
     char *right;
@@ -360,7 +460,7 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
                 case TYPE_INT:  string_catf(string, "%d",   ast->integer);   break;
                 case TYPE_CHAR: string_catf(string, "'%c'", ast->character); break;
                 default:
-                    compile_error("Internal error");
+                    compile_error("Internal error: ast_string_impl");
                     break;
             }
             break;
@@ -424,6 +524,12 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
                     string_cat(string, ',');
             }
             string_cat(string, '}');
+            break;
+
+        case AST_TYPE_STRUCT: // reference structure
+            ast_string_impl(string, ast->structure);
+            string_cat(string, '.');
+            string_catf(string, ast->field->name);
             break;
 
         case AST_TYPE_EXPRESSION_TERNARY:

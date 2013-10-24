@@ -62,6 +62,7 @@ typedef enum {
     // misc
     AST_TYPE_DECLARATION,
     AST_TYPE_ARRAY_INIT,
+    AST_TYPE_STRUCT,
 
     // pointer stuff
     AST_TYPE_ADDRESS,
@@ -84,7 +85,8 @@ typedef enum {
     TYPE_INT,
     TYPE_CHAR,
     TYPE_ARRAY,
-    TYPE_POINTER
+    TYPE_POINTER,
+    TYPE_STRUCTURE
 } type_t;
 
 typedef struct data_type_s data_type_t;
@@ -93,6 +95,14 @@ struct data_type_s {
     type_t       type;
     data_type_t *pointer;
     int          size;
+
+    // structure
+    struct {
+        char        *name;
+        char        *tag;
+        list_t      *fields;
+        int          offset;
+    };
 };
 
 typedef struct {
@@ -149,6 +159,7 @@ typedef struct {
 // and a pointer to the next enviroment within it.
 struct env_s {
     list_t *variables;
+    list_t *structures;
     env_t  *next;
 };
 
@@ -174,8 +185,16 @@ struct ast_s {
             ast_t *left;
             ast_t *right;
         };
+        struct {                        // struct
+            ast_t       *structure;
+            data_type_t *field;
+        };
     };
 };
+
+ast_t *ast_structure_reference_new(ast_t *structure, data_type_t *field);
+data_type_t *ast_structure_field_new(data_type_t *type, char *name, int offset);
+data_type_t *ast_structure_new(list_t *fields, char *tag);
 
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand);
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right);
@@ -198,7 +217,10 @@ ast_t *ast_new_return(ast_t *val);
 ast_t *ast_new_compound(list_t *statements);
 ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last);
 
+// search
 ast_t *ast_find_variable(const char *name);
+data_type_t *ast_find_structure_field(data_type_t *structure, const char *name);
+data_type_t *ast_find_structure_definition(const char *name);
 
 data_type_t *ast_new_pointer(data_type_t *type);
 data_type_t *ast_new_array(data_type_t *type, int size);
@@ -206,12 +228,15 @@ data_type_t *ast_array_convert(data_type_t *ast);
 
 data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b);
 
+int ast_sizeof(data_type_t *type);
+
 // data
 extern data_type_t *ast_data_int;
 extern data_type_t *ast_data_char;
 extern env_t       *ast_globalenv;
 extern env_t       *ast_localenv;
 extern list_t      *ast_localvars;
+extern list_t      *ast_structures;
 
 // enviroment handling
 env_t *ast_env_new(env_t *next);

@@ -98,6 +98,11 @@ void *list_iterator_next(list_iterator_t *iter);
  */
 bool list_iterator_end(list_iterator_t *iter);
 
+/*
+ * Function: list_tail
+ *  Get the last element in a list
+ */
+void *list_tail(list_t *list);
 
 typedef struct list_node_s list_node_t;
 

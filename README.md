@@ -56,15 +56,19 @@ Lice doesn't support the short-hand operators `+=, -=, *=, /= ...`
 Lice doesn't support prefix operators `++, --`
 
 ### Constructs:
-There is no support for structures, switches or unions. There
-is however support for array initializer lists, e.g
-```
-int a[] = { 1, 2, 3 };
-int a[2] = { 1, 2 };
-```
+Lice supports only two constructs:
+
+
+ Construct | Description
+-----------|:-----------------------------------------------------------
+ struct    | Plain structures only, nothing fancy supported yet
+ array     | Initializer lists arrays are supported, but only one level
+
 
 There is also support for multidimensional arrays:
 `int a[1][2][3][4];`
+
+Support for declaring structures inside functions is also supported.
 
 ### Pointers
 Pointers work how they typically would work, you can define one,

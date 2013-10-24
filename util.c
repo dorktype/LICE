@@ -135,3 +135,14 @@ void *list_iterator_next(list_iterator_t *iter) {
 bool list_iterator_end(list_iterator_t *iter) {
     return !iter->pointer;
 }
+
+void *list_tail(list_t *list) {
+    if (!list->head)
+        return NULL;
+
+    list_node_t *node = list->head;
+    while (node->next)
+        node = node->next;
+
+    return node->element;
+}
