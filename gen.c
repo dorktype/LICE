@@ -360,11 +360,11 @@ static void gen_emit_postfix(ast_t *ast, const char *op) {
     gen_pop("rax");
 }
 
-static int gen_data_padding(int n) {
-    int remainder = n % 8;
+static int gen_alignment(int n, int align) {
+    int remainder = n % align;
     return (remainder == 0)
                 ? n
-                : n - remainder + 8;
+                : n - remainder + align;
 }
 
 // data generation
@@ -448,18 +448,18 @@ static void gen_function_prologue(ast_t *ast) {
     for (list_iterator_t *it = list_iterator(ast->function.params); !list_iterator_end(it); ) {
         ast_t *value = list_iterator_next(it);
         gen_push(registers[regint++]);
-        offset -= gen_data_padding(value->ctype->size);
+        offset -= gen_alignment(value->ctype->size, 8);
         value->variable.off = offset;
     }
     for (list_iterator_t *it = list_iterator(ast->function.locals); !list_iterator_end(it); ) {
         ast_t *value = list_iterator_next(it);
-        offset -= gen_data_padding(value->ctype->size);
+        offset -= gen_alignment(value->ctype->size, 8);
         value->variable.off = offset;
     }
 
     if (offset)
-        gen_emit("add $%d, %%rsp", offset);
-    gen_stack += -(offset - 8);
+        gen_emit("sub $%d, %%rsp", gen_alignment(-offset, 16));
+    gen_stack += -(offset - 16);
 }
 
 static void gen_function_epilogue(void) {
