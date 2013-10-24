@@ -55,7 +55,7 @@ static void gen_load_global(data_type_t *type, char *label, int offset) {
 
 static void gen_load_local(data_type_t *var, int offset) {
     if (var->type == TYPE_ARRAY) {
-        gen_emit("lea %d(%%rbp), %%rax", -offset);
+        gen_emit("lea %d(%%rbp), %%rax", offset);
         return;
     }
 
@@ -63,15 +63,15 @@ static void gen_load_local(data_type_t *var, int offset) {
     switch (size) {
         case 1:
             gen_emit("mov $0, %%eax");
-            gen_emit("mov %d(%%rbp), %%al", -offset);
+            gen_emit("mov %d(%%rbp), %%al", offset);
             break;
 
         case 4:
-            gen_emit("mov %d(%%rbp), %%eax", -offset);
+            gen_emit("mov %d(%%rbp), %%eax", offset);
             break;
 
         case 8:
-            gen_emit("mov %d(%%rbp), %%rax", -offset);
+            gen_emit("mov %d(%%rbp), %%rax", offset);
             break;
     }
 }
@@ -102,7 +102,7 @@ static void gen_save_local(data_type_t *type, int offset) {
         case 4: reg = "eax"; break;
         case 8: reg = "rax"; break;
     }
-    gen_emit("mov %%%s, %d(%%rbp)", reg, -offset);
+    gen_emit("mov %%%s, %d(%%rbp)", reg, offset);
 }
 
 // pointer dereferencing, load and assign
@@ -171,7 +171,7 @@ static void gen_assignment_dereference(ast_t *var) {
 static void gen_assignment_structure(ast_t *structure, data_type_t *field, int offset) {
     switch (structure->type) {
         case AST_TYPE_VAR_LOCAL:
-            gen_save_local(field, structure->variable.off - field->offset - offset);
+            gen_save_local(field, structure->variable.off + field->offset + offset);
             break;
 
         case AST_TYPE_VAR_GLOBAL:
@@ -197,7 +197,7 @@ static void gen_assignment_structure(ast_t *structure, data_type_t *field, int o
 static void gen_load_structure(ast_t *structure, data_type_t *field, int offset) {
     switch (structure->type) {
         case AST_TYPE_VAR_LOCAL:
-            gen_load_local(field, structure->variable.off - field->offset - offset);
+            gen_load_local(field, structure->variable.off + field->offset + offset);
             break;
 
         case AST_TYPE_VAR_GLOBAL:
@@ -389,13 +389,13 @@ static void gen_function_prologue(ast_t *ast) {
     for (list_iterator_t *it = list_iterator(ast->function.params); !list_iterator_end(it); r++) {
         ast_t *value = list_iterator_next(it);
         gen_emit("push %%%s", registers[r]);
-        o += gen_data_padding(gen_type_size(value->ctype));
+        o -= gen_data_padding(gen_type_size(value->ctype));
         value->variable.off = o;
     }
 
     for (list_iterator_t *it = list_iterator(ast->function.locals); !list_iterator_end(it); ) {
         ast_t *value = list_iterator_next(it);
-        o += gen_data_padding(gen_type_size(value->ctype));
+        o -= gen_data_padding(gen_type_size(value->ctype));
         value->variable.off = o;
     }
 
@@ -494,14 +494,14 @@ static void gen_expression(ast_t *ast) {
                 i = 0;
                 for (list_iterator_t *it = list_iterator(ast->decl.init->array); !list_iterator_end(it);) {
                     gen_expression(list_iterator_next(it));
-                    gen_save_local(ast->decl.var->ctype->pointer, ast->decl.var->variable.off - i);
+                    gen_save_local(ast->decl.var->ctype->pointer, ast->decl.var->variable.off + i);
                     i += ast_sizeof(ast->decl.var->ctype->pointer);
                 }
             } else if (ast->decl.var->ctype->type == TYPE_ARRAY) {
                 char *p;
                 for (i = 0, p = ast->decl.init->string.data; *p; p++, i++)
-                    gen_emit("movb $%d, %d(%%rbp)", *p, -(ast->decl.var->variable.off - i));
-                gen_emit("movb $0, %d(%%rbp)", -(ast->decl.var->variable.off - i));
+                    gen_emit("movb $%d, %d(%%rbp)", *p, -(ast->decl.var->variable.off + i));
+                gen_emit("movb $0, %d(%%rbp)", -(ast->decl.var->variable.off + i));
             } else if (ast->decl.init->type == AST_TYPE_STRING) {
                 gen_load_global(ast->decl.init->ctype, ast->decl.init->string.label, ast->decl.init->variable.off);
                 gen_save_local(ast->decl.var->ctype, ast->decl.var->variable.off);
@@ -514,7 +514,7 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_ADDRESS:
             switch (ast->unary.operand->type) {
                 case AST_TYPE_VAR_LOCAL:
-                    gen_emit("lea %d(%%rbp), %%rax", -ast->unary.operand->variable.off);
+                    gen_emit("lea %d(%%rbp), %%rax", ast->unary.operand->variable.off);
                     break;
 
                 case AST_TYPE_VAR_GLOBAL:
