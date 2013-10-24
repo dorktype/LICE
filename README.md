@@ -132,3 +132,6 @@ in the construction of LICE
 
 -   Let's Build a Compiler, Jack Crenshaw
     http://compilers.iecc.com/crenshaw/
+
+-   IEEE 754, Binary Floating-Point Arithmetic
+    http://www.eecs.berkeley.edu/~wkahan/ieee754status/IEEE754.PDF
