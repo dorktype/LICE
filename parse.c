@@ -224,7 +224,6 @@ static ast_t *parse_expression_unary(void) {
         parse_expect(')');
         return next;
     }
-
     if (lexer_ispunct(token, '&')) {
         ast_t *operand = parse_expression_unary();
         parse_semantic_lvalue(operand);
@@ -234,7 +233,10 @@ static ast_t *parse_expression_unary(void) {
         ast_t *operand = parse_expression_unary();
         return ast_new_unary('!', ast_data_int, operand);
     }
-
+    if (lexer_ispunct(token, '-')) {
+        ast_t *ast = parse_expression();
+        return ast_new_binary('-', ast_new_integer(ast_data_int, 0), ast);
+    }
     if (lexer_ispunct(token, '*')) {
         ast_t       *operand = parse_expression_unary();
         data_type_t *type    = ast_array_convert(operand->ctype);
