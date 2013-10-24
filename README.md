@@ -68,17 +68,14 @@ Lice doesn't support prefix operators `++, --`
 Lice supports only three constructs:
 
 
- Construct | Description
------------|:-----------------------------------------------------------
- struct    | Plain structures only, nothing fancy supported yet
- union     | Plain unions only, nothing fancy yet
- array     | Initializer lists arrays are supported, but only one level
+ Construct            | Description
+----------------------|:-----------------------------------------------------------
+ struct               | Plain structures (no forward declaring)
+ union                | Standard unions (no forward declaring)
+ initializer list     | Initializer lists are supported for arrays only, currently.
 
-
-There is also support for multidimensional arrays:
-`int a[1][2][3][4];`
-
-Support for declaring structures inside functions is also supported.
+Support for declaring structures and unions inside functions, is supported as
+well as anywhere a typename is expected, e.g a function argument.
 
 ### Pointers
 Pointers work how they typically would work, you can define one,
