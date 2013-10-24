@@ -72,7 +72,7 @@ static void gen_load_global(data_type_t *type, char *label, int offset) {
     }
 
     const char *reg = gen_register_integer(type, 'a');
-    if (type->size == 1)
+    if (type->size < 4)
         gen_emit("mov $0, %%eax");
     if (offset)
         gen_emit("mov %s+%d(%%rip), %%%s", label, offset, reg);
@@ -105,7 +105,7 @@ static void gen_load_local(data_type_t *var, int offset) {
         gen_emit("movsd %d(%%rbp), %%xmm0", offset);
     } else {
         const char *reg = gen_register_integer(var, 'a');
-        if (var->size == 1)
+        if (var->size < 4)
             gen_emit("mov $0, %%eax");
         gen_emit("mov %d(%%rbp), %%%s", offset, reg);
     }
@@ -161,7 +161,7 @@ static void gen_load_dereference(data_type_t *rtype, data_type_t *otype, int off
         return;
 
     const char *reg = gen_register_integer(rtype, 'c');
-    if (rtype->size == 1)
+    if (rtype->size < 4)
         gen_emit("mov $0, %%ecx");
     if (offset)
         gen_emit("mov %d(%%rax), %%%s", offset, reg);
