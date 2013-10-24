@@ -50,6 +50,7 @@ Operators | Description
 ++,--     | Postfix operators only (e.g a++)
 ?,:       | Ternary operator
 &,&#124;  | Bitwise operators
+->        | Standard pointer syntax sugar operator
 
 Lice doesn't support the short-hand operators `+=, -=, *=, /= ...`
 

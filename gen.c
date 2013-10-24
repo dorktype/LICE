@@ -389,13 +389,13 @@ static void gen_function_prologue(ast_t *ast) {
     for (list_iterator_t *it = list_iterator(ast->function.params); !list_iterator_end(it); r++) {
         ast_t *value = list_iterator_next(it);
         gen_emit("push %%%s", registers[r]);
-        o -= gen_data_padding(gen_type_size(value->ctype));
+        o += gen_data_padding(gen_type_size(value->ctype));
         value->variable.off = o;
     }
 
     for (list_iterator_t *it = list_iterator(ast->function.locals); !list_iterator_end(it); ) {
         ast_t *value = list_iterator_next(it);
-        o -= gen_data_padding(gen_type_size(value->ctype));
+        o += gen_data_padding(gen_type_size(value->ctype));
         value->variable.off = o;
     }
 

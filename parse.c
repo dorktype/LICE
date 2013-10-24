@@ -44,6 +44,7 @@ static int parse_operator_priority(lexer_token_t *token) {
     switch (token->punct) {
         case '[':
         case '.':
+        case LEXER_TOKEN_ARROW:
             return 1;
         case LEXER_TOKEN_INCREMENT:
         case LEXER_TOKEN_DECREMENT:
@@ -237,6 +238,15 @@ static ast_t *parse_expression_intermediate(int precision) {
         }
 
         if (lexer_ispunct(token, '.')) {
+            ast = parse_structure_field(ast);
+            continue;
+        }
+
+        // for a->b generate (* (+ a b))
+        if (lexer_ispunct(token, LEXER_TOKEN_ARROW)) {
+            if (ast->ctype->type != TYPE_POINTER)
+                compile_error("Not a valid pointer type: %s", ast_string(ast));
+            ast = ast_new_unary(AST_TYPE_DEREFERENCE, ast->ctype->pointer, ast);
             ast = parse_structure_field(ast);
             continue;
         }

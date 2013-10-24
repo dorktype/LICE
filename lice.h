@@ -19,6 +19,7 @@ typedef enum {
     LEXER_TOKEN_EQUAL     = 0x200,
     LEXER_TOKEN_INCREMENT,
     LEXER_TOKEN_DECREMENT,
+    LEXER_TOKEN_ARROW,
 
     // logical, not bitwise
     LEXER_TOKEN_AND,
