@@ -5,20 +5,20 @@ keeping the code easy to understand and well documented for my own sake.
 ### Types
 Lice supports the following types
 
-Type  | Description
-------|:-----------
-char  | Standard character representing type (1 byte)
-short | Standard short integer representing type (2 bytes)
-int   | Standard integer representing type (4 bytes)
-long  | Standard long integer representing type (8 bytes)
-float | Untested for conformancy floating point type (4 bytes)
+Type   | Description
+-------|:-----------
+char   | Standard character representing type (1 byte)
+short  | Standard short integer representing type (2 bytes)
+int    | Standard integer representing type (4 bytes)
+long   | Standard long integer representing type (8 bytes)
+float  | Untested for conformancy floating point type (4 bytes)
+double | Untested for conformancy double floating point type (8 bytes)
 
 Lice also supports these types for arrays and pointers, these types
 are all represened as signed types. Lice also supports unsigned
 and signed type specifications as well as implicit int unspecified
 typing.
 
-There is no support for `double`.
 
 ### Functions
 Functions are supported but function prototyping isn't which means

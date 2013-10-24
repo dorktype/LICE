@@ -41,11 +41,11 @@ static void gen_pop_(const char *reg, int line) {
 }
 static void gen_push_xmm_(int r, int line) {
     gen_emit_impl(line, "\tsub $8, %%rsp");
-    gen_emit_impl(line, "\tmovss %%xmm%d, (%%rsp)", r);
+    gen_emit_impl(line, "\tmovsd %%xmm%d, (%%rsp)", r);
     gen_stack += 8;
 }
 static void gen_pop_xmm_(int r, int line) {
-    gen_emit_impl(line, "\tmovss (%%rsp), %%xmm%d", r);
+    gen_emit_impl(line, "\tmovsd (%%rsp), %%xmm%d", r);
     gen_emit_impl(line, "\tadd $8, %%rsp");
     gen_stack -= 8;
 }
@@ -81,36 +81,34 @@ static void gen_load_global(data_type_t *type, char *label, int offset) {
 }
 
 static void gen_cast_int(data_type_t *type) {
-    if (type->type != TYPE_FLOAT)
+    if (!ast_type_floating(type))
         return;
-    printf("# cast float to int {\n");
-    gen_emit("cvttss2si %%xmm0, %%eax");
+    printf("# cast float/double to int {\n");
+    gen_emit("cvttsd2si %%xmm0, %%eax");
     printf("# }\n");
 }
 
 static void gen_cast_float(data_type_t *type) {
-    if (type->type == TYPE_FLOAT)
+    if (ast_type_floating(type))
         return;
-    printf("# cast int to float {\n");
-    gen_emit("cvtsi2ss %%eax, %%xmm0");
+    printf("# cast int to float/double {\n");
+    gen_emit("cvtsi2sd %%eax, %%xmm0");
     printf("# }\n");
 }
 
 static void gen_load_local(data_type_t *var, int offset) {
     if (var->type == TYPE_ARRAY) {
         gen_emit("lea %d(%%rbp), %%rax", offset);
-        return;
+    } else if (var->type == TYPE_FLOAT) {
+        gen_emit("cvtps2d %d(%%rbp), %%xmm0", offset);
+    } else if (var->type == TYPE_DOUBLE) {
+        gen_emit("movsd %d(%%rbp), %%xmm0", offset);
+    } else {
+        const char *reg = gen_register_integer(var, 'a');
+        if (var->size == 1)
+            gen_emit("mov $0, %%eax");
+        gen_emit("mov %d(%%rbp), %%%s", offset, reg);
     }
-
-    if (var->type == TYPE_FLOAT) {
-        gen_emit("movss %d(%%rbp), %%xmm0", offset);
-        return;
-    }
-
-    const char *reg = gen_register_integer(var, 'a');
-    if (var->size == 1)
-        gen_emit("mov $0, %%eax");
-    gen_emit("mov %d(%%rbp), %%%s", offset, reg);
 }
 
 static void gen_save_global(char *name, data_type_t *type, int offset) {
@@ -127,10 +125,17 @@ static void gen_save_local(data_type_t *type, int offset) {
     else
         printf("# saving local @%d of size %d\n", type->offset, type->size);
 
-    if (type->type == TYPE_FLOAT)
+    if (type->type == TYPE_FLOAT) {
+        gen_push_xmm(0);
+        gen_emit("cvtpd2ps %%xmm0, %%xmm0");
         gen_emit("movss %%xmm0, %d(%%rbp)");
+        gen_pop_xmm(0);
+    }
+    else if (type->type == TYPE_DOUBLE)
+        gen_emit("movsd %%xmm0, %d(%%rbp)");
     else
         gen_emit("mov %%%s, %d(%%rbp)", gen_register_integer(type, 'a'), offset);
+
     printf("#}\n");
 }
 
@@ -261,14 +266,14 @@ static void gen_assignment(ast_t *var) {
 }
 
 static void gen_comparision(char *operation, ast_t *ast) {
-    if (ast->ctype->type == TYPE_FLOAT) {
+    if (ast_type_floating(ast->ctype)) {
         gen_expression(ast->left);
         gen_cast_float(ast->left->ctype);
         gen_push_xmm(0);
         gen_expression(ast->right);
         gen_cast_float(ast->right->ctype);
         gen_pop_xmm(1);
-        gen_emit("ucomiss %%xmm0, %%xmm1"); /// hahahaahahahhahahaha this thing is a cunt
+        gen_emit("ucomisd %%xmm0, %%xmm1");
     } else {
         gen_expression(ast->left);
         gen_cast_int(ast->left->ctype);
@@ -318,10 +323,10 @@ static void gen_binary_arithmetic_floating(ast_t *ast) {
     printf("# %s {\n", ast_string(ast));
     char *op;
     switch (ast->type) {
-        case '+': op = "addss"; break;
-        case '-': op = "subss"; break;
-        case '*': op = "mulss"; break;
-        case '/': op = "divss"; break;
+        case '+': op = "addsd"; break;
+        case '-': op = "subsd"; break;
+        case '*': op = "mulsd"; break;
+        case '/': op = "divsd"; break;
         default:
             compile_error("Internal error: gen_binary");
             break;
@@ -371,7 +376,7 @@ static void gen_binary(ast_t *ast) {
 
     if (ast->ctype->type == TYPE_INT)
         gen_binary_arithmetic_integer(ast);
-    else if (ast->ctype->type == TYPE_FLOAT)
+    else if (ast_type_floating(ast->ctype))
         gen_binary_arithmetic_floating(ast);
     else
         compile_error("Internal error");
@@ -406,14 +411,15 @@ void gen_data_section(void) {
         }
     }
 
-    // floats
+    // float and doubles
     for (list_iterator_t *it = list_iterator(ast_floats); !list_iterator_end(it); ) {
         ast_t *ast   = list_iterator_next(it);
         char  *label = ast_new_label();
 
         ast->floating.label = label;
         gen_emit_label("%s:", label);
-        gen_emit(".long %d", *(int*)&(ast->floating.value));
+        gen_emit(".long %d", ((int*)&ast->floating.value)[0]);
+        gen_emit(".long %d", ((int*)&ast->floating.value)[1]);
     }
 }
 
@@ -474,6 +480,8 @@ static void gen_function_prologue(ast_t *ast) {
 
         if (value->ctype->type == TYPE_FLOAT) {
             gen_emit("cvtpd2ps %%xmm%d, %%xmm%d", regx, regx);
+            gen_push_xmm(regx++);
+        } else if (value->ctype->type == TYPE_DOUBLE) {
             gen_push_xmm(regx++);
         } else {
             gen_push(registers[regi++]);
@@ -558,7 +566,8 @@ static void gen_expression(ast_t *ast) {
                     break;
 
                 case TYPE_FLOAT:
-                    gen_emit("movss %s(%%rip), %%xmm0", ast->floating.label);
+                case TYPE_DOUBLE:
+                    gen_emit("movsd %s(%%rip), %%xmm0", ast->floating.label);
                     break;
 
                 default:
@@ -581,7 +590,7 @@ static void gen_expression(ast_t *ast) {
             printf("# function call arguments {\n");
             for (list_iterator_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 ast_t *v = list_iterator_next(it);
-                if (v->ctype->type == TYPE_FLOAT)
+                if (ast_type_floating(v->ctype))
                     gen_push_xmm(regx++);
                 else
                     gen_push(registers[regi++]);
@@ -589,7 +598,7 @@ static void gen_expression(ast_t *ast) {
             for (list_iterator_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 ast_t *v = list_iterator_next(it);
                 gen_expression(v);
-                if (v->ctype->type == TYPE_FLOAT)
+                if (ast_type_floating(v->ctype))
                     gen_push_xmm(0);
                 else
                     gen_push("rax");
@@ -600,9 +609,8 @@ static void gen_expression(ast_t *ast) {
 
             for (list_iterator_t *it = list_iterator(list_reverse(ast->function.call.args)); !list_iterator_end(it); ) {
                 ast_t *v = list_iterator_next(it);
-                if (v->ctype->type == TYPE_FLOAT) {
+                if (ast_type_floating(v->ctype)) {
                     gen_pop_xmm(--backx);
-                    gen_emit("cvtps2pd %%xmm%d, %%xmm%d", backx, backx);
                 } else {
                     gen_pop(registers[--backi]);
                 }
@@ -625,7 +633,7 @@ static void gen_expression(ast_t *ast) {
             printf("# function call restore {\n");
             for (list_iterator_t *it = list_iterator(list_reverse(ast->function.call.args)); !list_iterator_end(it); ) {
                 ast_t *v = list_iterator_next(it);
-                if (v->ctype->type == TYPE_FLOAT) {
+                if (ast_type_floating(v->ctype)) {
                     gen_pop_xmm(--regx);
                 } else {
                     gen_pop(registers[--regi]);

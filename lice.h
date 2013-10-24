@@ -93,6 +93,7 @@ typedef enum {
     TYPE_INT,
     TYPE_LONG,
     TYPE_FLOAT,
+    TYPE_DOUBLE,
     TYPE_ARRAY,
     TYPE_POINTER,
     TYPE_STRUCTURE
@@ -203,9 +204,9 @@ struct ast_s {
             data_type_t *field;
         };
 
-        struct {                        // float
-            float value;
-            char *label;
+        struct {                        // float or double
+            double value;
+            char  *label;
         } floating;
 
     };
@@ -218,7 +219,7 @@ data_type_t *ast_structure_new(list_t *fields, char *tag, int size);
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand);
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right);
 ast_t *ast_new_integer(data_type_t *type, int value);
-ast_t *ast_new_floating(float value);
+ast_t *ast_new_floating(double value);
 ast_t *ast_new_char(char value);
 char *ast_new_label(void);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
@@ -249,6 +250,7 @@ data_type_t *ast_array_convert(data_type_t *ast);
 data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b);
 
 bool ast_type_integer(data_type_t *type);
+bool ast_type_floating(data_type_t *type);
 
 // data
 extern data_type_t *ast_data_int;
@@ -260,6 +262,7 @@ extern data_type_t *ast_data_uchar;
 extern data_type_t *ast_data_ulong;
 extern data_type_t *ast_data_ushort;
 extern data_type_t *ast_data_float;
+extern data_type_t *ast_data_double;
 
 extern env_t       *ast_globalenv;
 extern env_t       *ast_localenv;

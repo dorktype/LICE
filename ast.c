@@ -17,6 +17,7 @@ data_type_t *ast_data_uint   = &(data_type_t) { TYPE_INT,       4, false };
 data_type_t *ast_data_ushort = &(data_type_t) { TYPE_SHORT,     2, false };
 data_type_t *ast_data_uchar  = &(data_type_t) { TYPE_CHAR,      1, false };
 data_type_t *ast_data_float  = &(data_type_t) { TYPE_FLOAT,     4, true  };
+data_type_t *ast_data_double = &(data_type_t) { TYPE_DOUBLE,    8, true  };
 
 list_t      *ast_localvars  = &SENTINEL_LIST;
 list_t      *ast_structures = &SENTINEL_LIST;
@@ -45,6 +46,11 @@ bool ast_type_integer(data_type_t *type) {
     return type->type == TYPE_CHAR
         || type->type == TYPE_INT
         || type->type == TYPE_LONG;
+}
+
+bool ast_type_floating(data_type_t *type) {
+    return type->type == TYPE_FLOAT
+        || type->type == TYPE_DOUBLE;
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -81,7 +87,8 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
                 case TYPE_LONG:
                     return ast_data_long;
                 case TYPE_FLOAT:
-                    return ast_data_float;
+                case TYPE_DOUBLE:
+                    return ast_data_double;
                 case TYPE_ARRAY:
                 case TYPE_POINTER:
                     return b;
@@ -92,9 +99,13 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
             break;
 
         case TYPE_FLOAT:
-            if (b->type == TYPE_FLOAT)
-                return ast_data_float;
+            if (ast_type_floating(b))
+                return ast_data_double;
             goto error;
+
+        case TYPE_DOUBLE:
+            if (b->type == TYPE_DOUBLE)
+                return ast_data_double;
 
         case TYPE_ARRAY:
             if (b->type != TYPE_ARRAY)
@@ -211,12 +222,11 @@ ast_t *ast_new_integer(data_type_t *type, int value) {
     return ast;
 }
 
-ast_t *ast_new_floating(float value) {
+ast_t *ast_new_floating(double value) {
     ast_t *ast          = ast_new_node();
     ast->type           = AST_TYPE_LITERAL;
-    ast->ctype          = ast_data_float;
+    ast->ctype          = ast_data_double;
     ast->floating.value = value;
-
     list_push(ast_floats, ast);
     return ast;
 }
@@ -428,12 +438,13 @@ const char *ast_type_string(data_type_t *type) {
     string_t *string;
 
     switch (type->type) {
-        case TYPE_VOID:  return "void";
-        case TYPE_INT:   return "int";
-        case TYPE_CHAR:  return "char";
-        case TYPE_LONG:  return "long";
-        case TYPE_SHORT: return "short";
-        case TYPE_FLOAT: return "float";
+        case TYPE_VOID:   return "void";
+        case TYPE_INT:    return "int";
+        case TYPE_CHAR:   return "char";
+        case TYPE_LONG:   return "long";
+        case TYPE_SHORT:  return "short";
+        case TYPE_FLOAT:  return "float";
+        case TYPE_DOUBLE: return "double";
 
         case TYPE_POINTER:
             string = string_create();
@@ -487,7 +498,9 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
                 case TYPE_SHORT:
                     string_catf(string, "%d",   ast->integer);
                     break;
+
                 case TYPE_FLOAT:
+                case TYPE_DOUBLE:
                     string_catf(string, "%f",   ast->floating.value);
                     break;
 

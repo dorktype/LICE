@@ -362,14 +362,12 @@ static data_type_t *parse_type(lexer_token_t *token) {
         }
     }
 
-    if (!strcmp(token->string, "char"))  return (spec == usign) ? ast_data_uchar  : ast_data_char;
-    if (!strcmp(token->string, "short")) return (spec == usign) ? ast_data_ushort : ast_data_short;
-    if (!strcmp(token->string, "int"))   return (spec == usign) ? ast_data_uint   : ast_data_int;
-    if (!strcmp(token->string, "long"))  return (spec == usign) ? ast_data_ulong  : ast_data_long;
-
-    // float and double don't have signed/unsigned specs
-    if (!strcmp(token->string, "float"))
-        return ast_data_float;
+    if (!strcmp(token->string, "char"))   return (spec == usign) ? ast_data_uchar  : ast_data_char;
+    if (!strcmp(token->string, "short"))  return (spec == usign) ? ast_data_ushort : ast_data_short;
+    if (!strcmp(token->string, "int"))    return (spec == usign) ? ast_data_uint   : ast_data_int;
+    if (!strcmp(token->string, "long"))   return (spec == usign) ? ast_data_ulong  : ast_data_long;
+    if (!strcmp(token->string, "float"))  return ast_data_float;
+    if (!strcmp(token->string, "double")) return ast_data_double;
 
     // implicit integer in C, see note above
     if (spec != uspec)
@@ -384,8 +382,11 @@ static bool parse_type_check(lexer_token_t *token) {
         return false;
 
     static const char *keywords[] = {
-        "char", "short", "int", "long","float",
-        "struct", "union", "signed", "unsigned"
+        "char",   "short",
+        "int",    "long",
+        "float",  "double",
+        "struct", "union",
+        "signed", "unsigned"
     };
 
     for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++)
