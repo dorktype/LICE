@@ -385,12 +385,11 @@ static void gen_function_prologue(ast_t *ast) {
 
     int r = 0;
     int o = 0;
-
     for (list_iterator_t *it = list_iterator(ast->function.params); !list_iterator_end(it); r++) {
         ast_t *value = list_iterator_next(it);
         gen_emit("push %%%s", registers[r]);
-        o -= gen_data_padding(gen_type_size(value->ctype));
-        value->variable.off = o;
+        r -= gen_data_padding(gen_type_size(value->ctype));
+        value->variable.off = r;
     }
 
     for (list_iterator_t *it = list_iterator(ast->function.locals); !list_iterator_end(it); ) {
@@ -401,6 +400,7 @@ static void gen_function_prologue(ast_t *ast) {
 
     if (o)
         gen_emit("sub $%d, %%rsp", -o);
+
 }
 
 static void gen_function_epilogue(void) {
