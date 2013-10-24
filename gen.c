@@ -7,7 +7,6 @@ static const char *registers[] = {
     "rdi", "rsi", "rdx", "rcx", "r8", "r9"
 };
 
-
 #define gen_emit(...)        gen_emit_impl(__LINE__, "\t" __VA_ARGS__)
 #define gen_emit_label(...)  gen_emit_impl(__LINE__,      __VA_ARGS__)
 #define gen_emit_inline(...) gen_emit_impl(__LINE__,      __VA_ARGS__)
@@ -26,9 +25,19 @@ void gen_emit_impl(int line, char *fmt, ...) {
     printf("%*c % 4d\n", col, '#', line);
 }
 
-static void gen_expression(ast_t *ast);
+static int gen_stack;
+static void gen_push_(const char *reg, int line) {
+    gen_emit("push %%%s #%d", reg, line);
+    gen_stack += 8;
+}
+#define gen_push(X) gen_push_(X, __LINE__)
 
-#define gen_type_size ast_sizeof
+static void gen_pop(const char *reg) {
+    gen_emit("pop %%%s", reg);
+    gen_stack -= 8;
+}
+
+static void gen_expression(ast_t *ast);
 
 static void gen_load_global(data_type_t *type, char *label, int offset) {
     if (type->type == TYPE_ARRAY) {
@@ -116,7 +125,7 @@ static void gen_save_local(data_type_t *type, int offset) {
 // pointer dereferencing, load and assign
 static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
     gen_expression(left);
-    gen_emit("push %%rax");
+    gen_push("rax");
     gen_expression(right);
 
     int size = left->ctype->pointer->size;
@@ -124,7 +133,7 @@ static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
         gen_emit("imul $%d, %%rax", size);
 
     gen_emit("mov %%rax, %%rcx");
-    gen_emit("pop %%rax");
+    gen_pop("rax");
     gen_emit("add %%rcx, %%rax");
 }
 
@@ -168,11 +177,11 @@ static void gen_assignment_dereference_intermediate(data_type_t *type, int offse
     else
         gen_emit("mov %%%s, (%%rax)", reg);
 
-    gen_emit("pop %%rax");
+    gen_pop("rax");
 }
 
 static void gen_assignment_dereference(ast_t *var) {
-    gen_emit("push %%rax");
+    gen_push("rax");
     gen_expression(var->unary.operand);
     gen_assignment_dereference_intermediate(var->unary.operand->ctype->pointer, 0);
 }
@@ -195,7 +204,7 @@ static void gen_assignment_structure(ast_t *structure, data_type_t *field, int o
             break;
 
         case AST_TYPE_DEREFERENCE:
-            gen_emit("push %%rax");
+            gen_push("rax");
             gen_expression(structure->unary.operand);
             gen_assignment_dereference_intermediate(field, field->offset + offset);
             break;
@@ -256,11 +265,13 @@ static void gen_assignment(ast_t *var) {
 
 static void gen_comparision(char *operation, ast_t *ast) {
     gen_expression(ast->left);
-    gen_emit("push %%rax");
+
+    gen_push("rax");
     gen_expression(ast->right);
 
-    gen_emit("pop %%rcx");
+    gen_pop("rcx");
     gen_emit("cmp %%rax, %%rcx");
+
     gen_emit("%s %%al", operation);
     gen_emit("movzb %%al, %%eax");
 }
@@ -299,12 +310,12 @@ static void gen_binary(ast_t *ast) {
     }
 
     gen_expression(ast->left);
-    gen_emit("push %%rax");
+    gen_push("rax");
     gen_expression(ast->right);
     gen_emit("mov %%rax, %%rcx");
 
     if (ast->type == '/') {
-        gen_emit("pop %%rax");
+        gen_pop("rax");
         gen_emit("mov $0, %%edx");
         gen_emit("idiv %%rcx");
     } else {
@@ -315,10 +326,10 @@ static void gen_binary(ast_t *ast) {
 
 static void gen_emit_postfix(ast_t *ast, const char *op) {
     gen_expression(ast->unary.operand);
-    gen_emit("push %%rax");
+    gen_push("rax");
     gen_emit("%s $1, %%rax", op);
     gen_assignment(ast->unary.operand);
-    gen_emit("pop %%rax");
+    gen_pop("rax");
 }
 
 static int gen_data_padding(int n) {
@@ -388,27 +399,27 @@ static void gen_function_prologue(ast_t *ast) {
     gen_emit_inline(".text");
     gen_emit_inline(".global %s", ast->function.name);
     gen_emit_label("%s:", ast->function.name);
-    gen_emit("push %%rbp");
+    gen_push("rax");
     gen_emit("mov %%rsp, %%rbp");
 
-    int r = 0;
-    int o = 0;
-    for (list_iterator_t *it = list_iterator(ast->function.params); !list_iterator_end(it); r++) {
-        ast_t *value = list_iterator_next(it);
-        gen_emit("push %%%s", registers[r]);
-        r -= gen_data_padding(value->ctype->size);
-        value->variable.off = r;
-    }
+    int offset = 0;
+    int regint = 0;
 
+    for (list_iterator_t *it = list_iterator(ast->function.params); !list_iterator_end(it); ) {
+        ast_t *value = list_iterator_next(it);
+        gen_push(registers[regint++]);
+        offset -= gen_data_padding(value->ctype->size);
+        value->variable.off = offset;
+    }
     for (list_iterator_t *it = list_iterator(ast->function.locals); !list_iterator_end(it); ) {
         ast_t *value = list_iterator_next(it);
-        o -= gen_data_padding(value->ctype->size);
-        value->variable.off = o;
+        offset -= gen_data_padding(value->ctype->size);
+        value->variable.off = offset;
     }
 
-    if (o)
-        gen_emit("sub $%d, %%rsp", -o);
-
+    if (offset)
+        gen_emit("add $%d, %%rsp", offset);
+    gen_stack += -(offset - 8);
 }
 
 static void gen_function_epilogue(void) {
@@ -417,6 +428,7 @@ static void gen_function_epilogue(void) {
 }
 
 void gen_function(ast_t *ast) {
+    gen_stack = 0;
     if (ast->type == AST_TYPE_FUNCTION) {
         gen_function_prologue(ast);
         gen_expression(ast->function.body);
@@ -486,17 +498,17 @@ static void gen_expression(ast_t *ast) {
 
         case AST_TYPE_CALL:
             for (i = 1; i < list_length(ast->function.call.args); i++)
-                gen_emit("push %%%s", registers[i]);
+                gen_push(registers[i]);
             for (list_iterator_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 gen_expression(list_iterator_next(it));
-                gen_emit("push %%rax");
+                gen_push("rax");
             }
             for (i = list_length(ast->function.call.args) - 1; i >= 0; i--)
-                gen_emit("pop %%%s", registers[i]);
+                gen_pop(registers[i]);
             gen_emit("mov $0, %%eax");
             gen_emit("call %s", ast->function.name);
             for (i = list_length(ast->function.call.args) - 1; i > 0; i--)
-                gen_emit("pop %%%s", registers[i]);
+                gen_pop(registers[i]);
             break;
 
         case AST_TYPE_DECLARATION:
@@ -611,9 +623,9 @@ static void gen_expression(ast_t *ast) {
         case '&':
         case '|':
             gen_expression(ast->left);
-            gen_emit("push %%rax");
+            gen_push("rax");
             gen_expression(ast->right);
-            gen_emit("pop %%rcx");
+            gen_pop("rcx");
             gen_emit("%s %%rcx, %%rax", (ast->type == '|') ? "or" : "and");
             break;
 
