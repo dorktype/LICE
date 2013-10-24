@@ -59,6 +59,8 @@ static int parse_operator_priority(lexer_token_t *token) {
         case '>':
             return 5;
         case LEXER_TOKEN_EQUAL:
+        case LEXER_TOKEN_GEQUAL:
+        case LEXER_TOKEN_LEQUAL:
             return 6;
         case '&':
             return 7;

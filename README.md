@@ -51,6 +51,7 @@ Operators | Description
 ?,:       | Ternary operator
 &,&#124;  | Bitwise operators
 ->        | Standard pointer syntax sugar operator
+>=,<=     | Greater/Less than or equal to operators
 
 Lice doesn't support the short-hand operators `+=, -=, *=, /= ...`
 

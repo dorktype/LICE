@@ -242,10 +242,10 @@ static void gen_assignment(ast_t *var) {
     }
 }
 
-static void gen_comparision(char *operation, ast_t *a, ast_t *b) {
-    gen_expression(a);
+static void gen_comparision(char *operation, ast_t *ast) {
+    gen_expression(ast->left);
     gen_emit("push %%rax");
-    gen_expression(b);
+    gen_expression(ast->right);
 
     gen_emit("pop %%rcx");
     gen_emit("cmp %%rax, %%rcx");
@@ -260,11 +260,6 @@ static void gen_binary(ast_t *ast) {
         return;
     }
 
-    if (ast->type == LEXER_TOKEN_EQUAL) {
-        gen_comparision("sete", ast->left, ast->right);
-        return;
-    }
-
     if (ast->ctype->type == TYPE_POINTER) {
         gen_pointer_arithmetic(ast->type, ast->left, ast->right);
         return;
@@ -272,12 +267,11 @@ static void gen_binary(ast_t *ast) {
 
     char *op;
     switch (ast->type) {
-        case '<':
-            gen_comparision("setl", ast->left, ast->right);
-            return;
-        case '>':
-            gen_comparision("setg", ast->left, ast->right);
-            return;
+        case LEXER_TOKEN_EQUAL:  gen_comparision("sete",  ast); return;
+        case LEXER_TOKEN_GEQUAL: gen_comparision("setge", ast); return;
+        case LEXER_TOKEN_LEQUAL: gen_comparision("setle", ast); return;
+        case '<':                gen_comparision("setl",  ast); return;
+        case '>':                gen_comparision("setg",  ast); return;
 
         case '+': op = "add";  break;
         case '-': op = "sub";  break;

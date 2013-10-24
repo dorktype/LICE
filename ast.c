@@ -561,8 +561,6 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_catf(string, "(return %s)", ast_string(ast->returnstmt));
             break;
 
-
-
         case AST_TYPE_ADDRESS:      ast_string_unary (string, "&",  ast); break;
         case AST_TYPE_DEREFERENCE:  ast_string_unary (string, "*",  ast); break;
         case LEXER_TOKEN_INCREMENT: ast_string_unary (string, "++", ast); break;
@@ -572,6 +570,8 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
         case '|':                   ast_string_binary(string, "|",  ast); break;
         case LEXER_TOKEN_AND:       ast_string_binary(string, "&&", ast); break;
         case LEXER_TOKEN_OR:        ast_string_binary(string, "||", ast); break;
+        case LEXER_TOKEN_GEQUAL:    ast_string_binary(string, ">=", ast); break;
+        case LEXER_TOKEN_LEQUAL:    ast_string_binary(string, "<=", ast); break;
 
         default:
             left  = ast_string(ast->left);

@@ -17,6 +17,8 @@ typedef enum {
     // reclassified tokens need to not conflict with
     // the ast types
     LEXER_TOKEN_EQUAL     = 0x200,
+    LEXER_TOKEN_LEQUAL,
+    LEXER_TOKEN_GEQUAL,
     LEXER_TOKEN_INCREMENT,
     LEXER_TOKEN_DECREMENT,
     LEXER_TOKEN_ARROW,
