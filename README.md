@@ -11,7 +11,7 @@ char  | Standard character representing type (1 byte)
 short | Standard short integer representing type (2 bytes)
 int   | Standard integer representing type (4 bytes)
 long  | Standard long integer representing type (8 bytes)
-float | Untested for conformancy floaitng point type (4 bytes)
+float | Untested for conformancy floating point type (4 bytes)
 
 Lice also supports these types for arrays and pointers, these types
 are all represened as signed types. Lice also supports unsigned
