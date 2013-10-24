@@ -347,24 +347,19 @@ static data_type_t *parse_structure_definition(void) {
 
         lexer_token_t *name;
         data_type_t   *fieldtype = parse_declaration_intermediate(&name);
-        int            size      = ast_sizeof(fieldtype);
-
-        // enforce 16 byte alignment on structure elements
-        size = (size < PARSE_ALIGNMENT)
-                    ? size
-                    : PARSE_ALIGNMENT;
+        int            size      = (fieldtype->size < PARSE_ALIGNMENT) ? fieldtype->size : PARSE_ALIGNMENT;
 
         if (offset % size != 0)
             offset += size - offset % size;
 
         list_push(fields, ast_structure_field_new(fieldtype, name->string, offset));
-        offset += size;
+        offset += fieldtype->size;
 
         parse_expect(';');
     }
     parse_expect('}');
 
-    data_type_t *final = ast_structure_new(fields, tag);
+    data_type_t *final = ast_structure_new(fields, tag, offset);
     list_push(ast_structures, final);
 
     return final;
@@ -403,8 +398,9 @@ static ast_t *parse_declaration_initialization_variable(ast_t *var) {
                         : list_length(init->array);
 
         if (var->ctype->size == -1) {
-            var->ctype->size = len;
-        } else if (var->ctype->size != len) {
+            var->ctype->size   = len;
+            var->ctype->length = len * var->ctype->pointer->size;
+        } else if (var->ctype->length != len) {
             compile_error("Internal error: parse_declaration_array_initializer");
         }
         parse_expect(';');
@@ -420,7 +416,7 @@ static ast_t *parse_declaration_initialization_variable(ast_t *var) {
     return ast_new_decl(var, init);
 }
 
-static data_type_t *parse_array_dimensions_intermediate(void) {
+static data_type_t *parse_array_dimensions_intermediate(data_type_t *basetype) {
     lexer_token_t *token = lexer_next();
     if (!lexer_ispunct(token, '[')) {
         lexer_unget(token);
@@ -428,8 +424,7 @@ static data_type_t *parse_array_dimensions_intermediate(void) {
     }
 
     int dimension = -1;
-    token = lexer_peek();
-    if (!lexer_ispunct(token, ']')) {
+    if (!lexer_ispunct(lexer_peek(), ']')) {
         ast_t *size = parse_expression();
         if (size->type != AST_TYPE_LITERAL || size->ctype->type != TYPE_INT)
             compile_error("Internal error: parse_array_dimensions_impl (1)");
@@ -437,28 +432,18 @@ static data_type_t *parse_array_dimensions_intermediate(void) {
     }
 
     parse_expect(']');
-    data_type_t *next = parse_array_dimensions_intermediate();
+    data_type_t *next = parse_array_dimensions_intermediate(basetype);
     if (next) {
-        if (next->size == -1 && dimension == -1)
+        if (next->length == -1 && dimension == -1)
             compile_error("Internal error: parse_array_dimensions_impl (2)");
         return ast_new_array(next, dimension);
     }
-    return ast_new_array(NULL, dimension);
+    return ast_new_array(basetype, dimension);
 }
 
 static data_type_t *parse_array_dimensions(data_type_t *basetype) {
-    data_type_t *type = parse_array_dimensions_intermediate();
-    if (!type)
-        return basetype;
-
-    data_type_t *next = type;
-    for (; next->pointer; next = next->pointer) {
-        // deal with it
-        ;
-    }
-    next->pointer = basetype;
-
-    return type;
+    data_type_t *data = parse_array_dimensions_intermediate(basetype);
+    return (data) ? data : basetype;
 }
 
 static ast_t *parse_declaration_initialization(ast_t *var) {
@@ -467,6 +452,9 @@ static ast_t *parse_declaration_initialization(ast_t *var) {
     // global initialization?
     if (lexer_ispunct(token, '='))
         return parse_declaration_initialization_variable(var);
+
+    if (var->ctype->length == -1)
+        compile_error("Missing initializer for array");
 
     lexer_unget(token);
     parse_expect(';');

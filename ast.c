@@ -121,11 +121,12 @@ data_type_t *ast_structure_field_new(data_type_t *type, char *name, int offset) 
     return field;
 }
 
-data_type_t *ast_structure_new(list_t *fields, char *tag) {
+data_type_t *ast_structure_new(list_t *fields, char *tag, int size) {
     data_type_t *structure = (data_type_t*)malloc(sizeof(data_type_t));
     structure->type        = TYPE_STRUCTURE;
     structure->fields      = fields;
     structure->tag         = tag;
+    structure->size        = size;
 
     return structure;
 }
@@ -262,11 +263,12 @@ ast_t *ast_new_array_init(list_t *init) {
     return ast;
 }
 
-data_type_t *ast_new_array(data_type_t *type, int size) {
+data_type_t *ast_new_array(data_type_t *type, int length) {
     data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
     data->type        = TYPE_ARRAY;
     data->pointer     = type;
-    data->size        = size;
+    data->size        = (length < 0) ? -1 : type->size * length;
+    data->length      = 0;
 
     return data;
 }
@@ -281,6 +283,7 @@ data_type_t *ast_new_pointer(data_type_t *type) {
     data_type_t *data = (data_type_t*)malloc(sizeof(data_type_t));
     data->type        = TYPE_POINTER;
     data->pointer     = type;
+    data->size        = 8;
 
     return data;
 }
@@ -378,27 +381,6 @@ data_type_t *ast_find_structure_definition(const char *name) {
     return NULL;
 }
 
-int ast_sizeof(data_type_t *type) {
-    data_type_t *structure;
-
-    switch (type->type) {
-        case TYPE_CHAR:     return 1;
-        case TYPE_INT:      return 4;
-        case TYPE_POINTER:  return 8;
-
-        case TYPE_ARRAY:
-            return ast_sizeof(type->pointer) * type->size;
-
-        case TYPE_STRUCTURE:
-            structure = list_tail(type->fields);
-            return structure->offset + ast_sizeof(structure);
-
-        default:
-            compile_error("Internal error: ast_sizeof");
-    }
-    return 0;
-}
-
 ////////////////////////////////////////////////////////////////////////
 // ast debugging facilities
 const char *ast_type_string(data_type_t *type) {
@@ -420,7 +402,7 @@ const char *ast_type_string(data_type_t *type) {
                 string,
                 "%s[%d]",
                 ast_type_string(type->pointer),
-                type->size
+                type->length
             );
             return string_buffer(string);
 

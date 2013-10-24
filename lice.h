@@ -99,6 +99,7 @@ struct data_type_s {
     type_t       type;
     data_type_t *pointer;
     int          size;
+    int          length;
 
     // structure
     struct {
@@ -198,7 +199,7 @@ struct ast_s {
 
 ast_t *ast_structure_reference_new(ast_t *structure, data_type_t *field);
 data_type_t *ast_structure_field_new(data_type_t *type, char *name, int offset);
-data_type_t *ast_structure_new(list_t *fields, char *tag);
+data_type_t *ast_structure_new(list_t *fields, char *tag, int size);
 
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand);
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right);

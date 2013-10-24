@@ -40,8 +40,7 @@ static void gen_load_global(data_type_t *type, char *label, int offset) {
     }
 
     char *reg;
-    int size = gen_type_size(type);
-    switch (size) {
+    switch (type->size) {
         case 1: reg = "al";  gen_emit("mov $0, %%eax"); break;
         case 4: reg = "eax"; break;
         case 8: reg = "rax"; break;
@@ -59,8 +58,7 @@ static void gen_load_local(data_type_t *var, int offset) {
         return;
     }
 
-    int size = gen_type_size(var);
-    switch (size) {
+    switch (var->size) {
         case 1:
             gen_emit("mov $0, %%eax");
             gen_emit("mov %d(%%rbp), %%al", offset);
@@ -78,8 +76,7 @@ static void gen_load_local(data_type_t *var, int offset) {
 
 static void gen_save_global(char *name, data_type_t *type, int offset) {
     char *reg;
-    int size = gen_type_size(type);
-    switch (size) {
+    switch (type->size) {
         case 1: reg = "al";  break;
         case 4: reg = "eax"; break;
         case 8: reg = "rax"; break;
@@ -96,8 +93,7 @@ static void gen_save_global(char *name, data_type_t *type, int offset) {
 
 static void gen_save_local(data_type_t *type, int offset) {
     char *reg;
-    int size = gen_type_size(type);
-    switch (size) {
+    switch (type->size) {
         case 1: reg = "al";  break;
         case 4: reg = "eax"; break;
         case 8: reg = "rax"; break;
@@ -111,7 +107,7 @@ static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
     gen_emit("push %%rax");
     gen_expression(right);
 
-    int size = ast_sizeof(left->ctype->pointer);
+    int size = left->ctype->pointer->size;
     if (size > 1)
         gen_emit("imul $%d, %%rax", size);
 
@@ -125,7 +121,7 @@ static void gen_load_dereference(data_type_t *rtype, data_type_t *otype, int off
         return;
 
     char *reg;
-    switch (ast_sizeof(rtype)) {
+    switch (rtype->size) {
         case 1:
             reg = "cl";
             gen_emit("mov $0, %%ecx");
@@ -147,14 +143,14 @@ static void gen_assignment_dereference_intermediate(data_type_t *type, int offse
 
     gen_emit("pop %%rcx");
 
-    switch (gen_type_size(type)) {
+    switch (type->size) {
         case 1: reg = "cl";  break;
         case 4: reg = "ecx"; break;
         case 8: reg = "rcx"; break;
     }
 
     if (offset)
-        gen_emit("mov %%%s %d(%%rax)", reg, offset);
+        gen_emit("mov %%%s, %d(%%rax)", reg, offset);
     else
         gen_emit("mov %%%s, (%%rax)", reg);
 }
@@ -333,7 +329,7 @@ void gen_data_section(void) {
 }
 
 static void gen_data_integer(ast_t *data) {
-    switch (gen_type_size(data->ctype)) {
+    switch (data->ctype->size) {
         case 1: gen_emit(".byte %d", data->integer); break;
         case 4: gen_emit(".long %d", data->integer); break;
         case 8: gen_emit(".quad %d", data->integer); break;
@@ -357,7 +353,7 @@ static void gen_data(ast_t *ast) {
 }
 
 static void gen_bss(ast_t *ast) {
-    gen_emit(".lcomm %s, %d", ast->decl.var->variable.name, gen_type_size(ast->decl.var->ctype));
+    gen_emit(".lcomm %s, %d", ast->decl.var->variable.name, ast->decl.var->ctype->size);
 }
 
 static void gen_global(ast_t *var) {
@@ -383,13 +379,13 @@ static void gen_function_prologue(ast_t *ast) {
     for (list_iterator_t *it = list_iterator(ast->function.params); !list_iterator_end(it); r++) {
         ast_t *value = list_iterator_next(it);
         gen_emit("push %%%s", registers[r]);
-        r -= gen_data_padding(gen_type_size(value->ctype));
+        r -= gen_data_padding(value->ctype->size);
         value->variable.off = r;
     }
 
     for (list_iterator_t *it = list_iterator(ast->function.locals); !list_iterator_end(it); ) {
         ast_t *value = list_iterator_next(it);
-        o -= gen_data_padding(gen_type_size(value->ctype));
+        o -= gen_data_padding(value->ctype->size);
         value->variable.off = o;
     }
 
@@ -490,7 +486,7 @@ static void gen_expression(ast_t *ast) {
                 for (list_iterator_t *it = list_iterator(ast->decl.init->array); !list_iterator_end(it);) {
                     gen_expression(list_iterator_next(it));
                     gen_save_local(ast->decl.var->ctype->pointer, ast->decl.var->variable.off + i);
-                    i += ast_sizeof(ast->decl.var->ctype->pointer);
+                    i += ast->decl.var->ctype->pointer->size;
                 }
             } else if (ast->decl.var->ctype->type == TYPE_ARRAY) {
                 char *p;
