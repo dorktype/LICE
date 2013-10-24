@@ -80,6 +80,12 @@ and dereferencing as you want. Pointer arithmetic works as well.
 Pointers to functions aren't supported. You can also dereference
 pointers into assignments, e.g *a=b; works, as does *(a+N)=b;
 
+### Expressions
+All typical expressions should work including integer constant expressions
+for things like `int a[5*5];`. There are some thing that aren't supported
+like type casts, but for the most part they all work, including ternary
+expressions, and weird nesting.
+
 ### Comments
 C block comments and C++ line comments are supported, as well as
 line continuation.
