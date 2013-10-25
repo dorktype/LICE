@@ -38,8 +38,8 @@ static void gen_push_(const char *reg, int line) {
 static void gen_pop_(const char *reg, int line) {
     gen_emit_impl(line, "\tpop %%%s", reg);
     gen_stack -= 8;
-    if (gen_stack >= 0)
-        printf("# stack misaligment reaches %d\n", gen_stack);
+    //if (gen_stack >= 0)
+        //printf("# stack misaligment reaches %d\n", gen_stack);
 }
 static void gen_push_xmm_(int r, int line) {
     gen_emit_impl(line, "\tsub $8, %%rsp");
@@ -50,8 +50,8 @@ static void gen_pop_xmm_(int r, int line) {
     gen_emit_impl(line, "\tmovsd (%%rsp), %%xmm%d", r);
     gen_emit_impl(line, "\tadd $8, %%rsp");
     gen_stack -= 8;
-    if (gen_stack >= 0)
-        printf("# stack misalignment reaches %d\n", gen_stack);
+    //if (gen_stack >= 0)
+        //printf("# stack misalignment reaches %d\n", gen_stack);
 }
 
 static const char *gen_register_integer(data_type_t *type, char r) {
@@ -87,31 +87,32 @@ static void gen_load_global(data_type_t *type, char *label, int offset) {
 static void gen_cast_int(data_type_t *type) {
     if (!ast_type_floating(type))
         return;
-    printf("# cast float/double to int {\n");
+    //printf("# cast float/double to int {\n");
     gen_emit("cvttsd2si %%xmm0, %%eax");
-    printf("# }\n");
+    //printf("# }\n");
 }
 
 static void gen_cast_float(data_type_t *type) {
     if (ast_type_floating(type))
         return;
-    printf("# cast int to float/double {\n");
+    //printf("# cast int to float/double {\n");
     gen_emit("cvtsi2sd %%eax, %%xmm0");
-    printf("# }\n");
+    //printf("# }\n");
 }
 
-static void gen_load_local(data_type_t *var, int offset) {
+static void gen_load_local(data_type_t *var, char *base, int offset) {
     if (var->type == TYPE_ARRAY) {
-        gen_emit("lea %d(%%rbp), %%rax", offset);
+        gen_emit("lea %d(%%%s), %%rax", offset, base);
     } else if (var->type == TYPE_FLOAT) {
-        gen_emit("cvtps2pd %d(%%rbp), %%xmm0", offset);
+        gen_emit("cvtps2pd %d(%%%s), %%xmm0", offset, base);
     } else if (var->type == TYPE_DOUBLE) {
-        gen_emit("movsd %d(%%rbp), %%xmm0", offset);
+        gen_emit("movsd %d(%%%s), %%xmm0", offset, base);
     } else {
-        const char *reg = gen_register_integer(var, 'a');
+        const char *reg = gen_register_integer(var, 'c');
         if (var->size < 4)
-            gen_emit("mov $0, %%eax");
-        gen_emit("mov %d(%%rbp), %%%s", offset, reg);
+            gen_emit("mov $0, %%ecx");
+        gen_emit("mov %d(%%%s), %%%s", offset, base, reg);
+        gen_emit("mov %%rcx, %%rax");
     }
 }
 
@@ -124,10 +125,10 @@ static void gen_save_global(char *name, data_type_t *type, int offset) {
 }
 
 static void gen_save_local(data_type_t *type, int offset) {
-    if (type->name)
-        printf("# saving local %s { \n", type->name);
-    else
-        printf("# saving local @%d of size %d\n", type->offset, type->size);
+    //if (type->name)
+        //printf("# saving local %s { \n", type->name);
+    //else
+        //printf("# saving local @%d of size %d\n", type->offset, type->size);
 
     if (type->type == TYPE_FLOAT) {
         gen_push_xmm(0);
@@ -140,12 +141,12 @@ static void gen_save_local(data_type_t *type, int offset) {
     else
         gen_emit("mov %%%s, %d(%%rbp)", gen_register_integer(type, 'a'), offset);
 
-    printf("#}\n");
+    //printf("#}\n");
 }
 
 // pointer dereferencing, load and assign
 static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
-    printf("# pointer arithmetic {\n");
+    //printf("# pointer arithmetic {\n");
     gen_expression(left);
     gen_push("rax");
     gen_expression(right);
@@ -157,7 +158,7 @@ static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
     gen_emit("mov %%rax, %%rcx");
     gen_pop("rax");
     gen_emit("add %%rcx, %%rax");
-    printf("#}\n");
+    //printf("#}\n");
 }
 
 static void gen_load_dereference(data_type_t *rtype, data_type_t *otype, int offset) {
@@ -224,7 +225,7 @@ static void gen_assignment_structure(ast_t *structure, data_type_t *field, int o
 static void gen_load_structure(ast_t *structure, data_type_t *field, int offset) {
     switch (structure->type) {
         case AST_TYPE_VAR_LOCAL:
-            gen_load_local(field, structure->variable.off + field->offset + offset);
+            gen_load_local(field, "rbp", structure->variable.off + field->offset + offset);
             break;
 
         case AST_TYPE_VAR_GLOBAL:
@@ -237,7 +238,7 @@ static void gen_load_structure(ast_t *structure, data_type_t *field, int offset)
 
         case AST_TYPE_DEREFERENCE:
             gen_expression(structure->unary.operand);
-            gen_load_dereference(structure->ctype, field, field->offset + offset);
+            gen_load_local(field, "rax", field->offset + offset);
             break;
 
         default:
@@ -285,14 +286,17 @@ static void gen_comparision(char *operation, ast_t *ast) {
         gen_expression(ast->right);
         gen_cast_int(ast->right->ctype);
         gen_pop("rcx");
-        gen_emit("cmp %%rax, %%rcx");
+        if (ast->left->ctype->type == TYPE_LONG)
+            gen_emit("cmp %%rax, %%rcx");
+        else
+            gen_emit("cmp %%eax, %%ecx");
     }
     gen_emit("%s %%al", operation);
     gen_emit("movzb %%al, %%eax");
 }
 
 static void gen_binary_arithmetic_integer(ast_t *ast) {
-    printf("# %s {\n", ast_string(ast));
+    //printf("# %s {\n", ast_string(ast));
     char *op;
     switch (ast->type) {
         case '+': op = "add";  break;
@@ -321,11 +325,11 @@ static void gen_binary_arithmetic_integer(ast_t *ast) {
         gen_emit("%s %%rcx, %%rax", op);
     }
 
-    printf("# }\n");
+    //printf("# }\n");
 }
 
 static void gen_binary_arithmetic_floating(ast_t *ast) {
-    printf("# %s {\n", ast_string(ast));
+    //printf("# %s {\n", ast_string(ast));
     char *op;
     switch (ast->type) {
         case '+': op = "addsd"; break;
@@ -345,7 +349,7 @@ static void gen_binary_arithmetic_floating(ast_t *ast) {
     gen_emit("movsd %%xmm0, %%xmm1");
     gen_pop_xmm(0);
     gen_emit("%s %%xmm1, %%xmm0", op);
-    printf("# }\n");
+    //printf("# }\n");
 }
 
 static void gen_binary(ast_t *ast) {
@@ -360,9 +364,9 @@ static void gen_binary(ast_t *ast) {
     }
 
     if (ast->type == LEXER_TOKEN_EQUAL) {
-        printf("# %s {\n", ast_string(ast));
+        //printf("# %s {\n", ast_string(ast));
         gen_comparision("sete", ast);
-        printf("# }\n");
+        //printf("# }\n");
         return;
     }
 
@@ -469,7 +473,7 @@ static void gen_function_prologue(ast_t *ast) {
     if (list_length(ast->function.params) > sizeof(registers)/sizeof(registers[0]))
         compile_error("Too many params for function");
 
-    printf("# prologue {\n");
+    //printf("# prologue {\n");
     gen_emit_inline(".text");
     gen_emit_inline(".global %s", ast->function.name);
     gen_emit_label("%s:", ast->function.name);
@@ -505,15 +509,15 @@ static void gen_function_prologue(ast_t *ast) {
         gen_emit("add $%d, %%rsp", offset);
     gen_stack += -(offset - 8); //enable later
 
-    printf("# }\n");
+    //printf("# }\n");
 }
 
 static void gen_function_epilogue(void) {
     //gen_pop("rbp");
-    printf("# epilogue {\n");
+    //printf("# epilogue {\n");
     gen_emit("leave");
     gen_emit("ret");
-    printf("# }\n");
+    //printf("# }\n");
 }
 
 void gen_function(ast_t *ast) {
@@ -563,7 +567,7 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_LITERAL:
             switch (ast->ctype->type) {
                 case TYPE_INT:
-                    gen_emit("mov $%d, %%eax", ast->integer);
+                    gen_emit("mov $%d, %%rax", ast->integer);
                     break;
 
                 case TYPE_LONG:
@@ -589,14 +593,14 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_VAR_LOCAL:
-            gen_load_local(ast->ctype, ast->variable.off);
+            gen_load_local(ast->ctype, "rbp", ast->variable.off);
             break;
         case AST_TYPE_VAR_GLOBAL:
             gen_load_global(ast->ctype, ast->variable.label, 0);
             break;
 
         case AST_TYPE_CALL:
-            printf("# function call arguments {\n");
+            //printf("# function call arguments {\n");
             for (list_iterator_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 ast_t *v = list_iterator_next(it);
                 if (ast_type_floating(v->ctype))
@@ -626,9 +630,9 @@ static void gen_expression(ast_t *ast) {
                     gen_pop(registers[--backi]);
                 }
             }
-            printf("# }\n");
+            //printf("# }\n");
 
-            printf("# function call {\n");
+            //printf("# function call {\n");
             gen_emit("mov $%d, %%eax", regx);
 
             if (gen_stack % 16)// TODO: fix
@@ -639,10 +643,10 @@ static void gen_expression(ast_t *ast) {
             if (gen_stack % 16)// TODO: fix
                gen_emit("add $8, %%rsp");
 
-            printf("# }\n");
+            //printf("# }\n");
 
 
-            printf("# function call restore {\n");
+            //printf("# function call restore {\n");
             for (list_iterator_t *it = list_iterator(list_reverse(ast->function.call.args)); !list_iterator_end(it); ) {
                 ast_t *v = list_iterator_next(it);
                 if (ast_type_floating(v->ctype)) {
@@ -651,7 +655,7 @@ static void gen_expression(ast_t *ast) {
                     gen_pop(registers[--regi]);
                 }
             }
-            printf("# }\n");
+            //printf("# }\n");
 
             break;
 
