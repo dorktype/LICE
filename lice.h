@@ -249,6 +249,8 @@ data_type_t *ast_array_convert(data_type_t *ast);
 
 data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b);
 
+const char *ast_type_string(data_type_t *type);
+
 bool ast_type_integer(data_type_t *type);
 bool ast_type_floating(data_type_t *type);
 

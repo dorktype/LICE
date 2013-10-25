@@ -221,7 +221,8 @@ static lexer_token_t *lexer_read_token(void) {
         case '{': case '}':
         case ',': case ';':
         case '?': case ':':
-        case '.':
+        case '.': case '~':
+        case '^':
             return lexer_punct(c);
 
         case '|': return lexer_read_reclassify('|', '|', LEXER_TOKEN_OR);

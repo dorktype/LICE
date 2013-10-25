@@ -57,6 +57,7 @@ static int parse_evaluate(ast_t *ast) {
         case '/':                return parse_evaluate(ast->left) /  parse_evaluate(ast->right);
         case '<':                return parse_evaluate(ast->left) <  parse_evaluate(ast->right);
         case '>':                return parse_evaluate(ast->left) >  parse_evaluate(ast->right);
+        case '^':                return parse_evaluate(ast->left) ^  parse_evaluate(ast->right);
         case LEXER_TOKEN_AND:    return parse_evaluate(ast->left) && parse_evaluate(ast->right);
         case LEXER_TOKEN_OR:     return parse_evaluate(ast->left) || parse_evaluate(ast->right);
         case LEXER_TOKEN_EQUAL:  return parse_evaluate(ast->left) == parse_evaluate(ast->right);
@@ -65,8 +66,8 @@ static int parse_evaluate(ast_t *ast) {
         case LEXER_TOKEN_NEQUAL: return parse_evaluate(ast->left) != parse_evaluate(ast->right);
 
         // unary is special
-        case '!':
-            return !parse_evaluate(ast->unary.operand);
+        case '!': return !parse_evaluate(ast->unary.operand);
+        case '~': return ~parse_evaluate(ast->unary.operand);
 
         default:
             compile_error("Not a valid integer constant expression");
@@ -96,19 +97,21 @@ static int parse_operator_priority(lexer_token_t *token) {
         case LEXER_TOKEN_GEQUAL:
         case LEXER_TOKEN_LEQUAL:
         case LEXER_TOKEN_NEQUAL:
-            return 6;
-        case '&':
             return 7;
-        case '|':
+        case '&':
             return 8;
-        case LEXER_TOKEN_AND:
+        case '^':
             return 9;
-        case LEXER_TOKEN_OR:
+        case '|':
             return 10;
-        case '?':
+        case LEXER_TOKEN_AND:
             return 11;
-        case '=':
+        case LEXER_TOKEN_OR:
             return 12;
+        case '?':
+            return 13;
+        case '=':
+            return 14;
     }
     return -1;
 }
@@ -237,12 +240,18 @@ static ast_t *parse_expression_unary(void) {
         ast_t *ast = parse_expression();
         return ast_new_binary('-', ast_new_integer(ast_data_int, 0), ast);
     }
+    if (lexer_ispunct(token, '~')) {
+        ast_t *ast = parse_expression();
+        if (!ast_type_integer(ast->ctype))
+            compile_error("Internal error: parse_expression_unary (1)");
+        return ast_new_unary('~', ast->ctype, ast);
+    }
     if (lexer_ispunct(token, '*')) {
         ast_t       *operand = parse_expression_unary();
         data_type_t *type    = ast_array_convert(operand->ctype);
 
         if (type->type != TYPE_POINTER)
-            compile_error("Internal error: parse_expression_unary");
+            compile_error("Internal error: parse_expression_unary (2)");
 
         return ast_new_unary(AST_TYPE_DEREFERENCE, operand->ctype->pointer, operand);
     }
@@ -328,6 +337,20 @@ static ast_t *parse_expression_intermediate(int precision) {
         next = parse_expression_intermediate(pri + !!parse_semantic_rightassoc(token));
         if (!next)
             compile_error("Internal error: parse_expression_intermediate");
+        if (lexer_ispunct(token, '^')) {
+            if (!ast_type_integer(ast->ctype) ||
+                !ast_type_integer(next->ctype)) {
+
+                // eh?
+                compile_error(
+                    "Not a valid expression: %s ^ %s (types %s and %s)",
+                    ast_string(ast),
+                    ast_string(next),
+                    ast_type_string(ast->ctype),
+                    ast_type_string(next->ctype)
+                );
+            }
+        }
         ast = ast_new_binary(token->punct, ast, next);
     }
     return NULL;
@@ -599,7 +622,7 @@ static data_type_t *parse_declaration_intermediate(lexer_token_t **name) {
     data_type_t *type = parse_declaration_specification();
     *name = lexer_next();
     if ((*name)->type != LEXER_TOKEN_IDENT)
-        compile_error("Internal error: parse_declaration_intermediate %s", ast_type_string(*name));
+        compile_error("Internal error: parse_declaration_intermediate %s", lexer_tokenstr(*name));
     return parse_array_dimensions(type);
 }
 

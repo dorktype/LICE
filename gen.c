@@ -298,6 +298,7 @@ static void gen_binary_arithmetic_integer(ast_t *ast) {
         case '+': op = "add";  break;
         case '-': op = "sub";  break;
         case '*': op = "imul"; break;
+        case '^': op = "xor";  break;
         case '/':
             break;
         default:
@@ -771,6 +772,11 @@ static void gen_expression(ast_t *ast) {
             gen_expression(ast->right);
             gen_pop("rcx");
             gen_emit("%s %%rcx, %%rax", (ast->type == '|') ? "or" : "and");
+            break;
+
+        case '~':
+            gen_expression(ast->left);
+            gen_emit("not %%rax");
             break;
 
         case LEXER_TOKEN_INCREMENT: gen_emit_postfix(ast, "add"); break;
