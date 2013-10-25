@@ -737,7 +737,8 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_STATEMENT_RETURN:
-            gen_expression(ast->returnstmt);
+            if (ast->returnstmt)
+                gen_expression(ast->returnstmt);
             gen_emit("leave");
             gen_emit("ret");
             break;
