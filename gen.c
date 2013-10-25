@@ -468,7 +468,7 @@ static void gen_function_prologue(ast_t *ast) {
     gen_emit_inline(".text");
     gen_emit_inline(".global %s", ast->function.name);
     gen_emit_label("%s:", ast->function.name);
-    gen_push("rax");
+    gen_push("rbp");
     gen_emit("mov %%rsp, %%rbp");
 
     int offset = 0;
@@ -587,9 +587,6 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_CALL:
-            if (!list_length(ast->function.call.args))
-                break;
-
             printf("# function call arguments {\n");
             for (list_iterator_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 ast_t *v = list_iterator_next(it);
