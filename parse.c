@@ -58,6 +58,7 @@ static int parse_evaluate(ast_t *ast) {
         case '<':                return parse_evaluate(ast->left) <  parse_evaluate(ast->right);
         case '>':                return parse_evaluate(ast->left) >  parse_evaluate(ast->right);
         case '^':                return parse_evaluate(ast->left) ^  parse_evaluate(ast->right);
+        case '%':                return parse_evaluate(ast->left) %  parse_evaluate(ast->right);
         case LEXER_TOKEN_AND:    return parse_evaluate(ast->left) && parse_evaluate(ast->right);
         case LEXER_TOKEN_OR:     return parse_evaluate(ast->left) || parse_evaluate(ast->right);
         case LEXER_TOKEN_EQUAL:  return parse_evaluate(ast->left) == parse_evaluate(ast->right);
@@ -88,6 +89,7 @@ static int parse_operator_priority(lexer_token_t *token) {
             return 2;
         case '*':
         case '/':
+        case '%':
             return 3;
         case '+':
         case '-':
@@ -343,6 +345,7 @@ static ast_t *parse_expression_intermediate(int precision) {
         if (!next)
             compile_error("Internal error: parse_expression_intermediate");
         if (lexer_ispunct(token, '^')
+        ||  lexer_ispunct(token, '%')
         ||  lexer_ispunct(token, LEXER_TOKEN_LSHIFT)
         ||  lexer_ispunct(token, LEXER_TOKEN_RSHIFT))
         {

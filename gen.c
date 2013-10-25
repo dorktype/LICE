@@ -307,6 +307,7 @@ static void gen_binary_arithmetic_integer(ast_t *ast) {
         case LEXER_TOKEN_LSHIFT: op = "sal";  break;
         case LEXER_TOKEN_RSHIFT: op = "sar";  break;
         case '/':
+        case '%':
             break;
         default:
             compile_error("Internal error: gen_binary");
@@ -321,9 +322,11 @@ static void gen_binary_arithmetic_integer(ast_t *ast) {
     gen_emit("mov %%rax, %%rcx");
     gen_pop("rax");
 
-    if (ast->type == '/') {
+    if (ast->type == '/' || ast->type == '%') {
         gen_emit("mov $0, %%edx");
         gen_emit("idiv %%rcx");
+        if (ast->type == '%')
+            gen_emit("mov %%edx, %%eax");
     } else if (ast->type == LEXER_TOKEN_LSHIFT || ast->type == LEXER_TOKEN_RSHIFT) {
         gen_emit("%s %%cl, %%rax", op);
     } else {

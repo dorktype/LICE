@@ -51,6 +51,7 @@ Operators | Description
 <         | Less than operator
 \>        | Greater than operator
 !         | Boolean not operator
+%         | Modulo operator
 (,)       | Standard Parentheses
 []        | Array subscript operator
 ++,--     | Postfix operators only (e.g a++)
