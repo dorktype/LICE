@@ -24,6 +24,9 @@ typedef enum {
     LEXER_TOKEN_DECREMENT,
     LEXER_TOKEN_ARROW,
 
+    LEXER_TOKEN_LSHIFT,
+    LEXER_TOKEN_RSHIFT,
+
     // logical, not bitwise
     LEXER_TOKEN_AND,
     LEXER_TOKEN_OR

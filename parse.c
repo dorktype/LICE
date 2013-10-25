@@ -64,6 +64,8 @@ static int parse_evaluate(ast_t *ast) {
         case LEXER_TOKEN_LEQUAL: return parse_evaluate(ast->left) <= parse_evaluate(ast->right);
         case LEXER_TOKEN_GEQUAL: return parse_evaluate(ast->left) >= parse_evaluate(ast->right);
         case LEXER_TOKEN_NEQUAL: return parse_evaluate(ast->left) != parse_evaluate(ast->right);
+        case LEXER_TOKEN_LSHIFT: return parse_evaluate(ast->left) << parse_evaluate(ast->right);
+        case LEXER_TOKEN_RSHIFT: return parse_evaluate(ast->left) >> parse_evaluate(ast->right);
 
         // unary is special
         case '!': return !parse_evaluate(ast->unary.operand);
@@ -90,9 +92,12 @@ static int parse_operator_priority(lexer_token_t *token) {
         case '+':
         case '-':
             return 4;
+        case LEXER_TOKEN_LSHIFT:
+        case LEXER_TOKEN_RSHIFT:
+            return 5;
         case '<':
         case '>':
-            return 5;
+            return 6;
         case LEXER_TOKEN_EQUAL:
         case LEXER_TOKEN_GEQUAL:
         case LEXER_TOKEN_LEQUAL:
@@ -337,7 +342,10 @@ static ast_t *parse_expression_intermediate(int precision) {
         next = parse_expression_intermediate(pri + !!parse_semantic_rightassoc(token));
         if (!next)
             compile_error("Internal error: parse_expression_intermediate");
-        if (lexer_ispunct(token, '^')) {
+        if (lexer_ispunct(token, '^')
+        ||  lexer_ispunct(token, LEXER_TOKEN_LSHIFT)
+        ||  lexer_ispunct(token, LEXER_TOKEN_RSHIFT))
+        {
             if (!ast_type_integer(ast->ctype) ||
                 !ast_type_integer(next->ctype)) {
 

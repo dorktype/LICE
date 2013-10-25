@@ -300,10 +300,12 @@ static void gen_binary_arithmetic_integer(ast_t *ast) {
     //printf("# %s {\n", ast_string(ast));
     char *op;
     switch (ast->type) {
-        case '+': op = "add";  break;
-        case '-': op = "sub";  break;
-        case '*': op = "imul"; break;
-        case '^': op = "xor";  break;
+        case '+':                op = "add";  break;
+        case '-':                op = "sub";  break;
+        case '*':                op = "imul"; break;
+        case '^':                op = "xor";  break;
+        case LEXER_TOKEN_LSHIFT: op = "sal";  break;
+        case LEXER_TOKEN_RSHIFT: op = "sar";  break;
         case '/':
             break;
         default:
@@ -322,6 +324,8 @@ static void gen_binary_arithmetic_integer(ast_t *ast) {
     if (ast->type == '/') {
         gen_emit("mov $0, %%edx");
         gen_emit("idiv %%rcx");
+    } else if (ast->type == LEXER_TOKEN_LSHIFT || ast->type == LEXER_TOKEN_RSHIFT) {
+        gen_emit("%s %%cl, %%rax", op);
     } else {
         gen_emit("%s %%rcx, %%rax", op);
     }

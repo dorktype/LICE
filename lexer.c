@@ -176,12 +176,18 @@ static lexer_token_t *lexer_read_identifier(int c1) {
     return NULL;
 }
 
-static lexer_token_t *lexer_read_reclassify(int expect, int a, int b) {
+static lexer_token_t *lexer_read_reclassify_one(int expect1, int a, int e) {
     int c = getc(stdin);
-    if (c == expect)
-        return lexer_punct(b);
+    if (c == expect1) return lexer_punct(a);
     ungetc(c, stdin);
-    return lexer_punct(a);
+    return lexer_punct(e);
+}
+static lexer_token_t *lexer_read_reclassify_two(int expect1, int a, int expect2, int b, int e) {
+    int c = getc(stdin);
+    if (c == expect1) return lexer_punct(a);
+    if (c == expect2) return lexer_punct(b);
+    ungetc(c, stdin);
+    return lexer_punct(e);
 }
 
 // read an token and build a token for the token stream
@@ -225,13 +231,13 @@ static lexer_token_t *lexer_read_token(void) {
         case '^':
             return lexer_punct(c);
 
-        case '|': return lexer_read_reclassify('|', '|', LEXER_TOKEN_OR);
-        case '&': return lexer_read_reclassify('&', '&', LEXER_TOKEN_AND);
-        case '=': return lexer_read_reclassify('=', '=', LEXER_TOKEN_EQUAL);
-        case '+': return lexer_read_reclassify('+', '+', LEXER_TOKEN_INCREMENT);
-        case '<': return lexer_read_reclassify('=', '<', LEXER_TOKEN_LEQUAL);
-        case '>': return lexer_read_reclassify('=', '>', LEXER_TOKEN_GEQUAL);
-        case '!': return lexer_read_reclassify('=', '!', LEXER_TOKEN_NEQUAL);
+        case '|': return lexer_read_reclassify_one('|', LEXER_TOKEN_OR,         '|');
+        case '&': return lexer_read_reclassify_one('&', LEXER_TOKEN_AND,        '&');
+        case '=': return lexer_read_reclassify_one('=', LEXER_TOKEN_EQUAL,      '=');
+        case '+': return lexer_read_reclassify_one('+', LEXER_TOKEN_INCREMENT,  '+');
+        case '<': return lexer_read_reclassify_two('=', LEXER_TOKEN_LEQUAL,     '<', LEXER_TOKEN_LSHIFT, '<');
+        case '>': return lexer_read_reclassify_two('=', LEXER_TOKEN_GEQUAL,     '>', LEXER_TOKEN_RSHIFT, '>');
+        case '!': return lexer_read_reclassify_one('=', LEXER_TOKEN_NEQUAL,     '!');
 
         // special handling for ->
         case '-':
