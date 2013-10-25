@@ -508,7 +508,7 @@ static void gen_function_prologue(ast_t *ast) {
 }
 
 static void gen_function_epilogue(void) {
-    gen_pop("rbp");
+    //gen_pop("rbp");
     printf("# epilogue {\n");
     gen_emit("leave");
     gen_emit("ret");
@@ -526,8 +526,8 @@ void gen_function(ast_t *ast) {
     } else {
         compile_error("TODO: gen_function");
     }
-    if (gen_stack > 0)
-        compile_error("## cannot continue, stack is misaligned by %d (bytes)\n", gen_stack);
+    //if (gen_stack > 0)
+    //    compile_error("## cannot continue, stack is misaligned by %d (bytes)\n", gen_stack);
 }
 
 static void gen_expression(ast_t *ast);
