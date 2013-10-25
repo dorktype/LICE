@@ -100,7 +100,7 @@ static void gen_load_local(data_type_t *var, int offset) {
     if (var->type == TYPE_ARRAY) {
         gen_emit("lea %d(%%rbp), %%rax", offset);
     } else if (var->type == TYPE_FLOAT) {
-        gen_emit("cvtps2d %d(%%rbp), %%xmm0", offset);
+        gen_emit("cvtps2pd %d(%%rbp), %%xmm0", offset);
     } else if (var->type == TYPE_DOUBLE) {
         gen_emit("movsd %d(%%rbp), %%xmm0", offset);
     } else {
@@ -132,7 +132,7 @@ static void gen_save_local(data_type_t *type, int offset) {
         gen_pop_xmm(0);
     }
     else if (type->type == TYPE_DOUBLE)
-        gen_emit("movsd %%xmm0, %d(%%rbp)");
+        gen_emit("movsd %%xmm0, %d(%%rbp)", offset);
     else
         gen_emit("mov %%%s, %d(%%rbp)", gen_register_integer(type, 'a'), offset);
 
@@ -346,7 +346,7 @@ static void gen_binary_arithmetic_floating(ast_t *ast) {
 static void gen_binary(ast_t *ast) {
     if (ast->type == '=') {
         gen_expression(ast->right);
-        if (ast->ctype->type == TYPE_FLOAT)
+        if (ast_type_floating(ast->ctype))
             gen_cast_float(ast->right->ctype);
         else
             gen_cast_int(ast->right->ctype);
@@ -374,7 +374,7 @@ static void gen_binary(ast_t *ast) {
         case LEXER_TOKEN_NEQUAL: gen_comparision("setne", ast); return;
     }
 
-    if (ast->ctype->type == TYPE_INT)
+    if (ast_type_integer(ast->ctype))
         gen_binary_arithmetic_integer(ast);
     else if (ast_type_floating(ast->ctype))
         gen_binary_arithmetic_floating(ast);
@@ -583,7 +583,7 @@ static void gen_expression(ast_t *ast) {
             gen_load_local(ast->ctype, ast->variable.off);
             break;
         case AST_TYPE_VAR_GLOBAL:
-            gen_load_global(ast->ctype, ast->variable.label, ast->variable.off);
+            gen_load_global(ast->ctype, ast->variable.label, 0);
             break;
 
         case AST_TYPE_CALL:
@@ -595,6 +595,7 @@ static void gen_expression(ast_t *ast) {
                 else
                     gen_push(registers[regi++]);
             }
+
             for (list_iterator_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 ast_t *v = list_iterator_next(it);
                 gen_expression(v);
@@ -603,6 +604,7 @@ static void gen_expression(ast_t *ast) {
                 else
                     gen_push("rax");
             }
+
             // reverse
             backi = regi;
             backx = regx;
@@ -656,10 +658,10 @@ static void gen_expression(ast_t *ast) {
             } else if (ast->decl.var->ctype->type == TYPE_ARRAY) {
                 char *p;
                 for (i = 0, p = ast->decl.init->string.data; *p; p++, i++)
-                    gen_emit("movb $%d, %d(%%rbp)", *p, -(ast->decl.var->variable.off + i));
-                gen_emit("movb $0, %d(%%rbp)", -(ast->decl.var->variable.off + i));
+                    gen_emit("movb $%d, %d(%%rbp)", *p, ast->decl.var->variable.off + i);
+                gen_emit("movb $0, %d(%%rbp)", ast->decl.var->variable.off + i);
             } else if (ast->decl.init->type == AST_TYPE_STRING) {
-                gen_load_global(ast->decl.init->ctype, ast->decl.init->string.label, ast->decl.init->variable.off);
+                gen_load_global(ast->decl.init->ctype, ast->decl.init->string.label, 0);
                 gen_save_local(ast->decl.var->ctype, ast->decl.var->variable.off);
             } else {
                 gen_expression(ast->decl.init);
