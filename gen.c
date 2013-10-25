@@ -38,6 +38,8 @@ static void gen_push_(const char *reg, int line) {
 static void gen_pop_(const char *reg, int line) {
     gen_emit_impl(line, "\tpop %%%s", reg);
     gen_stack -= 8;
+    if (gen_stack >= 0)
+        printf("# stack misaligment reaches %d\n", gen_stack);
 }
 static void gen_push_xmm_(int r, int line) {
     gen_emit_impl(line, "\tsub $8, %%rsp");
@@ -48,6 +50,8 @@ static void gen_pop_xmm_(int r, int line) {
     gen_emit_impl(line, "\tmovsd (%%rsp), %%xmm%d", r);
     gen_emit_impl(line, "\tadd $8, %%rsp");
     gen_stack -= 8;
+    if (gen_stack >= 0)
+        printf("# stack misalignment reaches %d\n", gen_stack);
 }
 
 static const char *gen_register_integer(data_type_t *type, char r) {
@@ -468,7 +472,8 @@ static void gen_function_prologue(ast_t *ast) {
     gen_emit_inline(".text");
     gen_emit_inline(".global %s", ast->function.name);
     gen_emit_label("%s:", ast->function.name);
-    gen_push("rbp");
+    gen_push("rbp"); // doesn't count towards misalignment
+    gen_stack -= 8;
     gen_emit("mov %%rsp, %%rbp");
 
     int offset = 0;
@@ -503,6 +508,7 @@ static void gen_function_prologue(ast_t *ast) {
 }
 
 static void gen_function_epilogue(void) {
+    gen_pop("rbp");
     printf("# epilogue {\n");
     gen_emit("leave");
     gen_emit("ret");
@@ -520,6 +526,8 @@ void gen_function(ast_t *ast) {
     } else {
         compile_error("TODO: gen_function");
     }
+    if (gen_stack > 0)
+        compile_error("## cannot continue, stack is misaligned by %d (bytes)\n", gen_stack);
 }
 
 static void gen_expression(ast_t *ast);
