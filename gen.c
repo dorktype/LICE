@@ -323,7 +323,8 @@ static void gen_binary_arithmetic_integer(ast_t *ast) {
     gen_pop("rax");
 
     if (ast->type == '/' || ast->type == '%') {
-        gen_emit("mov $0, %%edx");
+        //gen_emit("mov $0, %%edx");
+        gen_emit("cqto");
         gen_emit("idiv %%rcx");
         if (ast->type == '%')
             gen_emit("mov %%edx, %%eax");
