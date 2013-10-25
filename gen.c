@@ -587,6 +587,9 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_CALL:
+            if (!list_length(ast->function.call.args))
+                break;
+
             printf("# function call arguments {\n");
             for (list_iterator_t *it = list_iterator(ast->function.call.args); !list_iterator_end(it); ) {
                 ast_t *v = list_iterator_next(it);
@@ -632,6 +635,7 @@ static void gen_expression(ast_t *ast) {
 
             printf("# }\n");
 
+
             printf("# function call restore {\n");
             for (list_iterator_t *it = list_iterator(list_reverse(ast->function.call.args)); !list_iterator_end(it); ) {
                 ast_t *v = list_iterator_next(it);
@@ -642,6 +646,7 @@ static void gen_expression(ast_t *ast) {
                 }
             }
             printf("# }\n");
+
             break;
 
         case AST_TYPE_DECLARATION:
