@@ -43,10 +43,10 @@ char *string_quote(char *p);
  * Macro: SENTINEL_LIST
  *  Initialize an empty list in place
  */
-#define SENTINEL_LIST ((list_t) {      \
-        .length    = 0,                \
-        .head      = NULL,             \
-        .tail      = NULL              \
+#define SENTINEL_LIST ((list_t) { \
+        .length    = 0,           \
+        .head      = NULL,        \
+        .tail      = NULL         \
 })
 
 /*
@@ -117,4 +117,59 @@ struct list_s {
     list_node_t *head;
     list_node_t *tail;
 };
+
+/*
+ * Type: table_t
+ *  A key value associative table
+ */
+typedef struct table_s table_t;
+
+struct table_s {
+    list_t  *list;
+    table_t *parent;
+};
+
+/*
+ * Function: table_create
+ *  Creates a table_t object
+ */
+void *table_create(void *parent);
+
+/*
+ * Funciton: table_find
+ *  Searches for a given value in the table based on the
+ *  key associated with it.
+ */
+void *table_find(table_t *table, const char *key);
+
+/*
+ * Function: table_insert
+ *  Inserts a value for the given key as an entry in the
+ *  table.
+ */
+void  table_insert(table_t *table, char *key, void *value);
+
+/*
+ * Function: table_parent
+ *  Returns the parent opaque object for the given table to
+ *  be used as the argument to a new table.
+ */
+void *table_parent(table_t *table);
+
+/*
+ * Function: table_values
+ *  Generates a list of all the values in the table, useful for
+ *  iterating over the values.
+ */
+list_t *table_values(table_t *table);
+
+/*
+ * Macro: SENTINEL_TABLE
+ *  Initialize an empty table in place
+ */
+#define SENTINEL_TABLE ((table_t) { \
+    .list   = &SENTINEL_LIST,       \
+    .parent = NULL                  \
+})
+
 #endif

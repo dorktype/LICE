@@ -52,7 +52,6 @@ char *lexer_tokenstr(lexer_token_t *token);
 // ast
 
 typedef struct ast_s ast_t;
-typedef struct env_s env_t;
 
 typedef enum {
     // data storage
@@ -110,10 +109,14 @@ struct data_type_s {
 
     // structure
     struct {
-        char        *name;
-        char        *tag;
-        list_t      *fields;
-        int          offset;
+        table_t *fields;
+        int      offset;
+    };
+
+    // function
+    struct {
+        data_type_t *rtype;
+        list_t      *params;
     };
 };
 
@@ -167,14 +170,6 @@ typedef struct {
     ast_t  *body;
 } ast_for_t;
 
-// a scopes enviroment is represented as a list of variables
-// and a pointer to the next enviroment within it.
-struct env_s {
-    list_t *variables;
-    list_t *structures;
-    env_t  *next;
-};
-
 struct ast_s {
     int           type;
     data_type_t *ctype;
@@ -201,7 +196,8 @@ struct ast_s {
 
         struct {                        // struct
             ast_t       *structure;
-            data_type_t *field;
+            char        *field;
+            data_type_t *fieldtype;
         };
 
         struct {                        // float or double
@@ -212,9 +208,9 @@ struct ast_s {
     };
 };
 
-ast_t *ast_structure_reference_new(ast_t *structure, data_type_t *field);
-data_type_t *ast_structure_field_new(data_type_t *type, char *name, int offset);
-data_type_t *ast_structure_new(list_t *fields, char *tag, int size);
+ast_t *ast_structure_reference_new(data_type_t *type, ast_t *structure, char *name);
+data_type_t *ast_structure_field_new(data_type_t *type, int offset);
+data_type_t *ast_structure_new(table_t *fields, int size);
 
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand);
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right);
@@ -237,11 +233,6 @@ ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body);
 ast_t *ast_new_return(ast_t *val);
 ast_t *ast_new_compound(list_t *statements);
 ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last);
-
-// search
-ast_t *ast_find_variable(const char *name);
-data_type_t *ast_find_structure_field(data_type_t *structure, const char *name);
-data_type_t *ast_find_memory_definition(list_t *list, const char *name);
 
 data_type_t *ast_new_pointer(data_type_t *type);
 data_type_t *ast_new_array(data_type_t *type, int size);
@@ -267,16 +258,14 @@ extern data_type_t *ast_data_ushort;
 extern data_type_t *ast_data_float;
 extern data_type_t *ast_data_double;
 
-extern env_t       *ast_globalenv;
-extern env_t       *ast_localenv;
-extern list_t      *ast_localvars;
-extern list_t      *ast_structures;
-extern list_t      *ast_unions;
-extern list_t      *ast_floats;
+list_t      *ast_floats;
+list_t      *ast_strings;
+list_t      *ast_locals;
+table_t     *ast_globalenv;
+table_t     *ast_localenv;
+table_t     *ast_structures;
+table_t     *ast_unions;
 
-// enviroment handling
-env_t *ast_env_new(env_t *next);
-void  ast_env_push(env_t *env, ast_t *var);
 
 // debug
 char *ast_string(ast_t *ast);

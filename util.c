@@ -74,6 +74,7 @@ char *string_quote(char *p) {
     return string->buffer;
 }
 
+// a standard double linked list
 struct list_node_s {
     void        *element;
     list_node_t *next;
@@ -166,4 +167,49 @@ void *list_tail(list_t *list) {
         node = node->next;
 
     return node->element;
+}
+
+// a key value associative table
+typedef struct {
+    char *key;
+    void *value;
+} table_entry_t;
+
+void *table_create(void *parent) {
+    table_t *table = (table_t*)malloc(sizeof(table_t));
+    table->list    = list_create();
+    table->parent  = parent;
+
+    return table;
+}
+
+void *table_find(table_t *table, const char *key) {
+    for (; table; table = table->parent) {
+        for (list_iterator_t *it = list_iterator(table->list); !list_iterator_end(it); ) {
+            table_entry_t *entry = list_iterator_next(it);
+            if (!strcmp(key, entry->key))
+                return entry->value;
+        }
+    }
+    return NULL;
+}
+
+void table_insert(table_t *table, char *key, void *value) {
+    table_entry_t *entry = (table_entry_t*)malloc(sizeof(table_entry_t));
+    entry->key           = key;
+    entry->value         = value;
+
+    list_push(table->list, entry);
+}
+
+void *table_parent(table_t *table) {
+    return table->parent;
+}
+
+list_t *table_values(table_t *table) {
+    list_t *list = list_create();
+    for (; table; table = table->parent)
+        for (list_iterator_t *it = list_iterator(table->list); !list_iterator_end(it); )
+            list_push(list, ((table_entry_t*)list_iterator_next(it))->value);
+    return list;
 }

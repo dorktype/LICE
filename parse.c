@@ -149,7 +149,7 @@ static ast_t *parse_generic(char *name) {
 
     lexer_unget(token);
 
-    if (!(var = ast_find_variable(name)))
+    if (!(var = table_find(ast_localenv, name)))
         compile_error("Undefined variable: %s", name);
 
     return var;
@@ -190,7 +190,7 @@ static ast_t *parse_expression_primary(void) {
 
         case LEXER_TOKEN_STRING:
             ast = ast_new_string(token->string);
-            ast_env_push(ast_globalenv, ast);
+            list_push(ast_strings, ast);
             return ast;
 
         case LEXER_TOKEN_PUNCT:
@@ -274,8 +274,8 @@ static ast_t *parse_structure_field(ast_t *structure) {
     if (name->type != LEXER_TOKEN_IDENT)
         compile_error("Internal error: parse_structure_field (2)");
 
-    data_type_t *field = ast_find_structure_field(structure->ctype, name->string);
-    return ast_structure_reference_new(structure, field);
+    data_type_t *field = table_find(structure->ctype->fields, name->string);
+    return ast_structure_reference_new(field, structure, name->string);
 }
 
 static ast_t *parse_expression_intermediate(int precision) {
@@ -456,8 +456,8 @@ static char *parse_memory_tag(void) {
     return NULL;
 }
 
-static list_t *parse_memory_fields(void) {
-    list_t *list = list_create();
+static table_t *parse_memory_fields(void) {
+    table_t *table = table_create(NULL);
     parse_expect('{');
     for (;;) {
         if (!parse_type_check(lexer_peek()))
@@ -466,48 +466,49 @@ static list_t *parse_memory_fields(void) {
         lexer_token_t *name;
         data_type_t   *type = parse_declaration_intermediate(&name);
 
-        list_push(list, ast_structure_field_new(type, name->string, 0));
+        table_insert(table, name->string, ast_structure_field_new(type, 0));
         parse_expect(';');
     }
     parse_expect('}');
-    return list;
+    return table;
 }
 
 static data_type_t *parse_union_definition(void) {
     char        *tag  = parse_memory_tag();
-    data_type_t *type = ast_find_memory_definition(ast_unions, tag);
+    data_type_t *type = table_find(ast_unions, tag);
 
     if (type)
         return type;
 
-    list_t *fields = parse_memory_fields();
-    int     size   = 0;
+    table_t *fields = parse_memory_fields();
+    int      size   = 0;
 
     // calculate the largest size for the union
-    for (list_iterator_t *it = list_iterator(fields); !list_iterator_end(it); ) {
+    for (list_iterator_t *it = list_iterator(table_values(fields)); !list_iterator_end(it); ) {
         data_type_t *type = list_iterator_next(it);
         size = (size < type->size) ? type->size : size;
     }
 
     // a 'union' is just a structure with the largest field as the size
     // with many fields, all of which occupy the same 'space'
-    data_type_t *fill = ast_structure_new(fields, tag, size);
-    list_push(ast_unions, fill);
+    data_type_t *final = ast_structure_new(fields, size);
+    if (tag)
+        table_insert(ast_unions, tag, final);
 
-    return fill;
+    return final;
 }
 
 static data_type_t *parse_structure_definition(void) {
     char        *tag  = parse_memory_tag();
-    data_type_t *type = ast_find_memory_definition(ast_structures, tag);
+    data_type_t *type = table_find(ast_structures, tag);
 
     if (type)
         return type;
 
-    list_t *fields = parse_memory_fields();
-    int     offset = 0;
+    table_t *fields = parse_memory_fields();
+    int      offset = 0;
 
-    for (list_iterator_t *it = list_iterator(fields); !list_iterator_end(it); ) {
+    for (list_iterator_t *it = list_iterator(table_values(fields)); !list_iterator_end(it); ) {
         data_type_t *fieldtype = list_iterator_next(it);
         int          size      = (fieldtype->size < PARSE_ALIGNMENT) ? fieldtype->size : PARSE_ALIGNMENT;
 
@@ -518,8 +519,9 @@ static data_type_t *parse_structure_definition(void) {
         offset += fieldtype->size;
     }
 
-    data_type_t *final = ast_structure_new(fields, tag, offset);
-    list_push(ast_structures, final);
+    data_type_t *final = ast_structure_new(fields, offset);
+    if (tag)
+        table_insert(ast_structures, tag, final);
 
     return final;
 }
@@ -675,13 +677,13 @@ static ast_t *parse_expression_semicolon(void) {
 
 static ast_t *parse_statement_for(void) {
     parse_expect('(');
-    ast_localenv = ast_env_new(ast_localenv);
+    ast_localenv = table_create(ast_localenv);
     ast_t *init = parse_statement_declaration_semicolon();
     ast_t *cond = parse_expression_semicolon();
     ast_t *step = lexer_ispunct(lexer_peek(), ')') ? NULL : parse_expression();
     parse_expect(')');
     ast_t *body = parse_statement();
-    ast_localenv = ast_localenv->next;
+    ast_localenv = table_parent(ast_localenv);
     return ast_new_for(init, cond, step, body);
 }
 
@@ -719,7 +721,7 @@ static ast_t *parse_statement_declaration(void) {
 
 
 static ast_t *parse_statement_compound(void) {
-    ast_localenv = ast_env_new(ast_localenv);
+    ast_localenv = table_create(ast_localenv);
     list_t *statements = list_create();
     for (;;) {
         ast_t *statement = parse_statement_declaration();
@@ -735,7 +737,7 @@ static ast_t *parse_statement_compound(void) {
 
         lexer_unget(token);
     }
-    ast_localenv = ast_localenv->next;
+    ast_localenv = table_parent(ast_localenv);
     return ast_new_compound(statements);
 }
 
@@ -775,17 +777,18 @@ static ast_t *parse_function_definition(data_type_t *ret, char *name) {
     ast_t  *next;
 
     parse_expect('(');
-    ast_localenv = ast_env_new(ast_globalenv);
+    ast_localenv = table_create(ast_globalenv);
     params       = parse_function_parameters();
     parse_expect('{');
 
-    ast_localenv  = ast_env_new(ast_localenv);
-    ast_localvars = list_create();
+    ast_localenv = table_create(ast_localenv);
+    ast_locals   = list_create();
 
     body = parse_statement_compound();
-    next = ast_new_function(ret, name, params, body, ast_localvars);
+    next = ast_new_function(ret, name, params, body, ast_locals);
 
-    ast_localvars = NULL;
+    ast_localenv = NULL;
+    ast_locals   = NULL;
 
     return next;
 }
@@ -829,5 +832,5 @@ list_t *parse_function_list(void) {
             return list;
         list_push(list, func);
     }
-    return NULL;
+    return list;
 }

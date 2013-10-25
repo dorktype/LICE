@@ -20,29 +20,16 @@ data_type_t *ast_data_uchar  = &(data_type_t) { TYPE_CHAR,      1, false };
 data_type_t *ast_data_float  = &(data_type_t) { TYPE_FLOAT,     4, true  };
 data_type_t *ast_data_double = &(data_type_t) { TYPE_DOUBLE,    8, true  };
 
-list_t      *ast_localvars  = &SENTINEL_LIST;
-list_t      *ast_structures = &SENTINEL_LIST;
-list_t      *ast_unions     = &SENTINEL_LIST;
 list_t      *ast_floats     = &SENTINEL_LIST;
+list_t      *ast_strings    = &SENTINEL_LIST;
+list_t      *ast_locals     = NULL;
 
-env_t       *ast_globalenv  = &(env_t)       { &SENTINEL_LIST, NULL };
-env_t       *ast_localenv   = NULL;
+table_t     *ast_globalenv  = &SENTINEL_TABLE;
+table_t     *ast_localenv   = &SENTINEL_TABLE;
+table_t     *ast_structures = &SENTINEL_TABLE;
+table_t     *ast_unions     = &SENTINEL_TABLE;
 
 ////////////////////////////////////////////////////////////////////////
-// ast enviroment
-env_t *ast_env_new(env_t *next) {
-    env_t *env     = (env_t*)malloc(sizeof(env_t));
-    env->next      = next;
-    env->variables = list_create();
-
-    return env;
-}
-
-void ast_env_push(env_t *env, ast_t *var) {
-    // assertion?
-    list_push(env->variables, var);
-}
-
 bool ast_type_integer(data_type_t *type) {
     return type->type == TYPE_CHAR
         || type->type == TYPE_INT
@@ -53,7 +40,6 @@ bool ast_type_floating(data_type_t *type) {
     return type->type == TYPE_FLOAT
         || type->type == TYPE_DOUBLE;
 }
-
 ////////////////////////////////////////////////////////////////////////
 // ast result
 static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *a, data_type_t *b) {
@@ -153,32 +139,28 @@ data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b) {
 
 ////////////////////////////////////////////////////////////////////////
 // structures
-ast_t *ast_structure_reference_new(ast_t *structure, data_type_t *field) {
+ast_t *ast_structure_reference_new(data_type_t *type, ast_t *structure, char *name) {
     ast_t *ast     = ast_new_node();
     ast->type      = AST_TYPE_STRUCT;
-    ast->ctype     = field;
+    ast->ctype     = type;
     ast->structure = structure;
-    ast->field     = field;
+    ast->field     = name;
 
     return ast;
 }
 
-data_type_t *ast_structure_field_new(data_type_t *type, char *name, int offset) {
+data_type_t *ast_structure_field_new(data_type_t *type, int offset) {
     data_type_t *field = (data_type_t*)malloc(sizeof(data_type_t));
     memcpy(field, type, sizeof(data_type_t));
-
-    field->name   = name;
     field->offset = offset;
-
     return field;
 }
 
-data_type_t *ast_structure_new(list_t *fields, char *tag, int size) {
+data_type_t *ast_structure_new(table_t *fields, int size) {
     data_type_t *structure = (data_type_t*)malloc(sizeof(data_type_t));
     structure->type        = TYPE_STRUCTURE;
-    structure->fields      = fields;
-    structure->tag         = tag;
     structure->size        = size;
+    structure->fields      = fields;
 
     return structure;
 }
@@ -250,9 +232,9 @@ ast_t *ast_new_variable_local(data_type_t *type, char *name) {
     ast->ctype         = type;
     ast->variable.name = name;
 
-    ast_env_push(ast_localenv, ast);
-    if (ast_localvars)
-        list_push(ast_localvars, ast);
+    table_insert(ast_localenv, name, ast);
+    if (ast_locals)
+        list_push(ast_locals, ast);
 
     return ast;
 }
@@ -264,7 +246,7 @@ ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file) {
     ast->variable.name  = name;
     ast->variable.label = (file) ? ast_new_label() : name;
 
-    ast_env_push(ast_globalenv, ast);
+    table_insert(ast_globalenv, name, ast);
     return ast;
 }
 
@@ -404,35 +386,6 @@ char *ast_new_label(void) {
     return string_buffer(string);
 }
 
-ast_t *ast_find_variable(const char *name) {
-    for (env_t *p = ast_localenv; p; p = p->next) {
-        for (list_iterator_t *it = list_iterator(p->variables); !list_iterator_end(it); ) {
-            ast_t *load = list_iterator_next(it);
-            if (!strcmp(name, load->variable.name))
-                return load;
-        }
-    }
-    return NULL;
-}
-
-data_type_t *ast_find_structure_field(data_type_t *structure, const char *name) {
-    for (list_iterator_t *it = list_iterator(structure->fields); !list_iterator_end(it); ) {
-        data_type_t *field = list_iterator_next(it);
-        if (!strcmp(name, field->name))
-            return field;
-    }
-    return NULL;
-}
-
-data_type_t *ast_find_memory_definition(list_t *list, const char *name) {
-    for (list_iterator_t *it = list_iterator(list); !list_iterator_end(it); ) {
-        data_type_t *region = list_iterator_next(it);
-        if (region->tag && !strcmp(name, region->tag))
-            return region;
-    }
-    return NULL;
-}
-
 ////////////////////////////////////////////////////////////////////////
 // ast debugging facilities
 const char *ast_type_string(data_type_t *type) {
@@ -465,9 +418,7 @@ const char *ast_type_string(data_type_t *type) {
         case TYPE_STRUCTURE:
             string = string_create();
             string_catf(string, "(struct");
-            if (type->tag)
-                string_catf(string, " %s", type->tag);
-            for (list_iterator_t *it = list_iterator(type->fields); !list_iterator_end(it); )
+            for (list_iterator_t *it = list_iterator(table_values(type->fields)); !list_iterator_end(it); )
                 string_catf(string, " (%s)", ast_type_string(list_iterator_next(it)));
             string_cat(string, ')');
             return string_buffer(string);
@@ -588,7 +539,7 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
         case AST_TYPE_STRUCT: // reference structure
             ast_string_impl(string, ast->structure);
             string_cat(string, '.');
-            string_catf(string, ast->field->name);
+            string_catf(string, ast->field);
             break;
 
         case AST_TYPE_EXPRESSION_TERNARY:

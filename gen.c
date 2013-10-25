@@ -10,6 +10,12 @@ static const char *registers[] = {
 #define gen_emit(...)        gen_emit_impl(__LINE__, "\t" __VA_ARGS__)
 #define gen_emit_label(...)  gen_emit_impl(__LINE__,      __VA_ARGS__)
 #define gen_emit_inline(...) gen_emit_impl(__LINE__,      __VA_ARGS__)
+#define gen_push(X) gen_push_(X, __LINE__)
+#define gen_pop(X) gen_pop_(X, __LINE__)
+#define gen_push_xmm(X) gen_push_xmm_(X, __LINE__)
+#define gen_pop_xmm(X) gen_pop_xmm_(X, __LINE__)
+
+static int gen_stack = 0;
 
 void gen_emit_impl(int line, const char *fmt, ...) {
     va_list args;
@@ -25,11 +31,6 @@ void gen_emit_impl(int line, const char *fmt, ...) {
     printf("%*c % 4d\n", col, '#', line);
 }
 
-static int gen_stack;
-#define gen_push(X) gen_push_(X, __LINE__)
-#define gen_pop(X) gen_pop_(X, __LINE__)
-#define gen_push_xmm(X) gen_push_xmm_(X, __LINE__)
-#define gen_pop_xmm(X) gen_pop_xmm_(X, __LINE__)
 
 static void gen_push_(const char *reg, int line) {
     gen_emit_impl(line, "\tpush %%%s", reg);
@@ -207,7 +208,7 @@ static void gen_assignment_structure(ast_t *structure, data_type_t *field, int o
             break;
 
         case AST_TYPE_STRUCT: // recursive
-            gen_assignment_structure(structure->structure, field, offset + structure->field->offset);
+            gen_assignment_structure(structure->structure, field, offset + structure->ctype->offset);
             break;
 
         case AST_TYPE_DEREFERENCE:
@@ -233,7 +234,7 @@ static void gen_load_structure(ast_t *structure, data_type_t *field, int offset)
             break;
 
         case AST_TYPE_STRUCT: // recursive
-            gen_load_structure(structure->structure, field, offset + structure->field->offset + offset);
+            gen_load_structure(structure->structure, field, offset + structure->ctype->offset + offset);
             break;
 
         case AST_TYPE_DEREFERENCE:
@@ -262,7 +263,7 @@ static void gen_assignment(ast_t *var) {
             break;
 
         case AST_TYPE_STRUCT:
-            gen_assignment_structure(var->structure, var->field, 0);
+            gen_assignment_structure(var->structure, var->ctype, 0);
             break;
 
         default:
@@ -410,14 +411,11 @@ static int gen_alignment(int n, int align) {
 void gen_data_section(void) {
     gen_emit(".data");
 
-    for (list_iterator_t *it = list_iterator(ast_globalenv->variables); !list_iterator_end(it); ) {
+    // strings
+    for (list_iterator_t *it = list_iterator(ast_strings); !list_iterator_end(it); ) {
         ast_t *ast = list_iterator_next(it);
-        if (ast->type == AST_TYPE_STRING) {
-            gen_emit_label("%s:", ast->string.label);
-            gen_emit_inline(".string \"%s\"", string_quote(ast->string.data));
-        } else if (ast->type != AST_TYPE_VAR_GLOBAL) {
-            compile_error("TODO: gen_data_section");
-        }
+        gen_emit_label("%s: ", ast->string.label);
+        gen_emit(".string \"%s\"", string_quote(ast->string.data));
     }
 
     // float and doubles
@@ -754,7 +752,7 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_STRUCT:
-            gen_load_structure(ast->structure, ast->field, 0);
+            gen_load_structure(ast->structure, ast->ctype, 0);
             break;
 
         case '!':
