@@ -3,9 +3,7 @@
 #include "lice.h"
 
 // registers for function call
-static const char *registers[] = {
-    "rdi", "rsi", "rdx", "rcx", "r8", "r9"
-};
+static const char *registers[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
 
 #define gen_emit(...)        gen_emit_impl(__LINE__, "\t" __VA_ARGS__)
 #define gen_emit_label(...)  gen_emit_impl(__LINE__,      __VA_ARGS__)
