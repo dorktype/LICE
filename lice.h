@@ -66,6 +66,7 @@ typedef enum {
     // function stuff
     AST_TYPE_CALL,
     AST_TYPE_FUNCTION,
+    AST_TYPE_PROTOTYPE,
 
     // misc
     AST_TYPE_DECLARATION,
@@ -98,7 +99,8 @@ typedef enum {
     TYPE_DOUBLE,
     TYPE_ARRAY,
     TYPE_POINTER,
-    TYPE_STRUCTURE
+    TYPE_STRUCTURE,
+    TYPE_FUNCTION
 } type_t;
 
 typedef struct data_type_s data_type_t;
@@ -118,8 +120,8 @@ struct data_type_s {
 
     // function
     struct {
-        data_type_t *rtype;
-        list_t      *params;
+        data_type_t *returntype;
+        list_t      *parameters;
     };
 };
 
@@ -141,8 +143,10 @@ typedef struct {
 
     struct {
         list_t *args;
+        list_t *paramtypes;
     } call;
 
+    // decl todo make struct named
     list_t *params;
     list_t *locals;
     ast_t  *body;
@@ -227,16 +231,17 @@ ast_t *ast_new_reference_local(data_type_t *type, ast_t *var, int off);
 ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file);
 ast_t *ast_new_reference_global(data_type_t *type, ast_t *var, int off);
 ast_t *ast_new_string(char *value);
-ast_t *ast_new_call(data_type_t *type, char *name, list_t *args);
+ast_t *ast_new_call(data_type_t *type, char *name, list_t *args, list_t *paramtypes);
 ast_t *ast_new_function(data_type_t *type, char *name, list_t *params, ast_t *body, list_t *locals);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_array_init(list_t *init);
 ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last);
 ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body);
-ast_t *ast_new_return(ast_t *val);
+ast_t *ast_new_return(data_type_t *returntype, ast_t *val);
 ast_t *ast_new_compound(list_t *statements);
 ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last);
 
+data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes);
 data_type_t *ast_new_pointer(data_type_t *type);
 data_type_t *ast_new_array(data_type_t *type, int size);
 data_type_t *ast_array_convert(data_type_t *ast);
@@ -260,6 +265,8 @@ extern data_type_t *ast_data_ulong;
 extern data_type_t *ast_data_ushort;
 extern data_type_t *ast_data_float;
 extern data_type_t *ast_data_double;
+
+extern data_type_t *ast_data_return;
 
 list_t      *ast_floats;
 list_t      *ast_strings;

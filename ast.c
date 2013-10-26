@@ -8,6 +8,7 @@
 static int ast_label_index = 0;
 
 //////////////////////////////////////////////////////////////////////////
+// data types
 data_type_t *ast_data_void   = &(data_type_t) { TYPE_VOID,      0, true  };
 data_type_t *ast_data_long   = &(data_type_t) { TYPE_LONG,      8, true  };
 data_type_t *ast_data_int    = &(data_type_t) { TYPE_INT,       4, true  };
@@ -20,14 +21,21 @@ data_type_t *ast_data_uchar  = &(data_type_t) { TYPE_CHAR,      1, false };
 data_type_t *ast_data_float  = &(data_type_t) { TYPE_FLOAT,     4, true  };
 data_type_t *ast_data_double = &(data_type_t) { TYPE_DOUBLE,    8, true  };
 
-list_t      *ast_floats     = &SENTINEL_LIST;
-list_t      *ast_strings    = &SENTINEL_LIST;
-list_t      *ast_locals     = NULL;
+// current return type
+data_type_t *ast_data_return = NULL;
 
-table_t     *ast_globalenv  = &SENTINEL_TABLE;
-table_t     *ast_localenv   = &SENTINEL_TABLE;
-table_t     *ast_structures = &SENTINEL_TABLE;
-table_t     *ast_unions     = &SENTINEL_TABLE;
+// strings floats and doubles (and current locals)
+list_t      *ast_floats      = &SENTINEL_LIST;
+list_t      *ast_strings     = &SENTINEL_LIST;
+list_t      *ast_locals      = NULL;
+
+// various scope enviroments (global, local)
+table_t     *ast_globalenv   = &SENTINEL_TABLE;
+table_t     *ast_localenv    = &SENTINEL_TABLE;
+
+// tagged block tables, structures and unions (enums todo)
+table_t     *ast_structures  = &SENTINEL_TABLE;
+table_t     *ast_unions      = &SENTINEL_TABLE;
 
 ////////////////////////////////////////////////////////////////////////
 bool ast_type_integer(data_type_t *type) {
@@ -252,12 +260,13 @@ ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file) {
 
 ////////////////////////////////////////////////////////////////////////
 // functions and calls
-ast_t *ast_new_call(data_type_t *type, char *name, list_t *args) {
-    ast_t *ast              = ast_new_node();
-    ast->type               = AST_TYPE_CALL;
-    ast->ctype              = type;
-    ast->function.call.args = args;
-    ast->function.name      = name;
+ast_t *ast_new_call(data_type_t *type, char *name, list_t *arguments, list_t *parametertypes) {
+    ast_t *ast                   = ast_new_node();
+    ast->type                    = AST_TYPE_CALL;
+    ast->ctype                    = type;
+    ast->function.call.paramtypes = parametertypes;
+    ast->function.call.args       = arguments;
+    ast->function.name            = name;
 
     return ast;
 }
@@ -295,6 +304,15 @@ ast_t *ast_new_array_init(list_t *init) {
     ast->array  = init;
 
     return ast;
+}
+
+data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes) {
+    data_type_t *type  = (data_type_t*)malloc(sizeof(data_type_t));
+    type->type         = TYPE_FUNCTION;
+    type->returntype   = returntype;
+    type->parameters   = paramtypes;
+
+    return type;
 }
 
 data_type_t *ast_new_array(data_type_t *type, int length) {
@@ -360,10 +378,10 @@ ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
     return ast;
 }
 
-ast_t *ast_new_return(ast_t *value) {
+ast_t *ast_new_return(data_type_t *returntype, ast_t *value) {
     ast_t *ast      = ast_new_node();
     ast->type       = AST_TYPE_STATEMENT_RETURN;
-    ast->ctype      = NULL;
+    ast->ctype      = returntype;
     ast->returnstmt = value;
 
     return ast;
@@ -392,13 +410,14 @@ const char *ast_type_string(data_type_t *type) {
     string_t *string;
 
     switch (type->type) {
-        case TYPE_VOID:   return "void";
-        case TYPE_INT:    return "int";
-        case TYPE_CHAR:   return "char";
-        case TYPE_LONG:   return "long";
-        case TYPE_SHORT:  return "short";
-        case TYPE_FLOAT:  return "float";
-        case TYPE_DOUBLE: return "double";
+        case TYPE_VOID:     return "void";
+        case TYPE_INT:      return "int";
+        case TYPE_CHAR:     return "char";
+        case TYPE_LONG:     return "long";
+        case TYPE_SHORT:    return "short";
+        case TYPE_FLOAT:    return "float";
+        case TYPE_DOUBLE:   return "double";
+        case TYPE_FUNCTION: return "<<todo>>";
 
         case TYPE_POINTER:
             string = string_create();

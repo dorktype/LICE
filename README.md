@@ -22,12 +22,13 @@ typing.
 
 
 ### Functions
-Functions are supported but function prototyping isn't which means
-the function has to be implemented where it's declared. Functions
+Functions are supported, as is function prototyping. Functions
 are limited to six arguments, and variable arguments are not
 supported. Calling external C variable argument functions such
 as printf are allowed but the argument count is also limited to six.
-You can also call malloc/free for heap allocations.
+You can also call malloc/free for heap allocations. Function prototyping
+is also limited, Lice will only support trivial prototypes, confusing
+declarations aren't handled as of yet.
 
 ### Statements
 Lice supports the following statements

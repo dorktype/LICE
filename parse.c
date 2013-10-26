@@ -123,6 +123,30 @@ static int parse_operator_priority(lexer_token_t *token) {
     return -1;
 }
 
+static list_t *parse_parameter_types(list_t *parameters) {
+    list_t *list = list_create();
+    for (list_iterator_t *it = list_iterator(parameters); !list_iterator_end(it); )
+        list_push(list, ((ast_t*)list_iterator_next(it))->ctype);
+    return list;
+}
+
+static void parse_function_typecheck(const char *name, list_t *parameters, list_t *arguments) {
+    if (list_length(arguments) < list_length(parameters))
+        compile_error("Too few arguments: %s", name);
+    for (list_iterator_t *it = list_iterator(parameters),
+                         *jt = list_iterator(arguments); !list_iterator_end(jt); )
+    {
+        data_type_t *parameter = list_iterator_next(it);
+        data_type_t *argument  = list_iterator_next(jt);
+
+        // handle implicit int
+        if (parameter)
+            ast_result_type('=', parameter, argument);
+        else
+            ast_result_type('=', argument, ast_data_int);
+    }
+}
+
 static ast_t *parse_function_call(char *name) {
     list_t *list = list_create();
     for (;;) {
@@ -143,7 +167,15 @@ static ast_t *parse_function_call(char *name) {
     if (PARSE_CALLS < list_length(list))
         compile_error("too many arguments");
 
-    return ast_new_call(ast_data_int, name, list);
+    data_type_t *declaration = table_find(ast_localenv, name);
+    if (declaration) {
+        if (declaration->type != TYPE_FUNCTION)
+            compile_error("%s isn't a function fool!\n", name);
+        parse_function_typecheck(name, declaration->parameters, parse_parameter_types(list));
+        return ast_new_call(declaration->returntype, name, list, declaration->parameters);
+    }
+
+    return ast_new_call(ast_data_int, name, list, list_create());
 }
 
 
@@ -701,7 +733,7 @@ static ast_t *parse_statement_for(void) {
 static ast_t *parse_statement_return(void) {
     ast_t *val = parse_expression();
     parse_expect(';');
-    return ast_new_return(val);
+    return ast_new_return(ast_data_return, val); // todo more accurte type
 }
 
 static ast_t *parse_statement(void) {
@@ -782,29 +814,42 @@ static list_t *parse_function_parameters(void) {
     return NULL;
 }
 
-static ast_t *parse_function_definition(data_type_t *ret, char *name) {
-    list_t *params;
-    ast_t  *body;
-    ast_t  *next;
+static ast_t *parse_function_definition(data_type_t *returntype, char *name, list_t *parameters) {
+    data_type_t *type;
+    ast_t       *body;
+    ast_t       *next;
 
-    parse_expect('(');
-    ast_localenv = table_create(ast_globalenv);
-    params       = parse_function_parameters();
-    parse_expect('{');
-
-    ast_localenv = table_create(ast_localenv);
-    ast_locals   = list_create();
+    ast_localenv    = table_create(ast_localenv);
+    ast_locals      = list_create();
+    ast_data_return = returntype;
 
     body = parse_statement_compound();
-    next = ast_new_function(ret, name, params, body, ast_locals);
+    type = ast_new_prototype(returntype, parse_parameter_types(parameters));
+    next = ast_new_function(type, name, parameters, body, ast_locals);
 
-    ast_localenv = NULL;
-    ast_locals   = NULL;
+    table_insert(ast_globalenv, name, type);
+
+    ast_data_return = NULL;
+    ast_localenv    = NULL;
+    ast_locals      = NULL;
 
     return next;
 }
 
-static ast_t *parse_declaration_function_definition(void) {
+static ast_t *parse_toplevel(void);
+static ast_t *parse_function_declaration_definition(data_type_t *returntype, char *name) {
+    parse_expect('(');
+    ast_localenv = table_create(ast_globalenv);
+    list_t *parameters = parse_function_parameters();
+    lexer_token_t *token = lexer_next();
+    if (lexer_ispunct(token, '{'))
+        return parse_function_definition(returntype, name, parameters);
+    data_type_t *type = ast_new_prototype(returntype, parse_parameter_types(parameters));
+    table_insert(ast_globalenv, name, type);
+    return parse_toplevel();
+}
+
+static ast_t *parse_toplevel(void) {
     lexer_token_t *token = lexer_peek();
     if (!token)
         return NULL;
@@ -824,7 +869,7 @@ static ast_t *parse_declaration_function_definition(void) {
     }
 
     if (lexer_ispunct(token, '('))
-        return parse_function_definition(data, name->string);
+        return parse_function_declaration_definition(data, name->string);
 
     if (lexer_ispunct(token, ';')) {
         lexer_next();
@@ -838,7 +883,7 @@ static ast_t *parse_declaration_function_definition(void) {
 list_t *parse_function_list(void) {
     list_t *list = list_create();
     for (;;) {
-        ast_t *func = parse_declaration_function_definition();
+        ast_t *func = parse_toplevel();
         if (!func)
             return list;
         list_push(list, func);
