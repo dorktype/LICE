@@ -1,5 +1,10 @@
 void test() {
-    int array[5] = { 1, 2, 3, 4, 5 };
+    int array[5];
+    array[0] = 1;
+    array[1] = 2;
+    array[2] = 3;
+    array[3] = 4;
+    array[4] = 5;
 
     expecti(array[0], 1);
     expecti(array[1], 2);
