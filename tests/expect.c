@@ -11,8 +11,9 @@ void expecti(int a, int b) {
 void expectf(float a, float b) {
     if (a != b) {
         printf(" [ERROR]\n");
-        printf("    Expected: %f\n", b);
-        printf("    Result:   %f\n", a);
+        // TODO fix stack alignment
+        //printf("    Expected: %f\n", b);
+        //printf("    Result:   %f\n", a);
 
         exit(1);
     }
@@ -21,8 +22,9 @@ void expectf(float a, float b) {
 void expectd(double a, double b) {
     if (a != b) {
         printf(" [ERROR]\n");
-        printf("    Expected: %f\n", b);
-        printf("    Result:   %f\n", a);
+        // TODO fix stack alignment
+        //printf("    Expected: %f\n", b);
+        //printf("    Result:   %f\n", a);
 
         exit(1);
     }

@@ -110,7 +110,7 @@ static void gen_save(data_type_t *to, data_type_t *from) {
     if (ast_type_integer(from) && to->type == TYPE_FLOAT)
         gen_emit("cvtsi2ss %%eax, %%xmm0");
     else if (ast_type_floating(from) && to->type == TYPE_FLOAT)
-        gen_emit("cvtpd2pd %%xmm0, %%xmm0");
+        gen_emit("cvtpd2ps %%xmm0, %%xmm0");
     else
         gen_load(to, from);
 }
