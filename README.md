@@ -114,6 +114,20 @@ The code generator produces code compatible in accordance to
 the SysV ABI for AMD64. So it should function on any AMD64
 Linux or FreeBSD system.
 
+### What does LICE stand for?
+This was a topic of serious debate amoungst myself and peers. Some
+of the ideas were:
+
+-   Lamest Implementing C Enviroment
+-   LICE Isn't Ceee
+-   Limitless Internal Compiler Errors
+-   Lamest Implemenation of C, Ever!
+
+I like to think the last one suits the current status of the project
+currently. To be fair I don't care what you think it stands for, just
+find solace in one of the choices above, or one of your own and stick with
+it. If you do happen to find a nice marketable explination of the acronym
+you can email me your suggestion and I'll include it here.
 
 ### Sources
 The following sources where used as information and inspiration
