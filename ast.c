@@ -297,11 +297,11 @@ ast_t *ast_new_decl(ast_t *var, ast_t *init) {
 
 ////////////////////////////////////////////////////////////////////////
 // constructs
-ast_t *ast_new_array_init(list_t *init) {
-    ast_t *ast  = ast_new_node();
-    ast->type   = AST_TYPE_ARRAY_INIT;
-    ast->ctype  = NULL;
-    ast->array  = init;
+ast_t *ast_new_initializerlist(list_t *init) {
+    ast_t *ast         = ast_new_node();
+    ast->type          = AST_TYPE_INITIALIZERLIST;
+    ast->ctype         = NULL;
+    ast->initlist.list = init;
 
     return ast;
 }
@@ -484,8 +484,10 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
                         string_catf(string, "'\n'");
                     else if (ast->integer == '\\')
                         string_catf(string, "'\\\\'");
+                    else if (ast->integer == '\0')
+                        string_catf(string, "'\\0'");
                     else
-                        string_catf(string, "'%d'", ast->integer);
+                        string_catf(string, "'%c'", ast->integer);
                     break;
 
                 default:
@@ -545,9 +547,9 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_cat(string, '}');
             break;
 
-        case AST_TYPE_ARRAY_INIT:
+        case AST_TYPE_INITIALIZERLIST:
             string_cat(string, '{');
-            for(list_iterator_t *it = list_iterator(ast->array); !list_iterator_end(it); ) {
+            for(list_iterator_t *it = list_iterator(ast->initlist.list); !list_iterator_end(it); ) {
                 ast_string_impl(string, list_iterator_next(it));
                 if (!list_iterator_end(it))
                     string_cat(string, ',');

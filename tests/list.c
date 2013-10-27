@@ -7,6 +7,17 @@ void test() {
     expecti(autosize[0], 1);
     expecti(autosize[1], 2);
     expecti(autosize[2], 3);
+
+    struct {
+        int a[4];
+    } d = {
+        {1, 2, 3, 4}
+    };
+
+    expecti(d.a[0], 1);
+    expecti(d.a[1], 2);
+    expecti(d.a[2], 3);
+    expecti(d.a[3], 4);
 }
 
 int main() {

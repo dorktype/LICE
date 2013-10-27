@@ -70,7 +70,7 @@ typedef enum {
 
     // misc
     AST_TYPE_DECLARATION,
-    AST_TYPE_ARRAY_INIT,
+    AST_TYPE_INITIALIZERLIST,
     AST_TYPE_STRUCT,
 
     // pointer stuff
@@ -177,24 +177,29 @@ typedef struct {
     ast_t  *body;
 } ast_for_t;
 
+typedef struct {
+    list_t      *list;
+    data_type_t *type;
+} ast_initlist_t;
+
 struct ast_s {
     int           type;
     data_type_t *ctype;
 
     // all the possible nodes
     union {
-        long           integer;         // integer
-        char           character;       // character
-        ast_string_t   string;          // string
-        ast_variable_t variable;        // local and global variable
-        ast_function_t function;        // function
-        ast_unary_t    unary;           // unary operations
-        ast_decl_t     decl;            // declarations
-        ast_ifthan_t   ifstmt;          // if statement
-        ast_for_t      forstmt;         // for statement
-        ast_t         *returnstmt;      // return statement
-        list_t        *compound;        // compound statement
-        list_t        *array;           // array initializer
+        long            integer;        // integer
+        char            character;      // character
+        ast_string_t    string;         // string
+        ast_variable_t  variable;       // local and global variable
+        ast_function_t  function;       // function
+        ast_unary_t     unary;          // unary operations
+        ast_decl_t      decl;           // declarations
+        ast_ifthan_t    ifstmt;         // if statement
+        ast_for_t       forstmt;        // for statement
+        ast_t          *returnstmt;     // return statement
+        list_t         *compound;       // compound statement
+        ast_initlist_t  initlist;       // initializer list
 
         struct {                        // tree
             ast_t *left;
@@ -234,7 +239,7 @@ ast_t *ast_new_string(char *value);
 ast_t *ast_new_call(data_type_t *type, char *name, list_t *args, list_t *paramtypes);
 ast_t *ast_new_function(data_type_t *type, char *name, list_t *params, ast_t *body, list_t *locals);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
-ast_t *ast_new_array_init(list_t *init);
+ast_t *ast_new_initializerlist(list_t *init);
 ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last);
 ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body);
 ast_t *ast_new_return(data_type_t *returntype, ast_t *val);

@@ -440,9 +440,9 @@ static void gen_data(ast_t *ast) {
     gen_emit_label(".global %s", ast->decl.var->variable.name);
     gen_emit_label("%s:", ast->decl.var->variable.name);
 
-    // emit the array initialization
-    if (ast->decl.init->type == AST_TYPE_ARRAY_INIT) {
-        for (list_iterator_t *it = list_iterator(ast->decl.init->array); !list_iterator_end(it); )
+    // emit the initializer list
+    if (ast->decl.init->type == AST_TYPE_INITIALIZERLIST) {
+        for (list_iterator_t *it = list_iterator(ast->decl.init->initlist.list); !list_iterator_end(it); )
             gen_data_integer(list_iterator_next(it));
         return;
     }
@@ -665,12 +665,13 @@ static void gen_expression(ast_t *ast) {
             if (!ast->decl.init)
                 return;
 
-            if (ast->decl.init->type == AST_TYPE_ARRAY_INIT) {
+            if (ast->decl.init->type == AST_TYPE_INITIALIZERLIST) {
                 i = 0;
-                for (list_iterator_t *it = list_iterator(ast->decl.init->array); !list_iterator_end(it);) {
-                    gen_expression(list_iterator_next(it));
-                    gen_save_local(ast->decl.var->ctype->pointer, ast->decl.var->variable.off + i);
-                    i += ast->decl.var->ctype->pointer->size;
+                for (list_iterator_t *it = list_iterator(ast->decl.init->initlist.list); !list_iterator_end(it);) {
+                    ast_t *element = list_iterator_next(it);
+                    gen_expression(element);
+                    gen_save_local(element->initlist.type, ast->decl.var->variable.off + i);
+                    i += element->initlist.type->size;
                 }
             } else if (ast->decl.var->ctype->type == TYPE_ARRAY) {
                 char *p;

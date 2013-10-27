@@ -465,29 +465,89 @@ static bool parse_type_check(lexer_token_t *token) {
     return false;
 }
 
-static ast_t *parse_declaration_array_initializer_intermediate(data_type_t *type) {
+static void parse_declaration_initializerlist_element(list_t *list, data_type_t *type) {
+    lexer_token_t *token = lexer_peek();
+    ast_t         *init  = parse_expression();
+
+    if (!init)
+        compile_error("Expected expression");
+
+    ast_result_type('=', init->ctype, type);
+
+    init->initlist.type = type;
+    token = lexer_next();
+
+    if (!lexer_ispunct(token, ','))
+        lexer_unget(token);
+
+    list_push(list, init);
+}
+
+static void parse_declaration_array_initializer_intermediate(list_t *initlist, data_type_t *type) {
     lexer_token_t *token = lexer_next();
-    if (type->pointer->type == TYPE_CHAR && token->type == LEXER_TOKEN_STRING)
-        return ast_new_string(token->string);
+
+    if (type->pointer->type == TYPE_CHAR && token->type == LEXER_TOKEN_STRING) {
+        for (char *p = token->string; *p; p++) {
+            ast_t *value = ast_new_integer(ast_data_char, *p);
+            value->initlist.type = ast_data_char;
+            list_push(initlist, value);
+        }
+        ast_t *value = ast_new_integer(ast_data_char, '\0');
+        value->initlist.type = ast_data_char;
+        list_push(initlist, value);
+        return;
+    }
 
     if (!lexer_ispunct(token, '{'))
         compile_error("Expected initializer list");
 
-    list_t *list = list_create();
     for (;;) {
         token = lexer_next();
         if (lexer_ispunct(token, '}'))
             break;
         lexer_unget(token);
 
-        ast_t *init = parse_expression();
-        list_push(list, init);
-        ast_result_type('=', init->ctype, type->pointer);
-        token = lexer_next();
-        if (!lexer_ispunct(token, ','))
-            lexer_unget(token);
+        parse_declaration_initializerlist_element(initlist, type->pointer);
     }
-    return ast_new_array_init(list);
+}
+
+static ast_t *parse_declaration_array_initializer_value(data_type_t *type) {
+    list_t *initlist = list_create();
+    parse_declaration_array_initializer_intermediate(initlist, type);
+    ast_t *init = ast_new_initializerlist(initlist);
+
+    int length = (init->type == AST_TYPE_STRING)
+                    ? strlen(init->string.data)
+                    : list_length(init->initlist.list);
+
+    if (type->length == -1) {
+        type->length = length;
+        type->size   = length * type->pointer->size;
+    } else if (type->length != length) {
+        compile_error("Internal error");
+    }
+    return init;
+}
+
+static ast_t *parse_declaration_structure_initializer_value(data_type_t *type) {
+    parse_expect('{');
+    list_t *initlist = list_create();
+    for (list_iterator_t *it = list_iterator(table_values(type->fields)); !list_iterator_end(it); ) {
+        data_type_t   *fieldtype = list_iterator_next(it);
+        lexer_token_t *token     = lexer_next();
+
+        if (lexer_ispunct(token, '{')) {
+            if (fieldtype->type != TYPE_ARRAY)
+                compile_error("Internal error");
+            lexer_unget(token);
+            parse_declaration_array_initializer_intermediate(initlist, fieldtype);
+            continue;
+        }
+        lexer_unget(token);
+        parse_declaration_initializerlist_element(initlist, fieldtype);
+    }
+    parse_expect('}');
+    return ast_new_initializerlist(initlist);
 }
 
 // parses a union/structure tag
@@ -595,30 +655,14 @@ static data_type_t *parse_declaration_specification(void) {
     return NULL;
 }
 
-static ast_t *parse_declaration_initialization_variable(ast_t *var) {
-    if (var->ctype->type == TYPE_ARRAY) {
-        ast_t *init = parse_declaration_array_initializer_intermediate(var->ctype);
-        int len = (init->type == AST_TYPE_STRING)
-                        ? strlen(init->string.data) + 1
-                        : list_length(init->array);
-
-        if (var->ctype->size == -1) {
-            var->ctype->size   = len;
-            var->ctype->length = len * var->ctype->pointer->size;
-        } else if (var->ctype->length != len) {
-            compile_error("Internal error: parse_declaration_array_initializer");
-        }
-        parse_expect(';');
-        return ast_new_decl(var, init);
-    }
-    ast_t *init = parse_expression();
+static ast_t *parse_declaration_initialization_value(data_type_t *type) {
+    ast_t *init = (type->type == TYPE_ARRAY)
+                        ? parse_declaration_array_initializer_value(type)
+                        : (type->type == TYPE_STRUCTURE)
+                                ? parse_declaration_structure_initializer_value(type)
+                                : parse_expression();
     parse_expect(';');
-
-    // ensure integer expression
-    if (var->type == AST_TYPE_VAR_GLOBAL)
-        init = ast_new_integer(ast_data_int, parse_evaluate(init));
-
-    return ast_new_decl(var, init);
+    return init;
 }
 
 static data_type_t *parse_array_dimensions_intermediate(data_type_t *basetype) {
@@ -651,8 +695,12 @@ static ast_t *parse_declaration_initialization(ast_t *var) {
     lexer_token_t *token = lexer_next();
 
     // global initialization?
-    if (lexer_ispunct(token, '='))
-        return parse_declaration_initialization_variable(var);
+    if (lexer_ispunct(token, '=')) {
+        ast_t *init = parse_declaration_initialization_value(var->ctype);
+        if (var->type == AST_TYPE_VAR_GLOBAL && ast_type_integer(var->ctype))
+            init = ast_new_integer(ast_data_int, parse_evaluate(init));
+        return ast_new_decl(var, init);
+    }
 
     if (var->ctype->length == -1)
         compile_error("Missing initializer for array");

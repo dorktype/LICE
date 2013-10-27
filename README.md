@@ -75,10 +75,12 @@ Lice supports only three constructs:
 ----------------------|:-----------------------------------------------------------
  struct               | Plain structures (no forward declaring)
  union                | Standard unions (no forward declaring)
- initializer list     | Initializer lists are supported for arrays only, currently.
+ initializer list     | Works for arrays an structures
 
-Support for declaring structures and unions inside functions, is supported as
-well as anywhere a typename is expected, e.g a function argument.
+Support for declaring structures and unions inside functions is supported as
+well as anywhere a typename is expected, e.g a function argument. Initializer
+lists work on char arrays as well with the use of strings, e.g:
+`struct { char a[6]; } v = { "hello" };` works.
 
 ### Pointers
 Pointers work how they typically would work, you can define one,
