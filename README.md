@@ -115,7 +115,7 @@ the SysV ABI for AMD64. So it should function on any AMD64
 Linux or FreeBSD system.
 
 ### What does LICE stand for?
-This was a topic of serious debate amoungst myself and peers. Some
+This was a topic of serious debate amongst myself and peers. Some
 of the ideas were:
 
 -   Lamest Implementing C Enviroment
