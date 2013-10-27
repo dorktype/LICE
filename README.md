@@ -75,7 +75,7 @@ Lice supports only three constructs:
 ----------------------|:-----------------------------------------------------------
  struct               | Plain structures (no forward declaring)
  union                | Standard unions (no forward declaring)
- initializer list     | Works for arrays an structures
+ initializer list     | Works for arrays and structures
 
 Support for declaring structures and unions inside functions is supported as
 well as anywhere a typename is expected, e.g a function argument. Initializer
