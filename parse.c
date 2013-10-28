@@ -407,42 +407,107 @@ static data_type_t *parse_type(lexer_token_t *token) {
     if (!token || token->type != LEXER_TOKEN_IDENT)
         return NULL;
 
+    int uspec = 0;
+
     enum {
-        isign,
-        usign,
-        uspec
-    } spec = isign;
+        ssign = 1,
+        usign
+    } sign = uspec;
+
+    enum {
+        zchar = 1,
+        zshort,
+        zint,
+        zlong,
+        zllong
+    } type = uspec;
 
     for (;;) {
-        if      (!strcmp(token->string, "signed"))   spec = isign;
-        else if (!strcmp(token->string, "unsigned")) spec = usign;
-        else break; // TODO register/volatile/restrict
+        char *string = token->string;
+
+        if      (!strcmp(string, "signed"))   { if (sign != uspec) goto dspec; sign = ssign;  }
+        else if (!strcmp(string, "unsigned")) { if (sign != uspec) goto dspec; sign = usign;  }
+        else if (!strcmp(string, "char"))     { if (type != uspec) goto dtype; type = zchar;  }
+        else if (!strcmp(string, "short"))    { if (type != uspec) goto dtype; type = zshort; }
+
+        // special since char/int are considered the
+        // same thing, e.g sizeof('a') is same as
+        // sizeof(int)
+        else if (!strcmp(string, "int")) {
+            if (type == uspec)
+                type = zint;
+            else if (type == zchar)
+                goto dtype;
+        }
+
+        // slightly special because of
+        // long long
+        else if (!strcmp(string, "long")) {
+            if (type == uspec)
+                type = zlong;
+            else if (type == zlong)
+                type = zllong;
+            else
+                goto dtype;
+        }
+
+        // floating and double types are also special
+        // no 'long double' yet
+        else if (!strcmp(string, "float")) {
+            if (sign != uspec) goto ispec;
+            if (type != uspec) goto dtype;
+            return ast_data_float;
+        }
+
+        else if (!strcmp(string, "double")) {
+            if (sign != uspec) goto ispec;
+            if (type != uspec) goto dtype;
+            return ast_data_double;
+        }
+
+        // void is INCREDIBLY special
+        else if (!strcmp(string, "void")) {
+            if (sign != uspec) goto ispec;
+            if (type != uspec) goto dtype;
+            return ast_data_void;
+        }
+
+        // unget and break
+        else {
+            lexer_unget(token);
+            break;
+        }
 
         token = lexer_next();
         if (token->type != LEXER_TOKEN_IDENT) {
             lexer_unget(token);
-
-            // in C there is this 'notion' of implicit integer
-            // which means "unsigned" or "signed" by itself without
-            // any type next to it automatically means integer with
-            // what ever specification on it
-            return spec == usign ? ast_data_uint : ast_data_int;
+            break;
         }
     }
 
-    if (!strcmp(token->string, "char"))   return (spec == usign) ? ast_data_uchar  : ast_data_char;
-    if (!strcmp(token->string, "short"))  return (spec == usign) ? ast_data_ushort : ast_data_short;
-    if (!strcmp(token->string, "int"))    return (spec == usign) ? ast_data_uint   : ast_data_int;
-    if (!strcmp(token->string, "long"))   return (spec == usign) ? ast_data_ulong  : ast_data_long;
-    if (!strcmp(token->string, "float"))  return ast_data_float;
-    if (!strcmp(token->string, "double")) return ast_data_double;
-    if (!strcmp(token->string, "void"))   return ast_data_void;
+    if (type == uspec && sign == uspec)
+        compile_error("Internal error in type specification");
 
-    // implicit integer in C, see note above
-    if (spec != uspec)
-        return (spec == usign) ? ast_data_uint : ast_data_int;
+    // unspecified type becomes implicit integer in C
+    if (type == uspec)
+        type = zint;
 
-    compile_error("Expected type");
+    switch (type) {
+        case zchar:  return sign == ssign ? ast_data_uchar  : ast_data_char;
+        case zshort: return sign == ssign ? ast_data_ushort : ast_data_short;
+        case zint:   return sign == ssign ? ast_data_uint   : ast_data_int;
+        case zlong:  return sign == ssign ? ast_data_ulong  : ast_data_long;
+        case zllong: return sign == ssign ? ast_data_ulong  : ast_data_long;
+    }
+    compile_error("Really confused!!!");
+
+dspec:
+    compile_error("Duplicate specification");
+dtype:
+    compile_error("Duplicate type specification");
+ispec:
+    compile_error("Invalid type specification");
+
     return NULL;
 }
 
