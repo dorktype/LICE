@@ -289,35 +289,6 @@ lexer_token_t *lexer_peek(void) {
     return token;
 }
 
-bool lexer_islong(char *string) {
-    // long must be all digit up to a L or l in which the last
-    // character must be a null termination
-    for (; *string; string++)
-        if (!isdigit(*string))
-            return (*string == 'L' || *string == 'l') && string[1] == '\0';
-    return false;
-}
-
-bool lexer_isint(char *string) {
-    // like long but none of the test
-    for (; *string; string++)
-        if (!isdigit(*string))
-            return false;
-    return true;
-}
-
-bool lexer_isfloat(char *string) {
-    for (; *string; string++)
-        if (!isdigit(*string))
-            break;
-    if (*string++ != '.')
-        return false;
-    for (; *string; string++)
-        if (!isdigit(*string))
-            return false;
-    return true;
-}
-
 char *lexer_tokenstr(lexer_token_t *token) {
     string_t *string = string_create();
 

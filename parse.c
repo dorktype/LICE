@@ -194,6 +194,52 @@ static ast_t *parse_generic(char *name) {
     return var;
 }
 
+static ast_t *parse_number(char *string) {
+    char *p    = string;
+    int   base = 10;
+
+    if (*p == '0') {
+        p++;
+        if (*p == 'x' || *p == 'X') {
+            base = 16;
+            p++;
+        } else if (isdigit(*p)) {
+            base = 8; // octal
+        }
+    }
+
+    char *start = p;
+    while (isxdigit(*p))
+        p++;
+
+    if (*p == '.') {
+        if (base != 10)
+            compile_error("Malformatted numerical value (1)");
+        p++;
+
+        while (isdigit(*p))
+            p++;
+
+        if (*p != '\0')
+            compile_error("Malformmated numerical value (2)");
+
+        return ast_new_floating(atof(start));
+    }
+    if (!strcasecmp(p, "l"))
+        return ast_new_integer(ast_data_long, strtol(start, NULL, base));
+    else if (!strcasecmp(p, "ul") || !strcasecmp(p, "lu"))
+        return ast_new_integer(ast_data_ulong, strtoul(start, NULL, base));
+    else {
+        if (*p != '\0')
+            compile_error("Malformatted numerical value (3) %s (%s)", string, p);
+        long test = strtol(start, NULL, base);
+        if (test & ~(long)UINT_MAX)
+            return ast_new_integer(ast_data_long, test);
+        return ast_new_integer(ast_data_int, test);
+    }
+    return NULL;
+}
+
 static ast_t *parse_expression_primary(void) {
     lexer_token_t *token;
     ast_t         *ast;
@@ -207,22 +253,7 @@ static ast_t *parse_expression_primary(void) {
 
         // ast generating ones
         case LEXER_TOKEN_NUMBER:
-            if (lexer_islong(token->string))
-                return ast_new_integer(ast_data_long, atol(token->string));
-            if (lexer_isint(token->string)) {
-                long value = atol(token->string);
-                if (value & ~(long)UINT_MAX)
-                    return ast_new_integer(ast_data_long, value);
-                return ast_new_integer(ast_data_int, value);
-            }
-            if (lexer_isfloat(token->string)) {
-                ast_t *v = ast_new_floating(atof(token->string));
-                return v;
-            } else {
-                printf("not a float: %s\n", token->string);
-            }
-            compile_error("Internal error");
-            break;
+            return parse_number(token->string);
 
         case LEXER_TOKEN_CHAR:
             return ast_new_integer(ast_data_char, token->character);
