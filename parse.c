@@ -751,17 +751,51 @@ static data_type_t *parse_tag_definition(table_t *table, int (*compute)(table_t 
     return r;
 }
 
+static data_type_t *parse_enumeration(void) {
+    lexer_token_t *token = lexer_next();
+    if (token->type == LEXER_TOKEN_IDENT)
+        token = lexer_next();
+    if (!lexer_ispunct(token, '{')) {
+        lexer_unget(token);
+        return ast_data_int;
+    }
+    int accumulate = 0;
+    for (;;) {
+        token = lexer_next();
+        if (lexer_ispunct(token, '}'))
+            break;
+
+        if (token->type != LEXER_TOKEN_IDENT)
+            compile_error("NOPE");
+        ast_t *constval = ast_new_integer(ast_data_int, accumulate++);
+        table_insert(ast_localenv ? ast_localenv : ast_globalenv, token->string, constval);
+        token = lexer_next();
+        if (lexer_ispunct(token, ','))
+            continue;
+        if (lexer_ispunct(token, '}'))
+            break;
+
+        compile_error("NOPE!");
+    }
+    return ast_data_int;
+}
+
 static data_type_t *parse_declaration_specification(void) {
     lexer_token_t *token = lexer_next();
 
     if (!token)
         return NULL;
 
+    if (token->type != LEXER_TOKEN_IDENT)
+        compile_error("ICE");
+
     data_type_t   *type  = parse_identifer_check(token, "struct")
                                 ? parse_tag_definition(ast_structures, &parse_structure_size)
                                 : (parse_identifer_check(token, "union"))
                                     ? parse_tag_definition(ast_unions, &parse_union_size)
-                                    : parse_type(token);
+                                    : (parse_identifer_check(token, "enum"))
+                                        ? parse_enumeration()
+                                        : parse_type(token);
 
     for (;;) {
         token = lexer_next();
@@ -831,19 +865,15 @@ static ast_t *parse_declaration_initialization(ast_t *var) {
 }
 
 static void parse_declaration_intermediate(lexer_token_t **name, data_type_t **ctype) {
-    data_type_t *type = parse_declaration_specification();
-    lexer_token_t *iname = lexer_next();
-    if (lexer_ispunct(iname, ';')) {
-        lexer_unget(iname);
+    data_type_t   *type  = parse_declaration_specification();
+    lexer_token_t *token = lexer_next();
+
+    if (lexer_ispunct(token, ';')) {
+        lexer_unget(token);
         *name = NULL;
         return;
     }
-    if (iname->type != LEXER_TOKEN_IDENT) {
-        lexer_unget(iname);
-        *name = NULL;
-    } else {
-        *name = iname;
-    }
+    *name  = token;
     *ctype = parse_array_dimensions(type);
 }
 
@@ -851,6 +881,10 @@ static ast_t *parse_declaration(void) {
     lexer_token_t *token;
     data_type_t   *type = NULL;
     parse_declaration_intermediate(&token, &type);
+    if (!token) {
+        parse_expect(';');
+        return NULL;
+    }
     return parse_declaration_initialization(ast_new_variable_local(type, token->string));
 }
 
@@ -949,7 +983,7 @@ static ast_t *parse_statement_compound(void) {
             list_push(statements, statement);
 
         if (!statement)
-            break;
+            continue;
 
         lexer_token_t *token = lexer_next();
         if (lexer_ispunct(token, '}'))
@@ -1023,7 +1057,7 @@ static ast_t *parse_function_declaration_definition(data_type_t *returntype, cha
         return parse_function_definition(returntype, name, parameters);
     data_type_t *type = ast_new_prototype(returntype, parse_parameter_types(parameters));
     table_insert(ast_globalenv, name, type);
-    return parse_toplevel();
+    return NULL;
 }
 
 static ast_t *parse_toplevel(void) {
@@ -1048,8 +1082,14 @@ static ast_t *parse_toplevel(void) {
         lexer_token_t *peek = lexer_peek();
         if (lexer_ispunct(peek, '=') || type->type == TYPE_ARRAY)
             return parse_declaration_initialization(ast_new_variable_global(type, token->string, false));
-        if (lexer_ispunct(peek, '('))
-            return parse_function_declaration_definition(type, token->string);
+
+        if (lexer_ispunct(peek, '(')) {
+            ast_t *function = parse_function_declaration_definition(type, token->string);
+            if (function)
+                return function;
+            continue;
+        }
+
         if (lexer_ispunct(peek, ';')) {
             lexer_next();
             return ast_new_decl(ast_new_variable_global(type, token->string, false), NULL);
