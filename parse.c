@@ -11,10 +11,13 @@
 #define PARSE_ALIGNMENT 16
 
 static ast_t *parse_expression(void);
+static ast_t *parse_expression_unary(void);
 static ast_t *parse_statement_compound(void);
 static ast_t *parse_statement_declaration(void);
 static ast_t *parse_statement(void);
-static data_type_t *parse_declaration_intermediate(lexer_token_t **name);
+static void   parse_declaration_intermediate(lexer_token_t **name, data_type_t **ctype);
+
+static bool parse_type_check(lexer_token_t *token);
 
 static void parse_semantic_lvalue(ast_t *ast) {
     switch (ast->type) {
@@ -283,12 +286,37 @@ static ast_t *parse_expression_subscript(ast_t *ast) {
     return ast_new_unary(AST_TYPE_DEREFERENCE, node->ctype->pointer, node);
 }
 
+static ast_t *parse_sizeof(bool typename) {
+    lexer_token_t *token = lexer_next();
+    if (typename && parse_type_check(token)) {
+        lexer_token_t *ignore;
+        data_type_t   *type = NULL;
+
+        parse_declaration_intermediate(&ignore, &type);
+        return ast_new_integer(ast_data_long, type->size);
+    }
+    // deal with the sizeof () thing
+    if (lexer_ispunct(token, '(')) {
+        ast_t *next = parse_sizeof(true);
+        parse_expect(')');
+        return next;
+    }
+
+    lexer_unget(token);
+    ast_t *expression = parse_expression_unary();
+    if (expression->ctype->size == 0)
+        compile_error("sizeof void makes no sense!");
+    return ast_new_integer(ast_data_long, expression->ctype->size);
+}
+
 static ast_t *parse_expression_unary(void) {
     lexer_token_t *token = lexer_next();
 
-    if (token->type != LEXER_TOKEN_PUNCT) {
-        lexer_unget(token);
-        return parse_expression_primary();
+    if (!token)
+        compile_error("internal error");
+
+    if (parse_identifer_check(token, "sizeof")) {
+        return parse_sizeof(false);
     }
 
     // for *(expression) and &(expression)
@@ -539,7 +567,7 @@ dtype:
 ispec:
     compile_error("Invalid type specification");
 
-    return NULL;
+    return ast_data_int;
 }
 
 static bool parse_type_check(lexer_token_t *token) {
@@ -656,14 +684,20 @@ static char *parse_memory_tag(void) {
 }
 
 static table_t *parse_memory_fields(void) {
+    lexer_token_t *token = lexer_next();
+    if (!lexer_ispunct(token, '{')) {
+        lexer_unget(token);
+        return NULL;
+    }
+
     table_t *table = table_create(NULL);
-    parse_expect('{');
     for (;;) {
         if (!parse_type_check(lexer_peek()))
             break;
 
         lexer_token_t *name;
-        data_type_t   *type = parse_declaration_intermediate(&name);
+        data_type_t   *type = NULL;
+        parse_declaration_intermediate(&name, &type);
 
         table_insert(table, name->string, ast_structure_field_new(type, 0));
         parse_expect(';');
@@ -672,57 +706,49 @@ static table_t *parse_memory_fields(void) {
     return table;
 }
 
-static data_type_t *parse_union_definition(void) {
-    char        *tag  = parse_memory_tag();
-    data_type_t *type = table_find(ast_unions, tag);
-
-    if (type)
-        return type;
-
-    table_t *fields = parse_memory_fields();
-    int      size   = 0;
-
-    // calculate the largest size for the union
+static int parse_union_size(table_t *fields) {
+    int maxsize = 0;
     for (list_iterator_t *it = list_iterator(table_values(fields)); !list_iterator_end(it); ) {
         data_type_t *type = list_iterator_next(it);
-        size = (size < type->size) ? type->size : size;
+        maxsize = (maxsize < type->size)
+                    ? type->size
+                    : maxsize;
     }
-
-    // a 'union' is just a structure with the largest field as the size
-    // with many fields, all of which occupy the same 'space'
-    data_type_t *final = ast_structure_new(fields, size);
-    if (tag)
-        table_insert(ast_unions, tag, final);
-
-    return final;
+    return maxsize;
 }
 
-static data_type_t *parse_structure_definition(void) {
-    char        *tag  = parse_memory_tag();
-    data_type_t *type = table_find(ast_structures, tag);
-
-    if (type)
-        return type;
-
-    table_t *fields = parse_memory_fields();
-    int      offset = 0;
-
+static int parse_structure_size(table_t *fields) {
+    int offset = 0;
     for (list_iterator_t *it = list_iterator(table_values(fields)); !list_iterator_end(it); ) {
-        data_type_t *fieldtype = list_iterator_next(it);
-        int          size      = (fieldtype->size < PARSE_ALIGNMENT) ? fieldtype->size : PARSE_ALIGNMENT;
+        data_type_t *type = list_iterator_next(it);
+        type->offset = offset;
+        offset += type->size;
+    }
+    return offset;
+}
 
-        if (offset % size != 0)
-            offset += size - offset % size;
+static data_type_t *parse_tag_definition(table_t *table, int (*compute)(table_t *table)) {
+    char        *tag    = parse_memory_tag();
+    data_type_t *prev   = tag ? table_find(ast_unions, tag) : NULL;
+    table_t     *fields = parse_memory_fields();
 
-        fieldtype->offset = offset;
-        offset += fieldtype->size;
+    if (prev && !fields)
+        return prev;
+
+    if (prev && fields) {
+        prev->fields = fields;
+        prev->size   = compute(fields);
+        return prev;
     }
 
-    data_type_t *final = ast_structure_new(fields, offset);
-    if (tag)
-        table_insert(ast_structures, tag, final);
+    data_type_t *r = (fields)
+        ? ast_structure_new(fields, compute(fields))
+        : ast_structure_new(NULL,   0);
 
-    return final;
+    if (tag)
+        table_insert(ast_unions, tag, r);
+
+    return r;
 }
 
 static data_type_t *parse_declaration_specification(void) {
@@ -732,13 +758,10 @@ static data_type_t *parse_declaration_specification(void) {
         return NULL;
 
     data_type_t   *type  = parse_identifer_check(token, "struct")
-                                ? parse_structure_definition()
+                                ? parse_tag_definition(ast_structures, &parse_structure_size)
                                 : (parse_identifer_check(token, "union"))
-                                    ? parse_union_definition()
+                                    ? parse_tag_definition(ast_unions, &parse_union_size)
                                     : parse_type(token);
-
-    if (!type)
-        compile_error("Expected type");
 
     for (;;) {
         token = lexer_next();
@@ -807,17 +830,27 @@ static ast_t *parse_declaration_initialization(ast_t *var) {
     return ast_new_decl(var, NULL);
 }
 
-static data_type_t *parse_declaration_intermediate(lexer_token_t **name) {
+static void parse_declaration_intermediate(lexer_token_t **name, data_type_t **ctype) {
     data_type_t *type = parse_declaration_specification();
-    *name = lexer_next();
-    if ((*name)->type != LEXER_TOKEN_IDENT)
-        compile_error("Internal error: parse_declaration_intermediate %s", lexer_tokenstr(*name));
-    return parse_array_dimensions(type);
+    lexer_token_t *iname = lexer_next();
+    if (lexer_ispunct(iname, ';')) {
+        lexer_unget(iname);
+        *name = NULL;
+        return;
+    }
+    if (iname->type != LEXER_TOKEN_IDENT) {
+        lexer_unget(iname);
+        *name = NULL;
+    } else {
+        *name = iname;
+    }
+    *ctype = parse_array_dimensions(type);
 }
 
 static ast_t *parse_declaration(void) {
     lexer_token_t *token;
-    data_type_t   *type = parse_declaration_intermediate(&token);
+    data_type_t   *type = NULL;
+    parse_declaration_intermediate(&token, &type);
     return parse_declaration_initialization(ast_new_variable_local(type, token->string));
 }
 
@@ -994,33 +1027,35 @@ static ast_t *parse_function_declaration_definition(data_type_t *returntype, cha
 }
 
 static ast_t *parse_toplevel(void) {
-    lexer_token_t *token = lexer_peek();
-    if (!token)
-        return NULL;
+    for (;;) {
+        // need a way to drop out
+        lexer_token_t *get = lexer_next();
+        if (!get)
+            return NULL;
 
-    data_type_t   *data = parse_declaration_specification();
-    lexer_token_t *name = lexer_next();
+        lexer_unget(get); // stage back
 
-    if (name->type != LEXER_TOKEN_IDENT)
-        compile_error("TODO: parse_declaration_function_definition");
+        data_type_t   *type  = parse_declaration_specification();
+        lexer_token_t *token = lexer_next();
 
-    data  = parse_array_dimensions(data);
-    token = lexer_peek();
+        if (lexer_ispunct(token, ';'))
+            continue;
 
-    if (lexer_ispunct(token, '=') || data->type == TYPE_ARRAY) {
-        ast_t *var = ast_new_variable_global(data, name->string, false);
-        return parse_declaration_initialization(var);
+        if (token->type != LEXER_TOKEN_IDENT)
+            compile_error("Internal error");
+
+        type = parse_array_dimensions(type);
+        lexer_token_t *peek = lexer_peek();
+        if (lexer_ispunct(peek, '=') || type->type == TYPE_ARRAY)
+            return parse_declaration_initialization(ast_new_variable_global(type, token->string, false));
+        if (lexer_ispunct(peek, '('))
+            return parse_function_declaration_definition(type, token->string);
+        if (lexer_ispunct(peek, ';')) {
+            lexer_next();
+            return ast_new_decl(ast_new_variable_global(type, token->string, false), NULL);
+        }
+        compile_error("Confused!\n");
     }
-
-    if (lexer_ispunct(token, '('))
-        return parse_function_declaration_definition(data, name->string);
-
-    if (lexer_ispunct(token, ';')) {
-        lexer_next();
-        ast_t *var = ast_new_variable_global(data, name->string, false);
-        return ast_new_decl(var, NULL);
-    }
-    compile_error("Internal error: Confused!");
     return NULL;
 }
 

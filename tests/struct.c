@@ -1,3 +1,4 @@
+struct incomplete;
 void test() {
     struct s {
         int a;
@@ -30,6 +31,19 @@ void test() {
     expecti(p->array[0], 101);
     expecti(p->array[1], 202);
     expecti(p->array[2], 104);
+
+    // incomplete type struct
+    struct complete {
+        struct incomplete *a;
+    } completed;
+
+    struct incomplete {
+        int a;
+    } incompleted = { 100 };
+
+    completed.a = &incompleted;
+
+    expecti(completed.a->a, 100);
 }
 
 int main() {
