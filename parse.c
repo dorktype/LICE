@@ -767,8 +767,16 @@ static data_type_t *parse_enumeration(void) {
 
         if (token->type != LEXER_TOKEN_IDENT)
             compile_error("NOPE");
+
+        char *name = token->string;
+        token = lexer_next();
+        if (lexer_ispunct(token, '='))
+            accumulate = parse_evaluate(parse_expression());
+        else
+            lexer_unget(token);
+
         ast_t *constval = ast_new_integer(ast_data_int, accumulate++);
-        table_insert(ast_localenv ? ast_localenv : ast_globalenv, token->string, constval);
+        table_insert(ast_localenv ? ast_localenv : ast_globalenv, name, constval);
         token = lexer_next();
         if (lexer_ispunct(token, ','))
             continue;

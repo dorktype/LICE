@@ -10,6 +10,12 @@ enum foo {
     F
 } value;
 
+enum {
+    I = 100,
+    J,
+    K
+};
+
 void test() {
     expecti(A, 0);
     expecti(B, 1);
@@ -21,6 +27,10 @@ void test() {
     value = A; expecti(value, D);
     value = B; expecti(value, E);
     value = C; expecti(value, F);
+
+    expecti(I, 100);
+    expecti(J, 101);
+    expecti(K, 102);
 }
 
 int main() {
