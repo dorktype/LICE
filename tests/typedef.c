@@ -20,6 +20,15 @@ int main(int argc, char **argv) {
     foo.a = argc;
     bar.data = &foo;
 
+    typedef enum {
+        fee,
+        fi,
+        fo,
+    } fum_t;
+
+    fum_t fum = fee;
+    expecti(fum, fee);
+
     expecti(a, argc);
     expecti(b, argv);
 
