@@ -1,3 +1,6 @@
+int external_1 = 1337;
+int external_2 = 7331;
+
 void expecti(int a, int b) {
     if (a != b) {
         printf(" [ERROR]\n");

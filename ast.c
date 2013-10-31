@@ -248,12 +248,12 @@ ast_t *ast_new_variable_local(data_type_t *type, char *name) {
     return ast;
 }
 
-ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file) {
+ast_t *ast_new_variable_global(data_type_t *type, char *name) {
     ast_t *ast          = ast_new_node();
     ast->type           = AST_TYPE_VAR_GLOBAL;
     ast->ctype          = type;
     ast->variable.name  = name;
-    ast->variable.label = (file) ? ast_new_label() : name;
+    ast->variable.label = name;
 
     table_insert(ast_globalenv, name, ast);
     return ast;

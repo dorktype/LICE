@@ -587,7 +587,7 @@ static bool parse_type_check(lexer_token_t *token) {
         "float",  "double",
         "struct", "union",
         "signed", "unsigned",
-        "typedef"
+        "extern", "typedef"
     };
 
     for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++)
@@ -991,19 +991,34 @@ static ast_t *parse_statement(void) {
     return ast;
 }
 
+static void parse_external(void) {
+    lexer_token_t *name;
+    data_type_t   *type;
+
+    parse_declaration_intermediate(&name, &type);
+
+    if (!name)
+        compile_error("ICE");
+
+    ast_new_variable_global(type, name->string); // no table though
+    parse_expect(';');
+}
+
 static ast_t *parse_statement_declaration(void) {
-    lexer_token_t *token = lexer_next();
+    for (;;) {
+        lexer_token_t *token = lexer_next();
 
-    if (!token)
-        return NULL;
+        if (!token)
+            return NULL;
 
-    if (parse_identifer_check(token, "typedef")) {
-        parse_typedef();
-        return parse_statement_declaration();
+        if (parse_identifer_check(token, "typedef")) {
+            parse_typedef();
+            continue;
+        }
+
+        lexer_unget(token);
+        return parse_type_check(token) ? parse_declaration() : parse_statement();
     }
-
-    lexer_unget(token);
-    return parse_type_check(token) ? parse_declaration() : parse_statement();
 }
 
 
@@ -1116,6 +1131,16 @@ list_t *parse_run(void) {
         if (!get)
             return list;
 
+        if (parse_identifer_check(get, "typedef")) {
+            parse_typedef();
+            continue;
+        }
+
+        if (parse_identifer_check(get, "extern")) {
+            parse_external();
+            continue;
+        }
+
         lexer_unget(get); // stage back
 
         data_type_t   *base  = parse_declaration_specification();
@@ -1131,7 +1156,7 @@ list_t *parse_run(void) {
         type = parse_array_dimensions(type);
         lexer_token_t *peek = lexer_peek();
         if (lexer_ispunct(peek, '=') || type->type == TYPE_ARRAY) {
-            list_push(list, parse_declaration_initialization(ast_new_variable_global(type, token->string, false)));
+            list_push(list, parse_declaration_initialization(ast_new_variable_global(type, token->string)));
             continue;
         }
 
@@ -1144,7 +1169,7 @@ list_t *parse_run(void) {
 
         if (lexer_ispunct(peek, ';')) {
             lexer_next();
-            list_push(list, ast_new_decl(ast_new_variable_global(type, token->string, false), NULL));
+            list_push(list, ast_new_decl(ast_new_variable_global(type, token->string), NULL));
             continue;
         }
         compile_error("Confused!\n");

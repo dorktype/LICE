@@ -1,4 +1,6 @@
-int main(int argc, char **argv) {
+typedef int myint;
+
+myint main(myint argc, char **argv) {
     typedef int integer;
     typedef char** stringarray;
 

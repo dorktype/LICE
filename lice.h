@@ -132,10 +132,8 @@ typedef struct {
 
 typedef struct {
     char *name;
-    struct {
-        int   off;
-        char *label;
-    };
+    int   off;
+    char *label;
 } ast_variable_t;
 
 typedef struct {
@@ -233,7 +231,7 @@ char *ast_new_label(void);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_variable_local(data_type_t *type, char *name);
 ast_t *ast_new_reference_local(data_type_t *type, ast_t *var, int off);
-ast_t *ast_new_variable_global(data_type_t *type, char *name, bool file);
+ast_t *ast_new_variable_global(data_type_t *type, char *name);
 ast_t *ast_new_reference_global(data_type_t *type, ast_t *var, int off);
 ast_t *ast_new_string(char *value);
 ast_t *ast_new_call(data_type_t *type, char *name, list_t *args, list_t *paramtypes);
