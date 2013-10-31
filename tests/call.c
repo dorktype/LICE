@@ -12,7 +12,5 @@ void test() {
 int main() {
     init("function calls");
     test();
-    printf(" [OK]\n");
-
-    return 0;
+    return ok();
 }

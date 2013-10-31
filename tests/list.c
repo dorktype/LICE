@@ -34,7 +34,5 @@ void test() {
 int main() {
     init("initializer lists");
     test();
-    printf(" [OK]\n");
-
-    return 0;
+    return ok();
 }

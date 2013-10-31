@@ -65,7 +65,5 @@ void test() {
 int main() {
     init("operators");
     test();
-    printf(" [OK]\n");
-
-    return 0;
+    return ok();
 }

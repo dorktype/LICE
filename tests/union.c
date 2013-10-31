@@ -24,7 +24,5 @@ void test() {
 int main() {
     init("union");
     test();
-    printf(" [OK]\n");
-
-    return 0;
+    return ok();
 }

@@ -36,7 +36,5 @@ void test() {
 int main() {
     init("enumerations");
     test();
-    printf(" [OK]\n");
-
-    return 0;
+    return ok();
 }

@@ -47,3 +47,8 @@ void init(char *message) {
     for (int i = 0; i < fill; i++)
         printf(" ");
 }
+
+int ok() {
+    printf("[OK]\n");
+    return 0;
+}

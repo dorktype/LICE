@@ -29,7 +29,5 @@ void test() {
 int main() {
     init("for loop");
     test();
-    printf(" [OK]\n");
-
-    return 0;
+    return ok();
 }

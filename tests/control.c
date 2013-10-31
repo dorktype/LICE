@@ -29,6 +29,5 @@ void test() {
 int main() {
     init("control flow");
     test();
-    printf(" [OK]\n");
-    return 0;
+    return ok();
 }

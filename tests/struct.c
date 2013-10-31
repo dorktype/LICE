@@ -49,7 +49,5 @@ void test() {
 int main() {
     init("struct");
     test();
-    printf(" [OK]\n");
-
-    return 0;
+    return ok();
 }

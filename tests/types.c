@@ -57,7 +57,5 @@ void test() {
 int main() {
     init("type specifiers");
     test();
-    printf(" [OK]\n");
-
-    return 0;
+    return ok();
 }
