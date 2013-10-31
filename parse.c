@@ -18,6 +18,8 @@ static ast_t *parse_statement(void);
 static void   parse_declaration_intermediate(lexer_token_t **name, data_type_t **ctype);
 static data_type_t *parse_declarator(data_type_t *basetype);
 
+table_t *parse_typedefs = &SENTINEL_TABLE;
+
 static bool parse_type_check(lexer_token_t *token);
 
 static void parse_semantic_lvalue(ast_t *ast) {
@@ -532,6 +534,10 @@ static data_type_t *parse_type(lexer_token_t *token) {
             return ast_data_void;
         }
 
+        else if (table_find(parse_typedefs, string)) {
+            return table_find(parse_typedefs, string);
+        }
+
         // unget and break
         else {
             lexer_unget(token);
@@ -580,12 +586,16 @@ static bool parse_type_check(lexer_token_t *token) {
         "int",    "long",
         "float",  "double",
         "struct", "union",
-        "signed", "unsigned"
+        "signed", "unsigned",
+        "typedef"
     };
 
     for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++)
         if (!strcmp(keywords[i], token->string))
             return true;
+
+    if (table_find(parse_typedefs, token->string))
+        return true;
 
     return false;
 }
@@ -894,6 +904,17 @@ static ast_t *parse_declaration(void) {
     return parse_declaration_initialization(ast_new_variable_local(type, token->string));
 }
 
+static void parse_typedef(void) {
+    lexer_token_t *name;
+    data_type_t   *type;
+
+    parse_declaration_intermediate(&name, &type);
+    if (!name)
+        compile_error("typedef error");
+    table_insert(parse_typedefs, name->string, type);
+    parse_expect(';');
+}
+
 static ast_t *parse_statement_if(void) {
     lexer_token_t *token;
     ast_t  *cond;
@@ -971,11 +992,17 @@ static ast_t *parse_statement(void) {
 }
 
 static ast_t *parse_statement_declaration(void) {
-    lexer_token_t *token = lexer_peek();
+    lexer_token_t *token = lexer_next();
 
     if (!token)
         return NULL;
 
+    if (parse_identifer_check(token, "typedef")) {
+        parse_typedef();
+        return parse_statement_declaration();
+    }
+
+    lexer_unget(token);
     return parse_type_check(token) ? parse_declaration() : parse_statement();
 }
 
