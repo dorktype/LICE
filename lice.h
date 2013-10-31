@@ -293,6 +293,6 @@ void gen_data_section(void);
 void gen_function(ast_t *function);
 
 // parse
-list_t *parse_function_list(void);
+list_t *parse_run(void);
 
 #endif

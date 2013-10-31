@@ -16,7 +16,7 @@ void compile_error(const char *fmt, ...) {
 }
 
 int compile_begin(bool dump) {
-    list_t *block = parse_function_list();
+    list_t *block = parse_run();
     if (!dump) {
         gen_data_section();
     }
