@@ -660,6 +660,9 @@ static ast_t *parse_declaration_structure_initializer_value(data_type_t *type) {
         data_type_t   *fieldtype = list_iterator_next(it);
         lexer_token_t *token     = lexer_next();
 
+        if (lexer_ispunct(token, '}'))
+            return ast_new_initializerlist(initlist);
+
         if (lexer_ispunct(token, '{')) {
             if (fieldtype->type != TYPE_ARRAY)
                 compile_error("Internal error");
@@ -667,6 +670,7 @@ static ast_t *parse_declaration_structure_initializer_value(data_type_t *type) {
             parse_declaration_array_initializer_intermediate(initlist, fieldtype);
             continue;
         }
+
         lexer_unget(token);
         parse_declaration_initializerlist_element(initlist, fieldtype);
     }

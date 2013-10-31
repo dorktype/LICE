@@ -14,10 +14,21 @@ void test() {
         {1, 2, 3, 4}
     };
 
+    struct {
+        int a;
+        char b[5];
+    } data = {
+        100, { 'h', 'e', 'l', 'p', 0 }
+    };
+
+
     expecti(d.a[0], 1);
     expecti(d.a[1], 2);
     expecti(d.a[2], 3);
     expecti(d.a[3], 4);
+
+    expecti(data.a, 100);
+    expects(data.b, "help");
 }
 
 int main() {

@@ -30,6 +30,16 @@ void expectd(double a, double b) {
     }
 }
 
+void expects(char *a, char *b) {
+    if (strcmp(a, b)) {
+        printf(" [ERROR]\n");
+        printf("    Expected: %s\n", b);
+        printf("    Result:   %s\n", a);
+
+        exit(1);
+    }
+}
+
 void init(char *message) {
     int size = strlen(message);
     printf("Testing %s ...", message);
