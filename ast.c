@@ -40,6 +40,7 @@ table_t     *ast_unions      = &SENTINEL_TABLE;
 ////////////////////////////////////////////////////////////////////////
 bool ast_type_integer(data_type_t *type) {
     return type->type == TYPE_CHAR
+        || type->type == TYPE_SHORT
         || type->type == TYPE_INT
         || type->type == TYPE_LONG;
 }
