@@ -3,23 +3,11 @@ at the sources of existing ones like TCC, GCC and SubC, while still
 keeping the code easy to understand and well documented for my own sake.
 
 ### Types
-Lice supports the following types
-
-Type   | Description
--------|:-----------
-char   | Standard character representing type (1 byte)
-short  | Standard short integer representing type (2 bytes)
-int    | Standard integer representing type (4 bytes)
-long   | Standard long integer representing type (8 bytes)
-float  | Untested for conformancy floating point type (4 bytes)
-double | Untested for conformancy double floating point type (8 bytes)
-void   | Standard void type
-
-Lice also supports these types for arrays and pointers, these types
-are all represened as signed types. Lice also supports unsigned
-and signed type specifications as well as implicit int unspecified
-typing.
-
+Lice supports all the default data types in C, `char, short, int, long,
+long long, float, double, long double` as well as `signed, unsigned`.
+Lice also allows these types for arrays and pointers, there is no support
+for the `volatile, restrict, register` and `const` type specifiers yet.
+The `void` type is also supported as well.
 
 ### Functions
 Functions are supported, as is function prototyping. Functions
