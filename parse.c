@@ -292,6 +292,8 @@ static ast_t *parse_expression_subscript(ast_t *ast) {
 static ast_t *parse_sizeof(bool typename) {
     lexer_token_t *token = lexer_next();
     if (typename && parse_type_check(token)) {
+        lexer_unget(token);
+
         lexer_token_t *ignore;
         data_type_t   *type = NULL;
 
@@ -889,7 +891,15 @@ static void parse_declaration_intermediate(lexer_token_t **name, data_type_t **c
         *name = NULL;
         return;
     }
-    *name  = token;
+
+    if (token->type != LEXER_TOKEN_IDENT) {
+        lexer_unget(token);
+        *name = NULL;
+    } else {
+        *name = token;
+    }
+
+    //*name  = token;
     *ctype = parse_array_dimensions(type);
 }
 
