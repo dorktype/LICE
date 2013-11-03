@@ -173,8 +173,9 @@ static ast_t *parse_function_call(char *name) {
     if (PARSE_CALLS < list_length(list))
         compile_error("too many arguments");
 
-    data_type_t *declaration = table_find(ast_localenv, name);
-    if (declaration) {
+    ast_t *func = table_find(ast_localenv, name);
+    if (func) {
+        data_type_t *declaration = func->ctype;
         if (declaration->type != TYPE_FUNCTION)
             compile_error("%s isn't a function fool!\n", name);
         parse_function_typecheck(name, declaration->parameters, parse_parameter_types(list));
@@ -812,15 +813,25 @@ static data_type_t *parse_declaration_specification(void) {
         return NULL;
 
     if (token->type != LEXER_TOKEN_IDENT)
-        compile_error("ICE");
+        compile_error("ICE %s [%s]", __func__, lexer_tokenstr(token));
 
     data_type_t  *type  = parse_identifer_check(token, "struct")
-                                ? parse_tag_definition(ast_structures, &parse_structure_size)
-                                : (parse_identifer_check(token, "union"))
-                                    ? parse_tag_definition(ast_unions, &parse_union_size)
-                                    : (parse_identifer_check(token, "enum"))
-                                        ? parse_enumeration()
-                                        : parse_type(token);
+                            ? parse_tag_definition(ast_structures, &parse_structure_size)
+                        : (parse_identifer_check(token, "union"))
+                            ? parse_tag_definition(ast_unions, &parse_union_size)
+                        : (parse_identifer_check(token, "enum"))
+                            ? parse_enumeration()
+                        : parse_type(token);
+
+    // WOW WHAT A HACK!
+    for (;;) {
+        token = lexer_next();
+        if (!lexer_ispunct(token, '*')) {
+            lexer_unget(token);
+            return type;
+        }
+        type = ast_new_pointer(type);
+    }
 
     return type;
 }
@@ -914,15 +925,33 @@ static ast_t *parse_declaration(void) {
     return parse_declaration_initialization(ast_new_variable_local(type, token->string));
 }
 
-static void parse_typedef(void) {
+static void parse_typedef_extern(char **vname, data_type_t **vtype) {
     lexer_token_t *name;
     data_type_t   *type;
 
     parse_declaration_intermediate(&name, &type);
     if (!name)
-        compile_error("typedef error");
-    table_insert(parse_typedefs, name->string, type);
+        compile_error("missing name");
+
+    lexer_token_t *token = lexer_next();
+
+    if (lexer_ispunct(token, '(')) {
+        // todo
+    } else {
+        lexer_unget(token);
+    }
+
     parse_expect(';');
+    *vname = name->string;
+    *vtype = type;
+}
+
+static void parse_typedef(void) {
+    char        *name;
+    data_type_t *type;
+
+    parse_typedef_extern(&name, &type);
+    table_insert(parse_typedefs, name, type);
 }
 
 static ast_t *parse_statement_if(void) {
@@ -981,7 +1010,7 @@ static ast_t *parse_statement_for(void) {
 static ast_t *parse_statement_return(void) {
     ast_t *val = parse_expression();
     parse_expect(';');
-    return ast_new_return(ast_data_return, val); // todo more accurte type
+    return ast_new_return(ast_data_function->returntype, val); // todo more accurte type
 }
 
 static ast_t *parse_statement(void) {
@@ -1002,16 +1031,11 @@ static ast_t *parse_statement(void) {
 }
 
 static void parse_external(void) {
-    lexer_token_t *name;
-    data_type_t   *type;
+    char        *name;
+    data_type_t *type;
 
-    parse_declaration_intermediate(&name, &type);
-
-    if (!name)
-        compile_error("ICE");
-
-    ast_new_variable_global(type, name->string); // no table though
-    parse_expect(';');
+    parse_typedef_extern(&name, &type);
+    ast_new_variable_global(type, name);
 }
 
 static ast_t *parse_statement_declaration(void) {
@@ -1053,68 +1077,88 @@ static ast_t *parse_statement_compound(void) {
     return ast_new_compound(statements);
 }
 
-static list_t *parse_function_parameters(void) {
-    list_t        *params = list_create();
-    lexer_token_t *token  = lexer_next();
+static void parse_function_parameters(data_type_t **rtype, list_t *paramvars, data_type_t *returntype) {
+    bool           typeonly   = !paramvars;
+    list_t        *paramtypes = list_create();
+    lexer_token_t *token      = lexer_next();
 
-    if (lexer_ispunct(token, ')'))
-        return params;
+    if (lexer_ispunct(token, ')')) {
+        *rtype = ast_new_prototype(returntype, paramtypes, false);
+        return;
+    }
 
     lexer_unget(token);
-
     for (;;) {
-        data_type_t   *base = parse_declaration_specification();
-        data_type_t   *type = parse_declarator(base);
-        lexer_token_t *name = lexer_next();
-        if (name->type != LEXER_TOKEN_IDENT)
-            compile_error("Expected identifier");
+        token = lexer_next();
+        if (parse_identifer_check(token, "...")) {
+            if (list_length(paramtypes) == 0)
+                compile_error("ICE: %s (0)", __func__);
+            parse_expect(')');
+            *rtype = ast_new_prototype(returntype, paramtypes, true);
+            return;
+        } else {
+            lexer_unget(token);
+        }
 
-        // proper array decay
+        data_type_t   *type = parse_declaration_specification();
+        lexer_token_t *name = lexer_next();
+
+        if (name->type != LEXER_TOKEN_IDENT) {
+            if (!typeonly)
+                compile_error("ICE: %s (1) [%s]", __func__, lexer_tokenstr(name));
+            lexer_unget(name);
+            name = NULL;
+        }
+
         type = parse_array_dimensions(type);
         if (type->type == TYPE_ARRAY)
             type = ast_new_pointer(type->pointer);
 
-        list_push(params, ast_new_variable_local(type, name->string));
-        lexer_token_t *next = lexer_next();
-        if (lexer_ispunct(next, ')'))
-            return params;
-        if (!lexer_ispunct(next, ','))
-            compile_error("Expected comma");
+        list_push(paramtypes, type);
+        if (!typeonly)
+            list_push(paramvars, ast_new_variable_local(type, name->string));
+
+        lexer_token_t *token = lexer_next();
+        if (lexer_ispunct(token, ')')) {
+            *rtype = ast_new_prototype(returntype, paramtypes, false);
+            return;
+        }
+
+        if (!lexer_ispunct(token, ','))
+            compile_error("ICE: %s (2)", __func__);
     }
-    return NULL;
 }
 
-static ast_t *parse_function_definition(data_type_t *returntype, char *name, list_t *parameters) {
-    data_type_t *type;
-    ast_t       *body;
-    ast_t       *next;
+static ast_t *parse_function_definition(data_type_t *functype, char *name, list_t *parameters) {
+    ast_localenv      = table_create(ast_localenv);
+    ast_locals        = list_create();
+    ast_data_function = functype;
 
-    ast_localenv    = table_create(ast_localenv);
-    ast_locals      = list_create();
-    ast_data_return = returntype;
+    ast_t *body = parse_statement_compound();
+    ast_t *r    = ast_new_function(functype, name, parameters, body, ast_locals);
 
-    body = parse_statement_compound();
-    type = ast_new_prototype(returntype, parse_parameter_types(parameters));
-    next = ast_new_function(type, name, parameters, body, ast_locals);
+    table_insert(ast_globalenv, name, r);
 
-    table_insert(ast_globalenv, name, type);
+    ast_data_function = NULL;
+    ast_localenv      = NULL;
+    ast_locals        = NULL;
 
-    ast_data_return = NULL;
-    ast_localenv    = NULL;
-    ast_locals      = NULL;
-
-    return next;
+    return r;
 }
 
 static ast_t *parse_function_declaration_definition(data_type_t *returntype, char *name) {
     parse_expect('(');
     ast_localenv = table_create(ast_globalenv);
-    list_t *parameters = parse_function_parameters();
+
+    // parse function prototypes
+    data_type_t   *functype;
+    list_t        *parameters = list_create();
+    parse_function_parameters(&functype, parameters, returntype);
+
     lexer_token_t *token = lexer_next();
     if (lexer_ispunct(token, '{'))
-        return parse_function_definition(returntype, name, parameters);
-    data_type_t *type = ast_new_prototype(returntype, parse_parameter_types(parameters));
-    table_insert(ast_globalenv, name, type);
+        return parse_function_definition(functype, name, parameters);
+    table_insert(ast_globalenv, name, ast_new_variable_global(functype, name));
     return NULL;
 }
 

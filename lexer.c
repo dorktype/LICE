@@ -227,8 +227,8 @@ static lexer_token_t *lexer_read_token(void) {
         case '{': case '}':
         case ',': case ';':
         case '?': case ':':
-        case '.': case '~':
-        case '^': case '%':
+        case '~': case '^':
+        case '%':
             return lexer_punct(c);
 
         case '|': return lexer_read_reclassify_one('|', LEXER_TOKEN_OR,         '|');
@@ -248,6 +248,16 @@ static lexer_token_t *lexer_read_token(void) {
             }
             ungetc(c, stdin);
             return lexer_punct('-');
+
+        case '.':
+            c = getc(stdin);
+            if (c == '.') {
+                string_t *str = string_create();
+                string_catf(str, "..%c", getc(stdin));
+                return lexer_identifier(str);
+            }
+            ungetc(c, stdin);
+            return lexer_punct('.');
 
         case EOF:
             return NULL;

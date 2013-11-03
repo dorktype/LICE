@@ -122,6 +122,7 @@ struct data_type_s {
     struct {
         data_type_t *returntype;
         list_t      *parameters;
+        bool         hasdots;
     };
 };
 
@@ -244,7 +245,7 @@ ast_t *ast_new_return(data_type_t *returntype, ast_t *val);
 ast_t *ast_new_compound(list_t *statements);
 ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last);
 
-data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes);
+data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes, bool dots);
 data_type_t *ast_new_pointer(data_type_t *type);
 data_type_t *ast_new_array(data_type_t *type, int size);
 data_type_t *ast_array_convert(data_type_t *ast);
@@ -269,7 +270,7 @@ extern data_type_t *ast_data_ushort;
 extern data_type_t *ast_data_float;
 extern data_type_t *ast_data_double;
 
-extern data_type_t *ast_data_return;
+extern data_type_t *ast_data_function;
 
 list_t      *ast_floats;
 list_t      *ast_strings;

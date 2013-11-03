@@ -9,8 +9,15 @@ void test() {
     expecti(1600, call(call(400)));
 }
 
+int call2(int a, ...);
+
 int main() {
     init("function calls");
     test();
+    call2(1);
     return ok();
+}
+
+int call2(int a, ...) {
+    expecti(a, 1);
 }

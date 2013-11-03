@@ -21,8 +21,8 @@ data_type_t *ast_data_uchar  = &(data_type_t) { TYPE_CHAR,      1, false };
 data_type_t *ast_data_float  = &(data_type_t) { TYPE_FLOAT,     4, true  };
 data_type_t *ast_data_double = &(data_type_t) { TYPE_DOUBLE,    8, true  };
 
-// current return type
-data_type_t *ast_data_return = NULL;
+// current function type
+data_type_t *ast_data_function = NULL;
 
 // strings floats and doubles (and current locals)
 list_t      *ast_floats      = &SENTINEL_LIST;
@@ -241,7 +241,8 @@ ast_t *ast_new_variable_local(data_type_t *type, char *name) {
     ast->ctype         = type;
     ast->variable.name = name;
 
-    table_insert(ast_localenv, name, ast);
+    if (ast_localenv)
+        table_insert(ast_localenv, name, ast);
     if (ast_locals)
         list_push(ast_locals, ast);
 
@@ -307,12 +308,12 @@ ast_t *ast_new_initializerlist(list_t *init) {
     return ast;
 }
 
-data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes) {
+data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes, bool dots) {
     data_type_t *type  = (data_type_t*)malloc(sizeof(data_type_t));
     type->type         = TYPE_FUNCTION;
     type->returntype   = returntype;
     type->parameters   = paramtypes;
-
+    type->hasdots      = dots;
     return type;
 }
 
