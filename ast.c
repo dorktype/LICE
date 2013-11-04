@@ -15,9 +15,6 @@ data_type_t *ast_data_int    = &(data_type_t) { TYPE_INT,       4, true  };
 data_type_t *ast_data_short  = &(data_type_t) { TYPE_SHORT,     2, true  };
 data_type_t *ast_data_char   = &(data_type_t) { TYPE_CHAR,      1, true  };
 data_type_t *ast_data_ulong  = &(data_type_t) { TYPE_LONG,      8, false };
-data_type_t *ast_data_uint   = &(data_type_t) { TYPE_INT,       4, false };
-data_type_t *ast_data_ushort = &(data_type_t) { TYPE_SHORT,     2, false };
-data_type_t *ast_data_uchar  = &(data_type_t) { TYPE_CHAR,      1, false };
 data_type_t *ast_data_float  = &(data_type_t) { TYPE_FLOAT,     4, true  };
 data_type_t *ast_data_double = &(data_type_t) { TYPE_DOUBLE,    8, true  };
 
@@ -42,12 +39,14 @@ bool ast_type_integer(data_type_t *type) {
     return type->type == TYPE_CHAR
         || type->type == TYPE_SHORT
         || type->type == TYPE_INT
-        || type->type == TYPE_LONG;
+        || type->type == TYPE_LONG
+        || type->type == TYPE_LLONG;
 }
 
 bool ast_type_floating(data_type_t *type) {
     return type->type == TYPE_FLOAT
-        || type->type == TYPE_DOUBLE;
+        || type->type == TYPE_DOUBLE
+        || type->type == TYPE_LDOUBLE;
 }
 ////////////////////////////////////////////////////////////////////////
 // ast result
@@ -81,9 +80,11 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
                 case TYPE_SHORT:
                     return ast_data_int;
                 case TYPE_LONG:
+                case TYPE_LLONG:
                     return ast_data_long;
                 case TYPE_FLOAT:
                 case TYPE_DOUBLE:
+                case TYPE_LDOUBLE:
                     return ast_data_double;
                 case TYPE_ARRAY:
                 case TYPE_POINTER:
@@ -92,35 +93,43 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
                     break;
             }
             compile_error("Internal error: ast_result_type (1)");
-            break;
+
+        // outside for the future 'long long' type
+        case TYPE_LONG:
+        case TYPE_LLONG:
+            switch (b->type) {
+                case TYPE_LONG:
+                case TYPE_LLONG:
+                    return ast_data_long;
+                case TYPE_FLOAT:
+                case TYPE_DOUBLE:
+                case TYPE_LDOUBLE:
+                    return ast_data_double;
+                case TYPE_ARRAY:
+                case TYPE_POINTER:
+                    return b;
+                default:
+                    break;
+            }
+            compile_error("Internal error: ast_result_type (3)");
 
         case TYPE_FLOAT:
-            if (ast_type_floating(b))
+            if (b->type == TYPE_FLOAT || b->type == TYPE_DOUBLE || b->type == TYPE_LDOUBLE)
                 return ast_data_double;
             goto error;
 
         case TYPE_DOUBLE:
-            if (b->type == TYPE_DOUBLE)
+        case TYPE_LDOUBLE:
+            if (b->type == TYPE_DOUBLE || b->type == TYPE_LDOUBLE)
                 return ast_data_double;
+            goto error;
 
         case TYPE_ARRAY:
             if (b->type != TYPE_ARRAY)
                 goto error;
             return ast_result_type_impl(jmpbuf, op, a->pointer, b->pointer);
-
-        // outside for the future 'long long' type
-        case TYPE_LONG:
-            switch (b->type) {
-                case TYPE_LONG:
-                    return ast_data_long;
-                case TYPE_ARRAY:
-                case TYPE_POINTER:
-                    return b;
-                default:
-                    compile_error("Internal error: ast_result_type (2)");
-            }
         default:
-            compile_error("Internal error: ast_result_type (3)");
+            compile_error("ICE");
     }
 
 error:
@@ -159,8 +168,7 @@ ast_t *ast_structure_reference_new(data_type_t *type, ast_t *structure, char *na
 }
 
 data_type_t *ast_structure_field_new(data_type_t *type, int offset) {
-    data_type_t *field = (data_type_t*)malloc(sizeof(data_type_t));
-    memcpy(field, type, sizeof(data_type_t));
+    data_type_t *field = ast_type_copy(type);
     field->offset = offset;
     return field;
 }
@@ -205,6 +213,35 @@ ast_t *ast_new_binary(int type, ast_t *left, ast_t *right) {
 
 ////////////////////////////////////////////////////////////////////////
 // data types
+data_type_t *ast_type_copy(data_type_t *type) {
+    data_type_t *t = malloc(sizeof(data_type_t));
+    memcpy(t, type, sizeof(data_type_t));
+    return t;
+}
+
+data_type_t *ast_type_create(type_t type, bool sign) {
+    data_type_t *t = malloc(sizeof(data_type_t));
+
+    t->type = type;
+    t->sign = sign;
+
+    switch (type) {
+        case TYPE_VOID:    t->size = 0; break;
+        case TYPE_CHAR:    t->size = 1; break;
+        case TYPE_SHORT:   t->size = 2; break;
+        case TYPE_INT:     t->size = 4; break;
+        case TYPE_LONG:    t->size = 8; break;
+        case TYPE_LLONG:   t->size = 8; break;
+        case TYPE_FLOAT:   t->size = 8; break;
+        case TYPE_DOUBLE:  t->size = 8; break;
+        case TYPE_LDOUBLE: t->size = 8; break;
+        default:
+            compile_error("ICE");
+    }
+
+    return t;
+}
+
 ast_t *ast_new_integer(data_type_t *type, int value) {
     ast_t *ast   = ast_new_node();
     ast->type    = AST_TYPE_LITERAL;
@@ -416,9 +453,11 @@ const char *ast_type_string(data_type_t *type) {
         case TYPE_INT:      return "int";
         case TYPE_CHAR:     return "char";
         case TYPE_LONG:     return "long";
+        case TYPE_LLONG:    return "long long";
         case TYPE_SHORT:    return "short";
         case TYPE_FLOAT:    return "float";
         case TYPE_DOUBLE:   return "double";
+        case TYPE_LDOUBLE:  return "long double";
         case TYPE_FUNCTION: return "<<todo>>";
 
         case TYPE_POINTER:

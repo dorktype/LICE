@@ -111,7 +111,9 @@ static void gen_save(data_type_t *to, data_type_t *from) {
         gen_emit("cvtsi2ss %%eax, %%xmm0");
     else if (ast_type_floating(from) && to->type == TYPE_FLOAT)
         gen_emit("cvtpd2ps %%xmm0, %%xmm0");
-    else
+    else if (ast_type_integer(from) && (to->type == TYPE_DOUBLE || to->type == TYPE_LDOUBLE))
+        gen_emit("cvtsi2sd %%eax, %%xmm0");
+    else if (!(ast_type_floating(from) && (to->type == TYPE_DOUBLE || to->type == TYPE_LDOUBLE)))
         gen_load(to, from);
 }
 
@@ -120,7 +122,7 @@ static void gen_load_local(data_type_t *var, char *base, int offset) {
         gen_emit("lea %d(%%%s), %%rax", offset, base);
     } else if (var->type == TYPE_FLOAT) {
         gen_emit("cvtps2pd %d(%%%s), %%xmm0", offset, base);
-    } else if (var->type == TYPE_DOUBLE) {
+    } else if (var->type == TYPE_DOUBLE || var->type == TYPE_LDOUBLE) {
         gen_emit("movsd %d(%%%s), %%xmm0", offset, base);
     } else {
         const char *reg = gen_register_integer(var, 'c');
@@ -143,10 +145,10 @@ static void gen_save_local(data_type_t *type, int offset) {
     if (type->type == TYPE_FLOAT) {
         gen_push_xmm(0);
         gen_emit("cvtpd2ps %%xmm0, %%xmm0");
-        gen_emit("movss %%xmm0, %d(%%rbp)");
+        gen_emit("movss %%xmm0, %d(%%rbp)", offset);
         gen_pop_xmm(0);
     }
-    else if (type->type == TYPE_DOUBLE)
+    else if (type->type == TYPE_DOUBLE || type->type == TYPE_LDOUBLE)
         gen_emit("movsd %%xmm0, %d(%%rbp)", offset);
     else
         gen_emit("mov %%%s, %d(%%rbp)", gen_register_integer(type, 'a'), offset);
@@ -482,7 +484,7 @@ static void gen_function_prologue(ast_t *ast) {
 
         if (value->ctype->type == TYPE_FLOAT) {
             gen_push_xmm(regx++);
-        } else if (value->ctype->type == TYPE_DOUBLE) {
+        } else if (value->ctype->type == TYPE_DOUBLE|| value->ctype->type == TYPE_LDOUBLE) {
             gen_push_xmm(regx++);
         } else {
             gen_push(registers[regi++]);
@@ -587,6 +589,7 @@ static void gen_expression(ast_t *ast) {
 
                 case TYPE_FLOAT:
                 case TYPE_DOUBLE:
+                case TYPE_LDOUBLE:
                     gen_emit("movsd %s(%%rip), %%xmm0", ast->floating.label);
                     break;
 

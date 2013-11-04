@@ -95,13 +95,24 @@ typedef enum {
     TYPE_SHORT,
     TYPE_INT,
     TYPE_LONG,
+    TYPE_LLONG,
     TYPE_FLOAT,
     TYPE_DOUBLE,
+    TYPE_LDOUBLE,
     TYPE_ARRAY,
     TYPE_POINTER,
     TYPE_STRUCTURE,
     TYPE_FUNCTION
 } type_t;
+
+// storage class
+typedef enum {
+    STORAGE_TYPEDEF = 1,
+    STORAGE_EXTERN,
+    STORAGE_STATIC,
+    STORAGE_AUTO,
+    STORAGE_REGISTER
+} storage_t;
 
 typedef struct data_type_s data_type_t;
 
@@ -256,6 +267,8 @@ const char *ast_type_string(data_type_t *type);
 
 bool ast_type_integer(data_type_t *type);
 bool ast_type_floating(data_type_t *type);
+data_type_t *ast_type_copy(data_type_t *type);
+data_type_t *ast_type_create(type_t type, bool sign);
 
 // data
 extern data_type_t *ast_data_void;

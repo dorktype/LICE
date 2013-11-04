@@ -15,7 +15,7 @@ static ast_t *parse_expression_unary(void);
 static ast_t *parse_statement_compound(void);
 static ast_t *parse_statement_declaration(void);
 static ast_t *parse_statement(void);
-static void   parse_declaration_intermediate(lexer_token_t **name, data_type_t **ctype);
+static void   parse_declaration_intermediate(char **name, data_type_t **ctype, storage_t *storage);
 static data_type_t *parse_declarator(data_type_t *basetype);
 
 table_t *parse_typedefs = &SENTINEL_TABLE;
@@ -295,10 +295,12 @@ static ast_t *parse_sizeof(bool typename) {
     if (typename && parse_type_check(token)) {
         lexer_unget(token);
 
-        lexer_token_t *ignore;
-        data_type_t   *type = NULL;
+        char        *ignore;
+        storage_t    storage;
+        data_type_t *type = NULL;
 
-        parse_declaration_intermediate(&ignore, &type);
+        parse_declaration_intermediate(&ignore, &type, &storage);
+
         return ast_new_integer(ast_data_long, type->size);
     }
     // deal with the sizeof () thing
@@ -468,129 +470,13 @@ static ast_t *parse_expression(void) {
     return parse_expression_intermediate(16);
 }
 
-static data_type_t *parse_type(lexer_token_t *token) {
-    if (!token || token->type != LEXER_TOKEN_IDENT)
-        return NULL;
-
-    int uspec = 0;
-
-    enum {
-        ssign = 1,
-        usign
-    } sign = uspec;
-
-    enum {
-        zchar = 1,
-        zshort,
-        zint,
-        zlong,
-        zllong
-    } type = uspec;
-
-    for (;;) {
-        char *string = token->string;
-
-        if      (!strcmp(string, "signed"))   { if (sign != uspec) goto dspec; sign = ssign;  }
-        else if (!strcmp(string, "unsigned")) { if (sign != uspec) goto dspec; sign = usign;  }
-        else if (!strcmp(string, "char"))     { if (type != uspec) goto dtype; type = zchar;  }
-        else if (!strcmp(string, "short"))    { if (type != uspec) goto dtype; type = zshort; }
-
-        // special since char/int are considered the
-        // same thing, e.g sizeof('a') is same as
-        // sizeof(int)
-        else if (!strcmp(string, "int")) {
-            if (type == uspec)
-                type = zint;
-            else if (type == zchar)
-                goto dtype;
-        }
-
-        // slightly special because of
-        // long long
-        else if (!strcmp(string, "long")) {
-            if (type == uspec)
-                type = zlong;
-            else if (type == zlong)
-                type = zllong;
-            else
-                goto dtype;
-        }
-
-        // floating and double types are also special
-        // no 'long double' yet
-        else if (!strcmp(string, "float")) {
-            if (sign != uspec) goto ispec;
-            if (type != uspec) goto dtype;
-            return ast_data_float;
-        }
-
-        else if (!strcmp(string, "double")) {
-            if (sign != uspec) goto ispec;
-            if (type != uspec) goto dtype;
-            return ast_data_double;
-        }
-
-        // void is INCREDIBLY special
-        else if (!strcmp(string, "void")) {
-            if (sign != uspec) goto ispec;
-            if (type != uspec) goto dtype;
-            return ast_data_void;
-        }
-
-        else if (table_find(parse_typedefs, string)) {
-            return table_find(parse_typedefs, string);
-        }
-
-        // unget and break
-        else {
-            lexer_unget(token);
-            break;
-        }
-
-        token = lexer_next();
-        if (token->type != LEXER_TOKEN_IDENT) {
-            lexer_unget(token);
-            break;
-        }
-    }
-
-    if (type == uspec && sign == uspec)
-        compile_error("Internal error in type specification");
-
-    // unspecified type becomes implicit integer in C
-    if (type == uspec)
-        type = zint;
-
-    switch (type) {
-        case zchar:  return sign == ssign ? ast_data_uchar  : ast_data_char;
-        case zshort: return sign == ssign ? ast_data_ushort : ast_data_short;
-        case zint:   return sign == ssign ? ast_data_uint   : ast_data_int;
-        case zlong:  return sign == ssign ? ast_data_ulong  : ast_data_long;
-        case zllong: return sign == ssign ? ast_data_ulong  : ast_data_long;
-    }
-    compile_error("Really confused!!!");
-
-dspec:
-    compile_error("Duplicate specification");
-dtype:
-    compile_error("Duplicate type specification");
-ispec:
-    compile_error("Invalid type specification");
-
-    return ast_data_int;
-}
-
 static bool parse_type_check(lexer_token_t *token) {
     if (token->type != LEXER_TOKEN_IDENT)
         return false;
 
     static const char *keywords[] = {
-        "void",
-        "char",   "short",
-        "int",    "long",
-        "float",  "double",
-        "struct", "union",
-        "signed", "unsigned",
+        "char",   "short", "int",    "long",     "float", "double",
+        "struct", "union", "signed", "unsigned", "enum",  "void",
         "extern", "typedef"
     };
 
@@ -714,11 +600,13 @@ static table_t *parse_memory_fields(void) {
         if (!parse_type_check(lexer_peek()))
             break;
 
-        lexer_token_t *name;
-        data_type_t   *type = NULL;
-        parse_declaration_intermediate(&name, &type);
+        char        *name;
+        storage_t    storage;
+        data_type_t *type = NULL;
 
-        table_insert(table, name->string, ast_structure_field_new(type, 0));
+        parse_declaration_intermediate(&name, &type, &storage);
+
+        table_insert(table, name, ast_structure_field_new(type, 0));
         parse_expect(';');
     }
     parse_expect('}');
@@ -807,34 +695,195 @@ static data_type_t *parse_enumeration(void) {
     return ast_data_int;
 }
 
-static data_type_t *parse_declaration_specification(void) {
-    lexer_token_t *token = lexer_next();
+static void parse_declaration_specification(data_type_t **rtype, storage_t *storage) {
+    *rtype   = NULL;
+    *storage = 0;
 
-    if (!token)
-        return NULL;
+    lexer_token_t *token = lexer_peek();
+    if (!token || token->type != LEXER_TOKEN_IDENT)
+        return;
 
-    if (token->type != LEXER_TOKEN_IDENT)
-        compile_error("ICE %s [%s]", __func__, lexer_tokenstr(token));
+    // large declaration specification state machine
+    enum {
+        kvoid = 1,
+        kchar,
+        kint,
+        kfloat,
+        kdouble
+    } type = 0;
 
-    data_type_t  *type  = parse_identifer_check(token, "struct")
-                            ? parse_tag_definition(ast_structures, &parse_structure_size)
-                        : (parse_identifer_check(token, "union"))
-                            ? parse_tag_definition(ast_unions, &parse_union_size)
-                        : (parse_identifer_check(token, "enum"))
-                            ? parse_enumeration()
-                        : parse_type(token);
+    enum {
+        kunsize,
+        kshort,
+        klong,
+        kllong
+    } size = kunsize;
 
-    // WOW WHAT A HACK!
+    enum {
+        ksigned = 1,
+        kunsigned
+    } signature = 0;
+
+    bool __attribute__((unused)) kconst    = false;
+    bool __attribute__((unused)) kvolatile = false;
+    bool __attribute__((unused)) kinline   = false;
+
+    data_type_t *user = NULL;
+    data_type_t *find = NULL;
+
+    #define set_uncheck(STATE, VALUE)                                  \
+        do {                                                           \
+            STATE = VALUE;                                             \
+            if (STATE == 0) {                                          \
+                goto state_machine_error;                              \
+            }                                                          \
+        } while (0)
+
+    #define set_check(STATE, VALUE)                                    \
+        do {                                                           \
+            if (STATE != 0) {                                          \
+                goto state_machine_error;                              \
+            }                                                          \
+            set_uncheck(STATE, VALUE);                                 \
+        } while (0)
+
+    #define set_state(STATE, VALUE)                                    \
+        do {                                                           \
+            set_check(STATE, VALUE);                                   \
+            switch (size) {                                            \
+                case kshort:                                           \
+                    if (type != 0 && type != kint)                     \
+                        goto state_machine_error;                      \
+                    break;                                             \
+                case klong:                                            \
+                    if (type != 0 && type != kint && type != kdouble)  \
+                        goto state_machine_error;                      \
+                    break;                                             \
+                default:                                               \
+                    break;                                             \
+            }                                                          \
+            if (signature != 0) {                                      \
+                switch (type) {                                        \
+                    case kvoid:                                        \
+                    case kfloat:                                       \
+                    case kdouble:                                      \
+                        goto state_machine_error;                      \
+                        break;                                         \
+                    default:                                           \
+                        break;                                         \
+                }                                                      \
+            }                                                          \
+            if (user && (type != 0 || size != 0 || signature != 0))    \
+                goto state_machine_error;                              \
+        } while (0)
+
+    #define set_class(VALUE)                                           \
+        do {                                                           \
+            if (VALUE == 0)                                            \
+                goto state_machine_error;                              \
+            set_check(*storage, VALUE);                                \
+        } while (0)
+
+    #define state_machine_try(THING) \
+        if (!strcmp(token->string, THING))
+
     for (;;) {
         token = lexer_next();
-        if (!lexer_ispunct(token, '*')) {
+        if (!token)
+            compile_error("ICE");
+
+        if (token->type != LEXER_TOKEN_IDENT) {
             lexer_unget(token);
-            return type;
+            break;
         }
-        type = ast_new_pointer(type);
+
+             state_machine_try("typedef")  set_class(STORAGE_TYPEDEF);
+        else state_machine_try("extern")   set_class(STORAGE_EXTERN);
+        else state_machine_try("static")   set_class(STORAGE_STATIC);
+        else state_machine_try("auto")     set_class(STORAGE_AUTO);
+        else state_machine_try("register") set_class(STORAGE_REGISTER);
+        else state_machine_try("const")    kconst    = true;
+        else state_machine_try("volatile") kvolatile = true;
+        else state_machine_try("inline")   kinline   = true;
+        else state_machine_try("void")     set_state(type,      kvoid);
+        else state_machine_try("char")     set_state(type,      kchar);
+        else state_machine_try("int")      set_state(type,      kint);
+        else state_machine_try("float")    set_state(type,      kfloat);
+        else state_machine_try("double")   set_state(type,      kdouble);
+        else state_machine_try("signed")   set_state(signature, ksigned);
+        else state_machine_try("unsigned") set_state(signature, kunsigned);
+        else state_machine_try("short")    set_state(size,      kshort);
+        else state_machine_try("struct")   set_state(user,      parse_tag_definition(ast_structures, &parse_structure_size));
+        else state_machine_try("union")    set_state(user,      parse_tag_definition(ast_unions,     &parse_union_size));
+        else state_machine_try("enum")     set_state(user,      parse_enumeration());
+        else state_machine_try("long") {
+            switch (size) {
+                case kunsize:
+                    set_state(size, klong);
+                    break;
+                case klong:
+                    set_uncheck(size, kllong);
+                    break;
+                default:
+                    goto state_machine_error;
+            }
+        } else if ((find = table_find(parse_typedefs, token->string))) {
+            set_state(user, find);
+        } else {
+            lexer_unget(token);
+            break;
+        }
+
+        #undef set_check
+        #undef set_class
+        #undef set_state
+        #undef set_uncheck
     }
 
-    return type;
+    if (user) {
+        *rtype = user;
+        return;
+    }
+
+    switch (type) {
+        case kchar:
+            *rtype = ast_type_create(TYPE_CHAR,  signature != kunsigned);
+            return;
+        case kfloat:
+            *rtype = ast_type_create(TYPE_FLOAT, false);
+            return;
+        case kdouble:
+            *rtype = ast_type_create(
+                (size == klong)
+                    ? TYPE_DOUBLE
+                    : TYPE_LDOUBLE,
+                false
+            );
+            return;
+        default:
+            break;
+    }
+
+    switch (size) {
+        case kshort:
+            *rtype = ast_type_create(TYPE_SHORT, signature != kunsigned);
+            return;
+        case klong:
+            *rtype = ast_type_create(TYPE_LONG,  signature != kunsigned);
+            return;
+        case kllong:
+            *rtype = ast_type_create(TYPE_LLONG, signature != kunsigned);
+
+        default:
+            // retarded implicit int becomes easy this way, at least on of the
+            // useful benefits of such a complicated state machine.
+            *rtype = ast_type_create(TYPE_INT,   signature != kunsigned);
+            return;
+    }
+
+    compile_error("ICE (BAD)");
+state_machine_error:
+    compile_error("ICE (GOOD)");
 }
 
 static ast_t *parse_declaration_initialization_value(data_type_t *type) {
@@ -874,28 +923,17 @@ static data_type_t *parse_array_dimensions(data_type_t *basetype) {
 }
 
 static ast_t *parse_declaration_initialization(ast_t *var) {
-    lexer_token_t *token = lexer_next();
-
-    // global initialization?
-    if (lexer_ispunct(token, '=')) {
-        ast_t *init = parse_declaration_initialization_value(var->ctype);
-        if (var->type == AST_TYPE_VAR_GLOBAL && ast_type_integer(var->ctype))
-            init = ast_new_integer(ast_data_int, parse_evaluate(init));
-        return ast_new_decl(var, init);
-    }
-
-    if (var->ctype->length == -1)
-        compile_error("Missing initializer for array");
-
-    lexer_unget(token);
-    parse_expect(';');
-
-    return ast_new_decl(var, NULL);
+    ast_t *init = parse_declaration_initialization_value(var->ctype);
+    if (var->type == AST_TYPE_VAR_GLOBAL && ast_type_integer(var->ctype))
+        init = ast_new_integer(ast_data_int, parse_evaluate(init));
+    return ast_new_decl(var, init);
 }
 
-static void parse_declaration_intermediate(lexer_token_t **name, data_type_t **ctype) {
-    data_type_t   *base  = parse_declaration_specification();
-    data_type_t   *type  = parse_declarator(base);
+static void parse_declaration_intermediate(char **name, data_type_t **ctype, storage_t *storage) {
+    data_type_t *basetype;
+    parse_declaration_specification(&basetype, storage);
+
+    data_type_t   *type  = parse_declarator(basetype);
     lexer_token_t *token = lexer_next();
 
     if (lexer_ispunct(token, ';')) {
@@ -908,51 +946,40 @@ static void parse_declaration_intermediate(lexer_token_t **name, data_type_t **c
         lexer_unget(token);
         *name = NULL;
     } else {
-        *name = token;
+        *name = token->string;
     }
 
-    //*name  = token;
     *ctype = parse_array_dimensions(type);
 }
 
 static ast_t *parse_declaration(void) {
-    lexer_token_t *token;
-    data_type_t   *type = NULL;
-    parse_declaration_intermediate(&token, &type);
-    if (!token) {
+    char        *name;
+    data_type_t *type;
+    storage_t    storage;
+
+    parse_declaration_intermediate(&name, &type, &storage);
+
+    if (!name) {
         parse_expect(';');
         return NULL;
     }
-    return parse_declaration_initialization(ast_new_variable_local(type, token->string));
-}
 
-static void parse_typedef_extern(char **vname, data_type_t **vtype) {
-    lexer_token_t *name;
-    data_type_t   *type;
-
-    parse_declaration_intermediate(&name, &type);
-    if (!name)
-        compile_error("missing name");
-
-    lexer_token_t *token = lexer_next();
-
-    if (lexer_ispunct(token, '(')) {
-        // todo
-    } else {
-        lexer_unget(token);
+    if (storage == STORAGE_TYPEDEF) {
+        table_insert(parse_typedefs, name, type);
+        parse_expect(';');
+        return NULL;
     }
 
+    ast_t         *var   = ast_new_variable_local(type, name);
+    lexer_token_t *token = lexer_next();
+
+    if (lexer_ispunct(token, '='))
+        return parse_declaration_initialization(var);
+
+    lexer_unget(token);
     parse_expect(';');
-    *vname = name->string;
-    *vtype = type;
-}
 
-static void parse_typedef(void) {
-    char        *name;
-    data_type_t *type;
-
-    parse_typedef_extern(&name, &type);
-    table_insert(parse_typedefs, name, type);
+    return ast_new_decl(var, NULL);
 }
 
 static ast_t *parse_statement_if(void) {
@@ -1031,31 +1058,14 @@ static ast_t *parse_statement(void) {
     return ast;
 }
 
-static void parse_external(void) {
-    char        *name;
-    data_type_t *type;
-
-    parse_typedef_extern(&name, &type);
-    ast_new_variable_global(type, name);
-}
-
 static ast_t *parse_statement_declaration(void) {
     for (;;) {
-        lexer_token_t *token = lexer_next();
-
+        lexer_token_t *token = lexer_peek();
         if (!token)
-            return NULL;
-
-        if (parse_identifer_check(token, "typedef")) {
-            parse_typedef();
-            continue;
-        }
-
-        lexer_unget(token);
+            compile_error("ICE");
         return parse_type_check(token) ? parse_declaration() : parse_statement();
     }
 }
-
 
 static ast_t *parse_statement_compound(void) {
     ast_localenv = table_create(ast_localenv);
@@ -1101,8 +1111,13 @@ static void parse_function_parameters(data_type_t **rtype, list_t *paramvars, da
             lexer_unget(token);
         }
 
-        data_type_t   *type = parse_declaration_specification();
-        lexer_token_t *name = lexer_next();
+        // specification basetype
+        data_type_t   *basetype;
+        storage_t      storage;
+        parse_declaration_specification(&basetype, &storage);
+
+        data_type_t   *type     = parse_declarator(basetype);
+        lexer_token_t *name     = lexer_next();
 
         if (name->type != LEXER_TOKEN_IDENT) {
             if (!typeonly)
@@ -1148,7 +1163,6 @@ static ast_t *parse_function_definition(data_type_t *functype, char *name, list_
 }
 
 static ast_t *parse_function_declaration_definition(data_type_t *returntype, char *name) {
-    parse_expect('(');
     ast_localenv = table_create(ast_globalenv);
 
     // parse function prototypes
@@ -1186,19 +1200,18 @@ list_t *parse_run(void) {
         if (!get)
             return list;
 
-        if (parse_identifer_check(get, "typedef")) {
-            parse_typedef();
+        // ignore static and const storage for now
+        if (parse_identifer_check(get, "static") || parse_identifer_check(get, "const"))
             continue;
-        }
 
-        if (parse_identifer_check(get, "extern")) {
-            parse_external();
-            continue;
-        }
 
         lexer_unget(get); // stage back
 
-        data_type_t   *base  = parse_declaration_specification();
+        // deal with specification
+        data_type_t   *base;
+        storage_t      storage;
+        parse_declaration_specification(&base, &storage);
+
         data_type_t   *type  = parse_declarator(base);
         lexer_token_t *token = lexer_next();
 
@@ -1209,22 +1222,46 @@ list_t *parse_run(void) {
             compile_error("Internal error");
 
         type = parse_array_dimensions(type);
-        lexer_token_t *peek = lexer_peek();
-        if (lexer_ispunct(peek, '=') || type->type == TYPE_ARRAY) {
+        lexer_token_t *peek = lexer_next();
+        if (lexer_ispunct(peek, '=')) {
+            if (storage == STORAGE_TYPEDEF)
+                compile_error("invalid use of typedef");
             list_push(list, parse_declaration_initialization(ast_new_variable_global(type, token->string)));
             continue;
         }
 
         if (lexer_ispunct(peek, '(')) {
-            ast_t *function = parse_function_declaration_definition(type, token->string);
-            if (function)
-                list_push(list, function);
+            ast_t *func = NULL;
+            switch (storage) {
+                case STORAGE_EXTERN:
+                    parse_function_parameters(&type, NULL, type);
+                    parse_expect(';');
+                    ast_new_variable_global(type, token->string);
+                    break;
+
+                case STORAGE_TYPEDEF:
+                    parse_function_parameters(&type, NULL, type);
+                    parse_expect(';');
+                    table_insert(parse_typedefs, token->string, type);
+                    break;
+
+                default:
+                    func = parse_function_declaration_definition(type, token->string);
+                    if (func)
+                        list_push(list, func);
+                    break;
+            }
             continue;
         }
 
         if (lexer_ispunct(peek, ';')) {
-            lexer_next();
-            list_push(list, ast_new_decl(ast_new_variable_global(type, token->string), NULL));
+            if (storage == STORAGE_TYPEDEF)
+                table_insert(parse_typedefs, token->string, type);
+            else {
+                ast_t *var = ast_new_variable_global(type, token->string);
+                if (storage != STORAGE_EXTERN)
+                    list_push(list, ast_new_decl(var, NULL));
+            }
             continue;
         }
         compile_error("Confused!\n");
