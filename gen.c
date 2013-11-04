@@ -558,6 +558,8 @@ static void gen_expression_logical(ast_t *ast) {
 }
 
 static void gen_expression(ast_t *ast) {
+    if (!ast) return;
+
     char *begin;
     char *ne;
     char *end;

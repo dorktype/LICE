@@ -121,26 +121,32 @@ it. If you do happen to find a nice marketable explination of the acronym
 you can email me your suggestion and I'll include it here.
 
 ### Sources
-The following sources where used as information and inspiration
-in the construction of LICE
+The following sources where used in the construction of LICE
 
--   The dragon book
+-   Aho, Alfred V., and Alfred V. Aho. Compilers: Principles, Techniques, & Tools. Boston: Pearson/Addison Wesley, 2007. Print.
     http://www.amazon.ca/Compilers-Principles-Techniques-Alfred-Aho/dp/0201100886
 
--   Intel 64 and IA-32 Architectures Instruction Set Reference
-    http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-instruction-set-reference-manual-325383.pdf
+-   Degener, Jutta. "ANSI C Grammar, Lex Specification." ANSI C Grammar (Lex). N.p., 1995. Web.
+    http://www.lysator.liu.se/c/ANSI-C-grammar-l.html
 
--   C99 final draft
-    http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf
-
--   x86-64/System V ABI
+-   Matz, Michael, Jan Hubicka, Andreas Jaeger, and Mark Mitchell. "System V Application Binary Interface AMD64 Architecture Processor Supplement." N.p., 07 Oct. 2013. Print.
     http://www.x86-64.org/documentation/abi.pdf
 
--   The coder64 cheat sheet of opcodes and instructions
-    http://ref.x86asm.net/coder64.html
+-   Kahan, W., Prof. "IEEE Standard 754 for Binary Floating-Point Arithmetic." N.p., 1 Oct. 1997. Print.
+    http://www.eecs.berkeley.edu/~wkahan/ieee754status/IEEE754.PDF
 
--   Let's Build a Compiler, Jack Crenshaw
+-   Crenshaw, Jack. "Let's Build a Compiler." I.E.C.C., 1995. Web.
     http://compilers.iecc.com/crenshaw/
+
+-   "C99 Final Draft." ISO/IEC, 06 May 2006. Print.
+    http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf
+
+-   "Instruction Set Reference, A-Z." Intel 64 and IA-32 Architectures Software Developer's Manual. Vol. 2. [Calif.?]: Intel, 2013. N. pag. Print.
+    http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-instruction-set-reference-manual-325383.pdf
+
+
+### Inspiration
+The following where inspiration in the creation of LICE
 
 -   SubC compiler sources for ideas
     http://www.t3x.org/subc/
@@ -148,5 +154,3 @@ in the construction of LICE
 -   TCC
     http://bellard.org/tcc/
 
--   IEEE 754, Binary Floating-Point Arithmetic
-    http://www.eecs.berkeley.edu/~wkahan/ieee754status/IEEE754.PDF

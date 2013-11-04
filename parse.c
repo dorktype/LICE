@@ -585,6 +585,7 @@ static bool parse_type_check(lexer_token_t *token) {
         return false;
 
     static const char *keywords[] = {
+        "void",
         "char",   "short",
         "int",    "long",
         "float",  "double",
