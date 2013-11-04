@@ -10,7 +10,7 @@
 #define lexer_token_new() \
     ((lexer_token_t*)malloc(sizeof(lexer_token_t)))
 
-static lexer_token_t *lexer_ungotton = NULL;
+static list_t *lexer_buffer = &SENTINEL_LIST;
 
 static lexer_token_t *lexer_identifier(string_t *str) {
     lexer_token_t *token = lexer_token_new();
@@ -278,17 +278,12 @@ void lexer_unget(lexer_token_t *token) {
     if (!token)
         return;
 
-    if (lexer_ungotton)
-        compile_error("Internal error: OOM");
-    lexer_ungotton = token;
+    list_push(lexer_buffer, token);
 }
 
 lexer_token_t *lexer_next(void) {
-    if (lexer_ungotton) {
-        lexer_token_t *temp = lexer_ungotton;
-        lexer_ungotton      = NULL;
-        return temp;
-    }
+    if (list_length(lexer_buffer) > 0)
+        return list_pop(lexer_buffer);
 
     return lexer_read_token();
 }

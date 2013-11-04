@@ -114,6 +114,19 @@ void list_push(list_t *list, void *element) {
     list->length++;
 }
 
+void *list_pop(list_t *list) {
+    if (!list->head)
+        return NULL;
+    void *element = list->tail->element;
+    list->tail = list->tail->prev;
+    if (list->tail)
+        list->tail->next = NULL;
+    else
+        list->head = NULL;
+    list->length--;
+    return element;
+}
+
 int list_length(list_t *list) {
     return list->length;
 }

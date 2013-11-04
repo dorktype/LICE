@@ -73,6 +73,11 @@ list_t *list_create(void);
  */
 void list_push(list_t *list, void *element);
 
+/*
+ * Function: list_pop
+ *  Pop an element from a list
+ */
+void *list_pop(list_t *list);
 
 /*
  * Function: list_length

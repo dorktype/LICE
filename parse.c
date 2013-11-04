@@ -1166,19 +1166,76 @@ static ast_t *parse_function_definition(data_type_t *functype, char *name, list_
     return r;
 }
 
-static ast_t *parse_function_declaration_definition(data_type_t *returntype, char *name) {
-    ast_localenv = table_create(ast_globalenv);
+static bool parse_function_definition_check(void) {
+    list_t *buffer = list_create();
+    int     nests  = 0;
+    bool    paren  = false;
+    bool    ready  = true;
 
-    // parse function prototypes
-    data_type_t   *functype;
+    for (;;) {
+        // keep buffer of tokens
+        lexer_token_t *token = lexer_next();
+        list_push(buffer, token);
+
+        if (!token)
+            compile_error("ICE");
+
+        // not a definition when no nesting and there is
+        // pren close followed by a {
+        if (nests == 0 && paren && lexer_ispunct(token, '{'))
+            break;
+
+        // ";," or "=" will respectfulyl mark this non ready
+        if (nests == 0 && (lexer_ispunct(token, ';')
+                         ||lexer_ispunct(token, ',')
+                         ||lexer_ispunct(token, '=')))
+        {
+            ready = false;
+            break;
+        }
+
+        // more nesting of parens
+        if (lexer_ispunct(token, '('))
+            nests++;
+
+        // handle nesting of parens and paren state
+        if (lexer_ispunct(token, ')')) {
+            if (nests == 0) // too many closes
+                compile_error("unmatches parenthesis");
+            paren = true;
+            nests--;
+        }
+    }
+
+    // now undo the token stream
+    while (list_length(buffer) > 0)
+        lexer_unget(list_pop(buffer));
+
+    return ready;
+}
+
+static ast_t *parse_function_definition_intermediate(void) {
+    data_type_t *basetype;
+    data_type_t *functype;
+    storage_t    storage;
+
+    parse_declaration_specification(&basetype, &storage);
+    data_type_t   *returntype = parse_declarator(basetype);
+    lexer_token_t *name       = lexer_next();
+
+    if (name->type != LEXER_TOKEN_IDENT)
+        compile_error("ICE");
+
+    ast_localenv = table_create(ast_globalenv);
+    parse_expect('(');
+
+    // parse function prototypes and body
     list_t        *parameters = list_create();
     parse_function_parameters(&functype, parameters, returntype);
-
-    lexer_token_t *token = lexer_next();
-    if (lexer_ispunct(token, '{'))
-        return parse_function_definition(functype, name, parameters);
-    table_insert(ast_globalenv, name, ast_new_variable_global(functype, name));
-    return NULL;
+    parse_expect('{');
+    ast_t *value = parse_function_definition(functype, name->string, parameters);
+    ast_localenv = NULL;
+    return value;
 }
 
 static data_type_t *parse_declarator(data_type_t *base) {
@@ -1200,16 +1257,14 @@ list_t *parse_run(void) {
     list_t *list = list_create();
     for (;;) {
         // need a way to drop out
-        lexer_token_t *get = lexer_next();
+        lexer_token_t *get = lexer_peek();
         if (!get)
             return list;
 
-        // ignore static and const storage for now
-        if (parse_identifer_check(get, "static") || parse_identifer_check(get, "const"))
+        if (parse_function_definition_check()) {
+            list_push(list, parse_function_definition_intermediate());
             continue;
-
-
-        lexer_unget(get); // stage back
+        }
 
         // deal with specification
         data_type_t   *base;
@@ -1235,26 +1290,12 @@ list_t *parse_run(void) {
         }
 
         if (lexer_ispunct(peek, '(')) {
-            ast_t *func = NULL;
-            switch (storage) {
-                case STORAGE_EXTERN:
-                    parse_function_parameters(&type, NULL, type);
-                    parse_expect(';');
-                    ast_new_variable_global(type, token->string);
-                    break;
-
-                case STORAGE_TYPEDEF:
-                    parse_function_parameters(&type, NULL, type);
-                    parse_expect(';');
-                    table_insert(parse_typedefs, token->string, type);
-                    break;
-
-                default:
-                    func = parse_function_declaration_definition(type, token->string);
-                    if (func)
-                        list_push(list, func);
-                    break;
-            }
+            parse_function_parameters(&type, NULL, type);
+            parse_expect(';');
+            if (storage == STORAGE_TYPEDEF)
+                table_insert(parse_typedefs, token->string, type);
+            else
+                ast_new_variable_global(type, token->string);
             continue;
         }
 
