@@ -797,22 +797,26 @@ static void parse_declaration_specification(data_type_t **rtype, storage_t *stor
             break;
         }
 
-             state_machine_try("typedef")  set_class(STORAGE_TYPEDEF);
+             state_machine_try("const")    kconst    = true;
+        else state_machine_try("volatile") kvolatile = true;
+        else state_machine_try("inline")   kinline   = true;
+
+        else state_machine_try("typedef")  set_class(STORAGE_TYPEDEF);
         else state_machine_try("extern")   set_class(STORAGE_EXTERN);
         else state_machine_try("static")   set_class(STORAGE_STATIC);
         else state_machine_try("auto")     set_class(STORAGE_AUTO);
         else state_machine_try("register") set_class(STORAGE_REGISTER);
-        else state_machine_try("const")    kconst    = true;
-        else state_machine_try("volatile") kvolatile = true;
-        else state_machine_try("inline")   kinline   = true;
+
         else state_machine_try("void")     set_state(type,      kvoid);
         else state_machine_try("char")     set_state(type,      kchar);
         else state_machine_try("int")      set_state(type,      kint);
         else state_machine_try("float")    set_state(type,      kfloat);
         else state_machine_try("double")   set_state(type,      kdouble);
+
         else state_machine_try("signed")   set_state(signature, ksigned);
         else state_machine_try("unsigned") set_state(signature, kunsigned);
         else state_machine_try("short")    set_state(size,      kshort);
+
         else state_machine_try("struct")   set_state(user,      parse_tag_definition(ast_structures, &parse_structure_size));
         else state_machine_try("union")    set_state(user,      parse_tag_definition(ast_unions,     &parse_union_size));
         else state_machine_try("enum")     set_state(user,      parse_enumeration());
