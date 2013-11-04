@@ -7,48 +7,25 @@
 // todo remove
 static int ast_label_index = 0;
 
-//////////////////////////////////////////////////////////////////////////
-// data types
-data_type_t *ast_data_void   = &(data_type_t) { TYPE_VOID,      0, true  };
-data_type_t *ast_data_long   = &(data_type_t) { TYPE_LONG,      8, true  };
-data_type_t *ast_data_int    = &(data_type_t) { TYPE_INT,       4, true  };
-data_type_t *ast_data_short  = &(data_type_t) { TYPE_SHORT,     2, true  };
-data_type_t *ast_data_char   = &(data_type_t) { TYPE_CHAR,      1, true  };
-data_type_t *ast_data_ulong  = &(data_type_t) { TYPE_LONG,      8, false };
-data_type_t *ast_data_float  = &(data_type_t) { TYPE_FLOAT,     4, true  };
-data_type_t *ast_data_double = &(data_type_t) { TYPE_DOUBLE,    8, true  };
-
-// current function type
+data_type_t *ast_data_void     = &(data_type_t) { TYPE_VOID,      0, true  };
+data_type_t *ast_data_long     = &(data_type_t) { TYPE_LONG,      8, true  };
+data_type_t *ast_data_int      = &(data_type_t) { TYPE_INT,       4, true  };
+data_type_t *ast_data_short    = &(data_type_t) { TYPE_SHORT,     2, true  };
+data_type_t *ast_data_char     = &(data_type_t) { TYPE_CHAR,      1, true  };
+data_type_t *ast_data_ulong    = &(data_type_t) { TYPE_LONG,      8, false };
+data_type_t *ast_data_float    = &(data_type_t) { TYPE_FLOAT,     4, true  };
+data_type_t *ast_data_double   = &(data_type_t) { TYPE_DOUBLE,    8, true  };
 data_type_t *ast_data_function = NULL;
 
-// strings floats and doubles (and current locals)
+list_t      *ast_locals      = NULL;
 list_t      *ast_floats      = &SENTINEL_LIST;
 list_t      *ast_strings     = &SENTINEL_LIST;
-list_t      *ast_locals      = NULL;
-
-// various scope enviroments (global, local)
 table_t     *ast_globalenv   = &SENTINEL_TABLE;
 table_t     *ast_localenv    = &SENTINEL_TABLE;
-
-// tagged block tables, structures and unions (enums todo)
 table_t     *ast_structures  = &SENTINEL_TABLE;
 table_t     *ast_unions      = &SENTINEL_TABLE;
 
-////////////////////////////////////////////////////////////////////////
-bool ast_type_integer(data_type_t *type) {
-    return type->type == TYPE_CHAR
-        || type->type == TYPE_SHORT
-        || type->type == TYPE_INT
-        || type->type == TYPE_LONG
-        || type->type == TYPE_LLONG;
-}
 
-bool ast_type_floating(data_type_t *type) {
-    return type->type == TYPE_FLOAT
-        || type->type == TYPE_DOUBLE
-        || type->type == TYPE_LDOUBLE;
-}
-////////////////////////////////////////////////////////////////////////
 // ast result
 static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *a, data_type_t *b) {
     if (a->type > b->type) {
@@ -213,6 +190,20 @@ ast_t *ast_new_binary(int type, ast_t *left, ast_t *right) {
 
 ////////////////////////////////////////////////////////////////////////
 // data types
+bool ast_type_integer(data_type_t *type) {
+    return type->type == TYPE_CHAR
+        || type->type == TYPE_SHORT
+        || type->type == TYPE_INT
+        || type->type == TYPE_LONG
+        || type->type == TYPE_LLONG;
+}
+
+bool ast_type_floating(data_type_t *type) {
+    return type->type == TYPE_FLOAT
+        || type->type == TYPE_DOUBLE
+        || type->type == TYPE_LDOUBLE;
+}
+
 data_type_t *ast_type_copy(data_type_t *type) {
     data_type_t *t = malloc(sizeof(data_type_t));
     memcpy(t, type, sizeof(data_type_t));

@@ -276,13 +276,9 @@ extern data_type_t *ast_data_int;
 extern data_type_t *ast_data_char;
 extern data_type_t *ast_data_long;
 extern data_type_t *ast_data_short;
-extern data_type_t *ast_data_uint;
-extern data_type_t *ast_data_uchar;
 extern data_type_t *ast_data_ulong;
-extern data_type_t *ast_data_ushort;
 extern data_type_t *ast_data_float;
 extern data_type_t *ast_data_double;
-
 extern data_type_t *ast_data_function;
 
 list_t      *ast_floats;
@@ -292,7 +288,6 @@ table_t     *ast_globalenv;
 table_t     *ast_localenv;
 table_t     *ast_structures;
 table_t     *ast_unions;
-
 
 // debug
 char *ast_string(ast_t *ast);
