@@ -5,8 +5,9 @@ keeping the code easy to understand and well documented for my own sake.
 ### Types
 Lice supports all the default data types in C, `char, short, int, long,
 long long, float, double, long double` as well as `signed, unsigned`.
-Lice also allows these types for arrays and pointers, there is no support
-for the `volatile, restrict, register` and `const` type specifiers yet.
+Lice also allows these types for arrays and pointers, while there is support
+for the `volatile, restrict, register` and `const` type specifiers, the
+semantics of those specifiers aren't implement, they're ignored.
 The `void` type is also supported as well.
 
 ### Functions
