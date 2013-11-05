@@ -41,6 +41,11 @@ static void parse_semantic_lvalue(ast_t *ast) {
     compile_error("Internal error: parse_semantic_lvalue %s", ast_string(ast));
 }
 
+static void parse_semantic_notvoid(data_type_t *type) {
+    if (type->type == TYPE_VOID)
+        compile_error("void not allowed");
+}
+
 static bool parse_semantic_rightassoc(lexer_token_t *token) {
     return (token->punct == '=');
 }
@@ -613,6 +618,7 @@ static table_t *parse_memory_fields(void) {
             char        *name;
             data_type_t *fieldtype = parse_declarator(&name, basetype, NULL, CDECL_PARAMETER);
 
+            parse_semantic_notvoid(fieldtype);
             table_insert(table, name, ast_structure_field_new(fieldtype, 0));
 
             token = lexer_next();
@@ -862,6 +868,9 @@ static void parse_declaration_specification(data_type_t **rtype, storage_t *stor
     }
 
     switch (type) {
+        case kvoid:
+            *rtype = ast_data_void;
+            return;
         case kchar:
             *rtype = ast_type_create(TYPE_CHAR,  signature != kunsigned);
             return;
@@ -1119,11 +1128,15 @@ static data_type_t *parse_function_parameters(list_t *paramvars, data_type_t *re
     bool           typeonly   = !paramvars;
     list_t        *paramtypes = list_create();
     lexer_token_t *token      = lexer_next();
+    lexer_token_t *next       = lexer_next();
 
-    if (lexer_ispunct(token, ')'))
+    if (parse_identifer_check(token, "void") && lexer_ispunct(next, ')'))
         return ast_new_prototype(returntype, paramtypes, false);
-
+    lexer_unget(next);
+    if (lexer_ispunct(token, ')'))
+        return ast_new_prototype(returntype, paramtypes, true);
     lexer_unget(token);
+
     for (;;) {
         token = lexer_next();
         if (parse_identifer_check(token, "...")) {
@@ -1139,6 +1152,7 @@ static data_type_t *parse_function_parameters(list_t *paramvars, data_type_t *re
         data_type_t *ptype;
         char        *name;
         parse_function_parameter(&ptype, &name, typeonly);
+        parse_semantic_notvoid(ptype);
         if (ptype->type == TYPE_ARRAY)
             ptype = ast_new_pointer(ptype->pointer);
         list_push(paramtypes, ptype);
@@ -1351,6 +1365,7 @@ static void parse_declaration(list_t *list, ast_t *(*make)(data_type_t *, char *
         if (lexer_ispunct(token, '=')) {
             if (storage == STORAGE_TYPEDEF)
                 compile_error("invalid use of typedef");
+            parse_semantic_notvoid(type);
             ast_t *var = make(type, name);
             list_push(list, parse_declaration_initialization(var));
             token = lexer_next();
