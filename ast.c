@@ -467,7 +467,18 @@ const char *ast_type_string(data_type_t *type) {
         case TYPE_FLOAT:    return "float";
         case TYPE_DOUBLE:   return "double";
         case TYPE_LDOUBLE:  return "long double";
-        case TYPE_FUNCTION: return "<<todo>>";
+
+        case TYPE_FUNCTION:
+            string = string_create();
+            string_catf(string, "%s(", ast_type_string(type->returntype));
+            for (list_iterator_t *it = list_iterator(type->parameters); !list_iterator_end(it); ) {
+                data_type_t *next = list_iterator_next(it);
+                string_catf(string, "%s", ast_type_string(next));
+                if (!list_iterator_end(it))
+                    string_cat(string, ',');
+            }
+            string_cat(string, ')');
+            return string_buffer(string);
 
         case TYPE_POINTER:
             string = string_create();
