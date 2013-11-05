@@ -26,7 +26,9 @@ Lice supports the following statements
 Statement | Description
 ----------|:-----------
 if        | Standard if statement
-for       | standard for statement
+for       | Standard for loop statement
+while     | Standard while loop statement
+do        | Standard do loop statement
 return    | Standard return statement
 
 ### Operators
