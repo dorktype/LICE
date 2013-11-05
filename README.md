@@ -134,6 +134,9 @@ The following sources where used in the construction of LICE
 -   "C99 Final Draft." ISO/IEC, 06 May 2006. Print.
     http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf
 
+-   "C11 Final Draft." ISO/IEC, 12 April 2011. Print.
+    http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
+
 -   "Instruction Set Reference, A-Z." Intel 64 and IA-32 Architectures Software Developer's Manual. Vol. 2. [Calif.?]: Intel, 2013. N. pag. Print.
     http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-instruction-set-reference-manual-325383.pdf
 
