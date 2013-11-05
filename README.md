@@ -103,9 +103,8 @@ Linux or FreeBSD system.
 This was a topic of serious debate amongst myself and peers. Some
 of the ideas were:
 
--   LICE Isn't Ceee
+-   LICE Isn't Cee
 -   Limitless Internal Compiler Errors
--   Lethargic Inducing C Extrapolator (You get tired of using it real fast)
 -   Lamest Implemenation of C, Ever!
 
 I like to think the last one suits the current status of the project
