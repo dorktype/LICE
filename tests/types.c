@@ -21,16 +21,16 @@ void test_signess() {
     signed long long e;
     signed short int f;
     signed long int g;
-    signed long long int f;
+    signed long long int h;
 
-    unsigned char g;
-    unsigned short h;
-    unsigned int i;
-    unsigned long  j;
-    unsigned long long k;
-    unsigned short int l;
-    unsigned long int m;
-    unsigned long long int n;
+    unsigned char i;
+    unsigned short j;
+    unsigned int k;
+    unsigned long  l;
+    unsigned long long m;
+    unsigned short int n;
+    unsigned long int o;
+    unsigned long long int p;
 }
 
 void test_storage() {
@@ -41,7 +41,6 @@ void test_storage() {
     auto int e;
     register int f;
 }
-
 
 void test_odd() {
     int unsigned const const *const a;
@@ -59,6 +58,22 @@ void test_odd() {
     float *(*(*D)(int))(double **, char);
     unsigned **(*(*E)[5])(char const *, int *);
     char *(*F(const char *))(char *);
+
+    char *G(
+        char (*a)(int),
+        struct {
+            char (*a)(
+                union {
+                    struct {
+                        int (a[5])[5];
+                        enum { A, B, C } b;
+                    };
+                    char (*p)(int[]);
+                } a
+            );
+            int b;
+        } **b
+    );
 }
 
 int main() {
