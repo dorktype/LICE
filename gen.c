@@ -214,7 +214,7 @@ static void gen_load_structure(ast_t *structure, data_type_t *field, int offset)
         case AST_TYPE_DEREFERENCE:
             gen_expression(structure->unary.operand);
             //gen_load_local(field, field->offset + offset);
-            gen_load_dereference(structure->ctype, field, field->offset + offset);
+            gen_load_dereference(field, field, field->offset + offset);
             break;
         default:
             compile_error("Internal error: gen_assignment_structure");

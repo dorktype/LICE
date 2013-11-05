@@ -12,6 +12,7 @@
 
 static ast_t *parse_expression(void);
 static ast_t *parse_expression_unary(void);
+static ast_t *parse_expression_intermediate(int);
 static ast_t *parse_statement_compound(void);
 static ast_t *parse_statement_declaration(void);
 static ast_t *parse_statement(void);
@@ -334,26 +335,26 @@ static ast_t *parse_expression_unary(void) {
         return next;
     }
     if (lexer_ispunct(token, '&')) {
-        ast_t *operand = parse_expression_unary();
+        ast_t *operand = parse_expression_intermediate(3);
         parse_semantic_lvalue(operand);
         return ast_new_unary(AST_TYPE_ADDRESS, ast_new_pointer(operand->ctype), operand);
     }
     if (lexer_ispunct(token, '!')) {
-        ast_t *operand = parse_expression_unary();
+        ast_t *operand = parse_expression_intermediate(3);
         return ast_new_unary('!', ast_data_int, operand);
     }
     if (lexer_ispunct(token, '-')) {
-        ast_t *ast = parse_expression();
+        ast_t *ast = parse_expression_intermediate(3);
         return ast_new_binary('-', ast_new_integer(ast_data_int, 0), ast);
     }
     if (lexer_ispunct(token, '~')) {
-        ast_t *ast = parse_expression();
+        ast_t *ast = parse_expression_intermediate(3);
         if (!ast_type_integer(ast->ctype))
             compile_error("Internal error: parse_expression_unary (1)");
         return ast_new_unary('~', ast->ctype, ast);
     }
     if (lexer_ispunct(token, '*')) {
-        ast_t       *operand = parse_expression_unary();
+        ast_t       *operand = parse_expression_intermediate(3);
         data_type_t *type    = ast_array_convert(operand->ctype);
 
         if (type->type != TYPE_POINTER)
