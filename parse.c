@@ -1061,6 +1061,16 @@ static ast_t *parse_statement_do(void) {
     return ast_new_do(cond, body);
 }
 
+static ast_t *parse_statement_break(void) {
+    parse_expect(';');
+    return ast_new_jump(AST_TYPE_STATEMENT_BREAK);
+}
+
+static ast_t *parse_statement_continue(void) {
+    parse_expect(';');
+    return ast_new_jump(AST_TYPE_STATEMENT_CONTINUE);
+}
+
 static ast_t *parse_statement_return(void) {
     ast_t *val = parse_expression();
     parse_expect(';');
@@ -1071,12 +1081,14 @@ static ast_t *parse_statement(void) {
     lexer_token_t *token = lexer_next();
     ast_t         *ast;
 
-    if (parse_identifer_check(token, "if"))     return parse_statement_if();
-    if (parse_identifer_check(token, "for"))    return parse_statement_for();
-    if (parse_identifer_check(token, "while"))  return parse_statement_while();
-    if (parse_identifer_check(token, "do"))     return parse_statement_do();
-    if (parse_identifer_check(token, "return")) return parse_statement_return();
-    if (lexer_ispunct        (token, '{'))      return parse_statement_compound();
+    if (lexer_ispunct        (token, '{'))        return parse_statement_compound();
+    if (parse_identifer_check(token, "if"))       return parse_statement_if();
+    if (parse_identifer_check(token, "for"))      return parse_statement_for();
+    if (parse_identifer_check(token, "while"))    return parse_statement_while();
+    if (parse_identifer_check(token, "do"))       return parse_statement_do();
+    if (parse_identifer_check(token, "return"))   return parse_statement_return();
+    if (parse_identifer_check(token, "break"))    return parse_statement_break();
+    if (parse_identifer_check(token, "continue")) return parse_statement_continue();
 
     lexer_unget(token);
 

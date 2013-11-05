@@ -86,6 +86,8 @@ typedef enum {
     AST_TYPE_STATEMENT_WHILE,
     AST_TYPE_STATEMENT_DO,
     AST_TYPE_STATEMENT_RETURN,
+    AST_TYPE_STATEMENT_BREAK,
+    AST_TYPE_STATEMENT_CONTINUE,
     AST_TYPE_STATEMENT_COMPOUND
 } ast_type_t;
 
@@ -252,6 +254,7 @@ ast_t *ast_new_call(data_type_t *type, char *name, list_t *args, list_t *paramty
 ast_t *ast_new_function(data_type_t *type, char *name, list_t *params, ast_t *body, list_t *locals);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_initializerlist(list_t *init);
+ast_t *ast_new_jump(int type);
 ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last);
 ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body);
 ast_t *ast_new_while(ast_t *cond, ast_t *body);

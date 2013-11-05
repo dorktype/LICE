@@ -13,6 +13,14 @@ void test() {
         accumulate--;
 
     expecti(accumulate, -1024);
+
+    int i;
+    for (i = 0; i < 100; i++) {
+        if (i == 99)
+            break;
+    }
+
+    expecti(i, 99);
 }
 
 int main() {

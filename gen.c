@@ -18,7 +18,12 @@ static void gen_load_dereference(data_type_t *, data_type_t *, int);
 #define gen_push_xmm(X)      gen_push_xmm_(X, __LINE__)
 #define gen_pop_xmm(X)       gen_pop_xmm_ (X, __LINE__)
 
-static int gen_stack = 0;
+static int   gen_stack = 0;
+
+static char *gen_label_break          = NULL;
+static char *gen_label_continue       = NULL;
+static char *gen_label_break_store    = NULL;
+static char *gen_label_continue_store = NULL;
 
 void gen_emit_impl(int line, const char *fmt, ...) {
     va_list args;
@@ -34,6 +39,17 @@ void gen_emit_impl(int line, const char *fmt, ...) {
     printf("%*c % 4d\n", col, '#', line);
 }
 
+static void gen_jump_save(char *lbreak, char *lcontinue) {
+    gen_label_break_store    = gen_label_break;
+    gen_label_continue_store = gen_label_continue;
+    gen_label_break          = lbreak;
+    gen_label_continue       = lcontinue;
+}
+
+static void gen_jump_restore(void) {
+    gen_label_break    = gen_label_break_store;
+    gen_label_continue = gen_label_continue_store;
+}
 
 static void gen_push_(const char *reg, int line) {
     gen_emit_impl(line, "\tpush %%%s", reg);
@@ -427,6 +443,7 @@ static void gen_expression(ast_t *ast) {
     char *begin;
     char *ne;
     char *end;
+    char *step;
 
     int regi = 0, backi;
     int regx = 0, backx;
@@ -596,39 +613,59 @@ static void gen_expression(ast_t *ast) {
             if (ast->forstmt.init)
                 gen_expression(ast->forstmt.init);
             begin = ast_new_label();
+            step  = ast_new_label();
             end   = ast_new_label();
+            gen_jump_save(end, step);
             gen_label(begin);
             if (ast->forstmt.cond) {
                 gen_expression(ast->forstmt.cond);
                 gen_je(end);
             }
             gen_expression(ast->forstmt.body);
+            gen_label(step);
             if (ast->forstmt.step)
                 gen_expression(ast->forstmt.step);
             gen_jmp(begin);
             gen_label(end);
+            gen_jump_restore();
             break;
 
         case AST_TYPE_STATEMENT_WHILE:
             begin = ast_new_label();
             end   = ast_new_label();
+            gen_jump_save(end, begin);
             gen_label(begin);
             gen_expression(ast->forstmt.cond);
             gen_je(end);
             gen_expression(ast->forstmt.body);
             gen_jmp(begin);
             gen_label(end);
+            gen_jump_restore();
             break;
 
         case AST_TYPE_STATEMENT_DO:
             begin = ast_new_label();
             end   = ast_new_label();
+            gen_jump_save(end, begin);
             gen_label(begin);
             gen_expression(ast->forstmt.body);
             gen_expression(ast->forstmt.cond);
             gen_je(end);
             gen_jmp(begin);
             gen_label(end);
+            gen_jump_restore();
+            break;
+
+        case AST_TYPE_STATEMENT_BREAK:
+            if (!gen_label_break)
+                compile_error("ICE");
+            gen_jmp(gen_label_break);
+            break;
+
+        case AST_TYPE_STATEMENT_CONTINUE:
+            if (!gen_label_continue)
+                compile_error("ICE");
+            gen_jmp(gen_label_continue);
             break;
 
         case AST_TYPE_STATEMENT_RETURN:
@@ -781,6 +818,7 @@ static void gen_function_prologue(ast_t *ast) {
     gen_emit_inline(".global %s", ast->function.name);
     gen_emit_inline("%s:", ast->function.name);
     gen_push("rbp"); // doesn't count towards misalignment
+    //gen_stack -= 8;
     //gen_stack -= 16; //
     gen_emit("mov %%rsp, %%rbp");
 

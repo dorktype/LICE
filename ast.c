@@ -397,6 +397,12 @@ static ast_t *ast_new_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t
     return ast;
 }
 
+ast_t *ast_new_jump(int type) {
+    ast_t *ast  = ast_new_node();
+    ast->type = type;
+    return ast;
+}
+
 ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last) {
     ast_t *ast       = ast_new_node();
     ast->type        = AST_TYPE_STATEMENT_IF;
