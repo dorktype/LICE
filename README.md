@@ -11,11 +11,11 @@ semantics of those specifiers aren't implement, they're ignored.
 The `void` type is also supported as well.
 
 ### Functions
-Functions are supported, as is function prototyping. Functions
-are limited to six arguments, and variable arguments are not
-supported. Calling external C variable argument functions such
-as printf are allowed but the argument count is also limited to six.
-You can also call malloc/free for heap allocations.
+Functions and function prototypes are fully supported, including variable
+arguments and function pointers. Calling function pointers however aren't
+supported. Function calls are limited to six arguments currently since the
+code generator doesn't know how to deal with passing additional arguments
+on the stack.
 
 ### Statements
 Lice supports most of the statements in C, including: `if, for, while,
