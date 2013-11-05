@@ -260,7 +260,7 @@ static void gen_assignment(ast_t *var) {
 }
 
 static void gen_comparision(char *operation, ast_t *ast) {
-    if (ast_type_floating(ast->ctype)) {
+    if (ast_type_floating(ast->left->ctype) || ast_type_floating(ast->right->ctype)) {
         gen_expression(ast->left);
         gen_cast_float(ast->left->ctype);
         gen_push_xmm(0);
