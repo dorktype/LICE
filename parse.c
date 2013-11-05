@@ -321,7 +321,7 @@ static ast_t *parse_expression_unary(void) {
     lexer_token_t *token = lexer_next();
 
     if (!token)
-        compile_error("internal error");
+        compile_error("internal error %s", __func__);
 
     if (parse_identifer_check(token, "sizeof")) {
         return parse_sizeof(false);
@@ -549,7 +549,7 @@ static ast_t *parse_declaration_array_initializer_value(data_type_t *type) {
         type->length = length;
         type->size   = length * type->pointer->size;
     } else if (type->length != length) {
-        compile_error("Internal error");
+        compile_error("Internal error %s", __func__);
     }
     return init;
 }
@@ -566,7 +566,7 @@ static ast_t *parse_declaration_structure_initializer_value(data_type_t *type) {
 
         if (lexer_ispunct(token, '{')) {
             if (fieldtype->type != TYPE_ARRAY)
-                compile_error("Internal error");
+                compile_error("Internal error %s", __func__);
             lexer_unget(token);
             parse_declaration_array_initializer_intermediate(initlist, fieldtype);
             continue;
@@ -734,9 +734,6 @@ static void parse_declaration_specification(data_type_t **rtype, storage_t *stor
     #define set_uncheck(STATE, VALUE)                                  \
         do {                                                           \
             STATE = VALUE;                                             \
-            if (STATE == 0) {                                          \
-                goto state_machine_error;                              \
-            }                                                          \
         } while (0)
 
     #define set_check(STATE, VALUE)                                    \
@@ -891,13 +888,11 @@ state_machine_error:
 }
 
 static ast_t *parse_declaration_initialization_value(data_type_t *type) {
-    ast_t *init = (type->type == TYPE_ARRAY)
-                        ? parse_declaration_array_initializer_value(type)
-                        : (type->type == TYPE_STRUCTURE)
-                                ? parse_declaration_structure_initializer_value(type)
-                                : parse_expression();
-    parse_expect(';');
-    return init;
+    return (type->type == TYPE_ARRAY)
+                ? parse_declaration_array_initializer_value(type)
+                : (type->type == TYPE_STRUCTURE)
+                        ? parse_declaration_structure_initializer_value(type)
+                        : parse_expression();
 }
 
 static data_type_t *parse_array_dimensions_intermediate(data_type_t *basetype) {
@@ -977,8 +972,11 @@ static ast_t *parse_declaration(void) {
     ast_t         *var   = ast_new_variable_local(type, name);
     lexer_token_t *token = lexer_next();
 
-    if (lexer_ispunct(token, '='))
-        return parse_declaration_initialization(var);
+    if (lexer_ispunct(token, '=')) {
+        ast_t *value = parse_declaration_initialization(var);
+        parse_expect(';');
+        return value;
+    }
 
     lexer_unget(token);
     parse_expect(';');
@@ -1253,63 +1251,61 @@ static data_type_t *parse_declarator(data_type_t *base) {
     return NULL;
 }
 
-list_t *parse_run(void) {
-    list_t *list = list_create();
+static void parse_toplevel(list_t *list) {
+    data_type_t *base;
+    storage_t    storage;
+    parse_declaration_specification(&base, &storage);
+
     for (;;) {
-        // need a way to drop out
-        lexer_token_t *get = lexer_peek();
-        if (!get)
-            return list;
+        data_type_t   *type = parse_declarator(base);
+        lexer_token_t *name = lexer_next();
 
-        if (parse_function_definition_check()) {
-            list_push(list, parse_function_definition_intermediate());
-            continue;
-        }
-
-        // deal with specification
-        data_type_t   *base;
-        storage_t      storage;
-        parse_declaration_specification(&base, &storage);
-
-        data_type_t   *type  = parse_declarator(base);
-        lexer_token_t *token = lexer_next();
-
-        if (lexer_ispunct(token, ';'))
+        if (lexer_ispunct(name, ';'))
             continue;
 
-        if (token->type != LEXER_TOKEN_IDENT)
-            compile_error("Internal error");
+        if (name->type != LEXER_TOKEN_IDENT)
+            compile_error("Internal error TOPLEVEL");
 
         type = parse_array_dimensions(type);
-        lexer_token_t *peek = lexer_next();
-        if (lexer_ispunct(peek, '=')) {
+        lexer_token_t *token = lexer_next();
+        if (lexer_ispunct(token, '=')) {
             if (storage == STORAGE_TYPEDEF)
                 compile_error("invalid use of typedef");
-            list_push(list, parse_declaration_initialization(ast_new_variable_global(type, token->string)));
-            continue;
-        }
-
-        if (lexer_ispunct(peek, '(')) {
+            ast_t *var = ast_new_variable_global(type, name->string);
+            list_push(list, parse_declaration_initialization(var));
+            token = lexer_next();
+        } else if (lexer_ispunct(token, '(')) {
             parse_function_parameters(&type, NULL, type);
-            parse_expect(';');
             if (storage == STORAGE_TYPEDEF)
-                table_insert(parse_typedefs, token->string, type);
+                table_insert(parse_typedefs, name->string, type);
             else
-                ast_new_variable_global(type, token->string);
-            continue;
-        }
-
-        if (lexer_ispunct(peek, ';')) {
+                ast_new_variable_global(type, name->string);
+            token = lexer_next();
+        } else {
             if (storage == STORAGE_TYPEDEF)
-                table_insert(parse_typedefs, token->string, type);
+                table_insert(parse_typedefs, name->string, type);
             else {
-                ast_t *var = ast_new_variable_global(type, token->string);
+                ast_t *var = ast_new_variable_global(type, name->string);
                 if (storage != STORAGE_EXTERN)
                     list_push(list, ast_new_decl(var, NULL));
             }
-            continue;
         }
-        compile_error("Confused!\n");
+        if (lexer_ispunct(token, ';'))
+            return;
+        if (!lexer_ispunct(token, ','))
+            compile_error("Confused!");
+    }
+}
+
+list_t *parse_run(void) {
+    list_t *list = list_create();
+    for (;;) {
+        if (!lexer_peek())
+            return list;
+        if (parse_function_definition_check())
+            list_push(list, parse_function_definition_intermediate());
+        else
+            parse_toplevel(list);
     }
     return NULL;
 }

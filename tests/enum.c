@@ -1,22 +1,23 @@
-enum {
-    A,
-    B,
-    C
-};
-
-enum foo {
-    D,
-    E,
-    F
-} value;
-
-enum {
-    I = 100,
-    J,
-    K
-};
 
 void test() {
+    enum {
+        A,
+        B,
+        C
+    };
+
+    enum {
+        D,
+        E,
+        F
+    } value;
+
+    enum {
+        I = 100,
+        J,
+        K
+    };
+
     expecti(A, 0);
     expecti(B, 1);
     expecti(C, 2);

@@ -1,5 +1,6 @@
-union incomplete;
 void test() {
+    union incomplete;
+
     union {
         int  value;
         char byte[4];

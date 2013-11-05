@@ -1,5 +1,6 @@
-struct incomplete;
 void test() {
+    struct incomplete;
+
     struct s {
         int a;
         int b;
