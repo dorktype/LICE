@@ -476,9 +476,10 @@ static bool parse_type_check(lexer_token_t *token) {
         return false;
 
     static const char *keywords[] = {
-        "char",   "short", "int",    "long",     "float", "double",
-        "struct", "union", "signed", "unsigned", "enum",  "void",
-        "extern", "typedef"
+        "char",     "short",  "int",    "long",     "float",    "double",
+        "struct",   "union",  "signed", "unsigned", "enum",     "void",
+        "typedef",  "extern", "static", "auto",     "register", "const",
+        "volatile", "inline"
     };
 
     for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++)
