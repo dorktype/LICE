@@ -14,9 +14,8 @@ void expecti(int a, int b) {
 void expectf(float a, float b) {
     if (a != b) {
         printf(" [ERROR]\n");
-        // TODO fix stack alignment
-        //printf("    Expected: %f\n", b);
-        //printf("    Result:   %f\n", a);
+        printf("    Expected: %f\n", b);
+        printf("    Result:   %f\n", a);
 
         exit(1);
     }
@@ -25,15 +24,14 @@ void expectf(float a, float b) {
 void expectd(double a, double b) {
     if (a != b) {
         printf(" [ERROR]\n");
-        // TODO fix stack alignment
-        //printf("    Expected: %f\n", b);
-        //printf("    Result:   %f\n", a);
+        printf("    Expected: %f\n", b);
+        printf("    Result:   %f\n", a);
 
         exit(1);
     }
 }
 
-void expects(char *a, char *b) {
+void expects(const char *a, const char *b) {
     if (strcmp(a, b)) {
         printf(" [ERROR]\n");
         printf("    Expected: %s\n", b);
@@ -43,7 +41,7 @@ void expects(char *a, char *b) {
     }
 }
 
-void init(char *message) {
+void init(const char *message) {
     int size = strlen(message);
     printf("Testing %s ...", message);
     int fill = 40 - size;

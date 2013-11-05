@@ -13,11 +13,11 @@ void test() {
     expecti(d, 15);
     expecti(e, 3735928559);
     expecti(f, 3735928559);
-
 }
 
 int main() {
     init("numbers");
     test();
+
     return ok();
 }
