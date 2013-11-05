@@ -25,11 +25,29 @@ do, break, continue` and `return`. Lice still lacks support for switch
 statements and a few other things.
 
 ### Operators
-Lice supports all the standard operators, which includes: `+,-,/,*, =,
-==,!=,<,>,!,%,(,),[,],++,--,?,:,&,&#124;,->,>=,<=,~,^,<<,>>`. Lice
-doesn't support compound assignment operators: `+=,-=,*=,/=,%=,&=,|=,^=,
-<<=,>>=`. Lice also doesn't support the comma operator for seperating
-expressions. Prefix `++,--` isn't supported either.
+Lice supports all the standard operators which includes
+
+Operators | Description
+----------|:-------------------------------------------------------
++,-,/,*   | Arithmetic operators
+=         | Assignment operator
+==,!=     | Equality operators
+<         | Less than operator
+\>        | Greater than operator
+!         | Boolean not operator
+%         | Modulo operator
+(,)       | Standard Parentheses
+[]        | Array subscript operator
+++,--     | Postfix operators only (e.g a++)
+?,:       | Ternary operator
+&,&#124;  | Bitwise operators
+->        | Standard pointer syntax sugar operator
+>=,<=     | Greater/Less than or equal to operators
+~,^       | Bitwise not and xor
+<<,>>     | Bitshift operators
+
+Lice doesn't support compound assignment operators `+=, -=, *=, /= ...`
+or prefix operators `++, --`
 
 ### Constructs:
 Lice supports only three constructs:
@@ -87,6 +105,7 @@ of the ideas were:
 
 -   LICE Isn't Ceee
 -   Limitless Internal Compiler Errors
+-   Lethargic Inducing C Extrapolator (You get tired of using it real fast)
 -   Lamest Implemenation of C, Ever!
 
 I like to think the last one suits the current status of the project
