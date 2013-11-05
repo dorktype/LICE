@@ -397,7 +397,24 @@ static ast_t *ast_new_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t
     return ast;
 }
 
-ast_t *ast_new_jump(int type) {
+ast_t *ast_new_switch(ast_t *expr, ast_t *body) {
+    ast_t *ast           = ast_new_node();
+    ast->type            = AST_TYPE_STATEMENT_SWITCH;
+    ast->switchstmt.expr = expr;
+    ast->switchstmt.body = body;
+
+    return ast;
+}
+
+ast_t *ast_new_case(int value) {
+    ast_t *ast     = ast_new_node();
+    ast->type      = AST_TYPE_STATEMENT_CASE;
+    ast->casevalue = value;
+
+    return ast;
+}
+
+ast_t *ast_make(int type) {
     ast_t *ast  = ast_new_node();
     ast->type = type;
     return ast;

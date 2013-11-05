@@ -24,6 +24,8 @@ static char *gen_label_break          = NULL;
 static char *gen_label_continue       = NULL;
 static char *gen_label_break_store    = NULL;
 static char *gen_label_continue_store = NULL;
+static char *gen_label_switch         = NULL;
+static char *gen_label_switch_store   = NULL;
 
 void gen_emit_impl(int line, const char *fmt, ...) {
     va_list args;
@@ -445,6 +447,7 @@ static void gen_expression(ast_t *ast) {
     char *ne;
     char *end;
     char *step;
+    char *skip;
 
     int regi = 0, backi;
     int regx = 0, backx;
@@ -672,6 +675,39 @@ static void gen_expression(ast_t *ast) {
             if (!gen_label_continue)
                 compile_error("ICE");
             gen_jmp(gen_label_continue);
+            break;
+
+        case AST_TYPE_STATEMENT_SWITCH:
+            gen_label_switch_store = gen_label_switch;
+            gen_label_break_store  = gen_label_break;
+            gen_expression(ast->switchstmt.expr);
+            gen_label_switch = ast_new_label();
+            gen_label_break  = ast_new_label();
+            gen_jmp(gen_label_switch);
+            gen_expression(ast->switchstmt.body);
+            gen_label(gen_label_switch);
+            gen_label(gen_label_break);
+            gen_label_switch = gen_label_switch_store;
+            gen_label_break  = gen_label_break_store;
+            break;
+
+        case AST_TYPE_STATEMENT_CASE:
+            if (!gen_label_switch)
+                compile_error("ICE");
+            skip = ast_new_label();
+            gen_jmp(skip);
+            gen_label(gen_label_switch);
+            gen_emit("cmp $%d, %%eax", ast->casevalue);
+            gen_label_switch = ast_new_label();
+            gen_emit("jne %s", gen_label_switch);
+            gen_label(skip);
+            break;
+
+        case AST_TYPE_STATEMENT_DEFAULT:
+            if (!gen_label_switch)
+                compile_error("ICE");
+            gen_label(gen_label_switch);
+            gen_label_switch = ast_new_label();
             break;
 
         case AST_TYPE_STATEMENT_RETURN:

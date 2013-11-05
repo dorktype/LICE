@@ -85,6 +85,9 @@ typedef enum {
     AST_TYPE_STATEMENT_FOR,
     AST_TYPE_STATEMENT_WHILE,
     AST_TYPE_STATEMENT_DO,
+    AST_TYPE_STATEMENT_SWITCH,
+    AST_TYPE_STATEMENT_CASE,
+    AST_TYPE_STATEMENT_DEFAULT,
     AST_TYPE_STATEMENT_RETURN,
     AST_TYPE_STATEMENT_BREAK,
     AST_TYPE_STATEMENT_CONTINUE,
@@ -196,12 +199,18 @@ typedef struct {
     data_type_t *type;
 } ast_initlist_t;
 
+typedef struct {
+    ast_t       *expr;
+    ast_t       *body;
+} ast_switch_t;
+
 struct ast_s {
     int           type;
     data_type_t *ctype;
 
     // all the possible nodes
     union {
+        int             casevalue;      // switch case value
         long            integer;        // integer
         char            character;      // character
         ast_string_t    string;         // string
@@ -211,6 +220,7 @@ struct ast_s {
         ast_decl_t      decl;           // declarations
         ast_ifthan_t    ifstmt;         // if statement
         ast_for_t       forstmt;        // for statement
+        ast_switch_t    switchstmt;     // switch statement
         ast_t          *returnstmt;     // return statement
         list_t         *compound;       // compound statement
         ast_initlist_t  initlist;       // initializer list
@@ -254,7 +264,6 @@ ast_t *ast_new_call(data_type_t *type, char *name, list_t *args, list_t *paramty
 ast_t *ast_new_function(data_type_t *type, char *name, list_t *params, ast_t *body, list_t *locals);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_initializerlist(list_t *init);
-ast_t *ast_new_jump(int type);
 ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last);
 ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body);
 ast_t *ast_new_while(ast_t *cond, ast_t *body);
@@ -262,6 +271,10 @@ ast_t *ast_new_do(ast_t *cond, ast_t *body);
 ast_t *ast_new_return(data_type_t *returntype, ast_t *val);
 ast_t *ast_new_compound(list_t *statements);
 ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last);
+ast_t *ast_new_switch(ast_t *expr, ast_t *body);
+ast_t *ast_new_case(int value);
+
+ast_t *ast_make(int type);
 
 data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes, bool dots);
 data_type_t *ast_new_pointer(data_type_t *type);

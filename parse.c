@@ -1058,12 +1058,32 @@ static ast_t *parse_statement_do(void) {
 
 static ast_t *parse_statement_break(void) {
     parse_expect(';');
-    return ast_new_jump(AST_TYPE_STATEMENT_BREAK);
+    return ast_make(AST_TYPE_STATEMENT_BREAK);
 }
 
 static ast_t *parse_statement_continue(void) {
     parse_expect(';');
-    return ast_new_jump(AST_TYPE_STATEMENT_CONTINUE);
+    return ast_make(AST_TYPE_STATEMENT_CONTINUE);
+}
+
+static ast_t *parse_statement_switch(void) {
+    parse_expect('(');
+    ast_t *expression = parse_expression();
+    //parse_semantic_lvalue(expression); TODO verify lvalueness
+    parse_expect(')');
+    ast_t *body = parse_statement();
+    return ast_new_switch(expression, body);
+}
+
+static ast_t *parse_statement_case(void) {
+    int value = parse_evaluate(parse_expression());
+    parse_expect(':');
+    return ast_new_case(value);
+}
+
+static ast_t *parse_statement_default(void) {
+    parse_expect(':');
+    return ast_make(AST_TYPE_STATEMENT_DEFAULT);
 }
 
 static ast_t *parse_statement_return(void) {
@@ -1082,6 +1102,9 @@ static ast_t *parse_statement(void) {
     if (parse_identifer_check(token, "while"))    return parse_statement_while();
     if (parse_identifer_check(token, "do"))       return parse_statement_do();
     if (parse_identifer_check(token, "return"))   return parse_statement_return();
+    if (parse_identifer_check(token, "switch"))   return parse_statement_switch();
+    if (parse_identifer_check(token, "case"))     return parse_statement_case();
+    if (parse_identifer_check(token, "default"))  return parse_statement_default();
     if (parse_identifer_check(token, "break"))    return parse_statement_break();
     if (parse_identifer_check(token, "continue")) return parse_statement_continue();
 
