@@ -20,43 +20,16 @@ is also limited, Lice will only support trivial prototypes, confusing
 declarations aren't handled as of yet.
 
 ### Statements
-Lice supports the following statements
-
-
-Statement | Description
-----------|:-----------
-if        | Standard if statement
-for       | Standard for loop statement
-while     | Standard while loop statement
-do        | Standard do loop statement
-return    | Standard return statement
+Lice supports most of the statements in C, including: `if, for, while,
+do, break, continue` and `return`. Lice still lacks support for switch
+statements and a few other things.
 
 ### Operators
-Lice supports the following operators
-
-
-Operators | Description
-----------|:-------------------------------------------------------
-+,-,/,*   | Arithmetic operators
-=         | Assignment operator
-==,!=     | Equality operators
-<         | Less than operator
-\>        | Greater than operator
-!         | Boolean not operator
-%         | Modulo operator
-(,)       | Standard Parentheses
-[]        | Array subscript operator
-++,--     | Postfix operators only (e.g a++)
-?,:       | Ternary operator
-&,&#124;  | Bitwise operators
-->        | Standard pointer syntax sugar operator
->=,<=     | Greater/Less than or equal to operators
-~,^       | Bitwise not and xor
-<<,>>     | Bitshift operators
-
-Lice doesn't support the short-hand operators `+=, -=, *=, /= ...`
-
-Lice doesn't support prefix operators `++, --`
+Lice supports all the standard operators, which includes: `+,-,/,*, =,
+==,!=,<,>,!,%,(,),[,],++,--,?,:,&,&#124;,->,>=,<=,~,^,<<,>>`. Lice
+doesn't support compound assignment operators: `+=,-=,*=,/=,%=,&=,|=,^=,
+<<=,>>=`. Lice also doesn't support the comma operator for seperating
+expressions. Prefix `++,--` isn't supported either.
 
 ### Constructs:
 Lice supports only three constructs:
@@ -114,7 +87,6 @@ of the ideas were:
 
 -   LICE Isn't Ceee
 -   Limitless Internal Compiler Errors
--   Lethargic Inducing C Extrapolator (You get tired of using it real fast)
 -   Lamest Implemenation of C, Ever!
 
 I like to think the last one suits the current status of the project
