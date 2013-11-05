@@ -459,7 +459,7 @@ static void gen_expression(ast_t *ast) {
                     break;
 
                 case TYPE_INT:
-                    gen_emit("mov $%d, %%eax", ast->integer);
+                    gen_emit("mov $%d, %%rax", ast->integer);
                     break;
 
                 case TYPE_LONG:
@@ -580,6 +580,10 @@ static void gen_expression(ast_t *ast) {
 
                 case AST_TYPE_VAR_GLOBAL:
                     gen_emit("lea %s(%%rip), %%rax", ast->unary.operand->variable.label);
+                    break;
+
+                case AST_TYPE_DEREFERENCE:
+                    gen_expression(ast->unary.operand);
                     break;
 
                 default:
