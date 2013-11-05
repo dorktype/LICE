@@ -215,50 +215,71 @@ static ast_t *parse_generic(char *name) {
     return var;
 }
 
-static ast_t *parse_number(char *string) {
-    char *p    = string;
+static ast_t *parse_number_integer(const char *string) {
+    const char *p    = string;
     int   base = 10;
 
-    if (*p == '0') {
+    if (!strncasecmp(string, "0x", 2)) {
+        base = 16;
         p++;
-        if (*p == 'x' || *p == 'X') {
-            base = 16;
-            p++;
-        } else if (isdigit(*p)) {
-            base = 8; // octal
-        }
+        p++;
+    } else if (string[0] == '0' && string[1] != '\0') {
+        base = 8;
+        p++;
     }
 
-    char *start = p;
-    while (isxdigit(*p))
+    while (isxdigit(*p)) {
+        if (base == 10 && isalpha(*p))
+            compile_error("invalid character in decimal literal");
+        if (base == 8 && !('0' <= *p && *p <= '7'))
+            compile_error("invalid character in octal literal");
         p++;
-
-    if (*p == '.') {
-        if (base != 10)
-            compile_error("Malformatted numerical value (1)");
-        p++;
-
-        while (isdigit(*p))
-            p++;
-
-        if (*p != '\0')
-            compile_error("Malformmated numerical value (2)");
-
-        return ast_new_floating(atof(start));
     }
+
     if (!strcasecmp(p, "l"))
-        return ast_new_integer(ast_data_long, strtol(start, NULL, base));
-    else if (!strcasecmp(p, "ul") || !strcasecmp(p, "lu"))
-        return ast_new_integer(ast_data_ulong, strtoul(start, NULL, base));
+        return ast_new_integer(ast_data_long, strtol(string, NULL, base));
+    if (!strcasecmp(p, "ul") || !strcasecmp(p, "lu"))
+        return ast_new_integer(ast_data_ulong, strtoul(string, NULL, base));
+    if (!strcasecmp(p, "ll"))
+        return ast_new_integer(ast_data_llong, strtoll(string, NULL, base));
+    if (!strcasecmp(p, "ull") || !strcasecmp(p, "llu"))
+        return ast_new_integer(ast_data_ullong, strtoull(string, NULL, base));
+    if (*p != '\0')
+        compile_error("invalid suffix for literal");
+
+    long value = strtol(string, NULL, base);
+    return (value & ~(long)UINT_MAX)
+                ? ast_new_integer(ast_data_long, value)
+                : ast_new_integer(ast_data_int, value);
+}
+
+static ast_t *parse_number_floating(const char *string) {
+    const char *p = string;
+    char *end;
+
+    while (p[1])
+        p++;
+
+    ast_t *ast;
+    if (*p == 'l' || *p == 'L')
+        ast = ast_new_floating(ast_data_ldouble, strtold(string, &end));
+    else if (*p == 'f' || *p == 'F')
+        ast = ast_new_floating(ast_data_float, strtof(string, &end));
     else {
-        if (*p != '\0')
-            compile_error("Malformatted numerical value (3) %s (%s)", string, p);
-        long test = strtol(start, NULL, base);
-        if (test & ~(long)UINT_MAX)
-            return ast_new_integer(ast_data_long, test);
-        return ast_new_integer(ast_data_int, test);
+        ast = ast_new_floating(ast_data_double, strtod(string, &end));
+        p++;
     }
-    return NULL;
+
+    if (end != p)
+        compile_error("malformatted float literal");
+
+    return ast;
+}
+
+static ast_t *parse_number(const char *string) {
+    return strpbrk(string, ".pe")
+                ? parse_number_floating(string)
+                : parse_number_integer(string);
 }
 
 static ast_t *parse_expression_primary(void) {

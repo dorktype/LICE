@@ -9,12 +9,15 @@ static int ast_label_index = 0;
 
 data_type_t *ast_data_void     = &(data_type_t) { TYPE_VOID,      0, true  };
 data_type_t *ast_data_long     = &(data_type_t) { TYPE_LONG,      8, true  };
+data_type_t *ast_data_llong    = &(data_type_t) { TYPE_LLONG,     8, true  };
 data_type_t *ast_data_int      = &(data_type_t) { TYPE_INT,       4, true  };
 data_type_t *ast_data_short    = &(data_type_t) { TYPE_SHORT,     2, true  };
 data_type_t *ast_data_char     = &(data_type_t) { TYPE_CHAR,      1, true  };
-data_type_t *ast_data_ulong    = &(data_type_t) { TYPE_LONG,      8, false };
 data_type_t *ast_data_float    = &(data_type_t) { TYPE_FLOAT,     4, true  };
 data_type_t *ast_data_double   = &(data_type_t) { TYPE_DOUBLE,    8, true  };
+data_type_t *ast_data_ldouble  = &(data_type_t) { TYPE_LDOUBLE,   8, true  };
+data_type_t *ast_data_ulong    = &(data_type_t) { TYPE_LONG,      8, false };
+data_type_t *ast_data_ullong   = &(data_type_t) { TYPE_LLONG,     8, false };
 data_type_t *ast_data_function = NULL;
 
 list_t      *ast_locals      = NULL;
@@ -250,10 +253,10 @@ ast_t *ast_new_integer(data_type_t *type, int value) {
     return ast;
 }
 
-ast_t *ast_new_floating(double value) {
+ast_t *ast_new_floating(data_type_t *type, double value) {
     ast_t *ast          = ast_new_node();
     ast->type           = AST_TYPE_LITERAL;
-    ast->ctype          = ast_data_double;
+    ast->ctype          = type;
     ast->floating.value = value;
     list_push(ast_floats, ast);
     return ast;
