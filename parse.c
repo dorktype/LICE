@@ -19,9 +19,9 @@ static void         parse_statement_declaration(list_t *);
 static ast_t       *parse_statement(void);
 
 
+static data_type_t *parse_declaration_specification(storage_t *);
 static data_type_t *parse_declarator(char **, data_type_t *, list_t *, cdecl_t);
 static void         parse_declaration(list_t *, ast_t *(*)(data_type_t *, char *));
-static void         parse_declaration_specification(data_type_t **, storage_t *);
 
 static void         parse_function_parameter(data_type_t **, char **, bool);
 static data_type_t *parse_function_parameters(list_t *, data_type_t *);
@@ -88,8 +88,9 @@ static int parse_evaluate(ast_t *ast) {
         case LEXER_TOKEN_RSHIFT: return parse_evaluate(ast->left) >> parse_evaluate(ast->right);
 
         // unary is special
-        case '!': return !parse_evaluate(ast->unary.operand);
-        case '~': return ~parse_evaluate(ast->unary.operand);
+        case '!':                      return !parse_evaluate(ast->unary.operand);
+        case '~':                      return ~parse_evaluate(ast->unary.operand);
+        case AST_TYPE_EXPRESSION_CAST: return  parse_evaluate(ast->unary.operand);
 
         default:
             compile_error("Not a valid integer constant expression");
@@ -325,6 +326,16 @@ static ast_t *parse_sizeof(bool typename) {
     return ast_new_integer(ast_data_long, expression->ctype->size);
 }
 
+static ast_t *parse_expression_unary_cast(void) {
+    data_type_t *basetype = parse_declaration_specification(NULL);
+    data_type_t *casttype = parse_declarator(NULL, basetype, NULL, CDECL_CAST);
+
+    parse_expect(')');
+    ast_t *expression = parse_expression();
+
+    return ast_new_unary(AST_TYPE_EXPRESSION_CAST, casttype, expression);
+}
+
 static ast_t *parse_expression_unary(void) {
     lexer_token_t *token = lexer_next();
 
@@ -337,6 +348,8 @@ static ast_t *parse_expression_unary(void) {
 
     // for *(expression) and &(expression)
     if (lexer_ispunct(token, '(')) {
+        if (parse_type_check(lexer_peek()))
+            return parse_expression_unary_cast();
         ast_t *next = parse_expression();
         parse_expect(')');
         return next;
@@ -609,11 +622,7 @@ static table_t *parse_memory_fields(void) {
         if (!parse_type_check(lexer_peek()))
             break;
 
-        data_type_t *basetype;
-        storage_t    storage;
-
-        parse_declaration_specification(&basetype, &storage);
-
+        data_type_t *basetype = parse_declaration_specification(NULL);
         for (;;) {
             char        *name;
             data_type_t *fieldtype = parse_declarator(&name, basetype, NULL, CDECL_PARAMETER);
@@ -716,13 +725,11 @@ static data_type_t *parse_enumeration(void) {
     return ast_data_int;
 }
 
-static void parse_declaration_specification(data_type_t **rtype, storage_t *storage) {
-    *rtype   = NULL;
-    *storage = 0;
-
-    lexer_token_t *token = lexer_peek();
+static data_type_t *parse_declaration_specification(storage_t *rstorage) {
+    storage_t      storage = 0;
+    lexer_token_t *token   = lexer_peek();
     if (!token || token->type != LEXER_TOKEN_IDENTIFIER)
-        return;
+        compile_error("internal error in declaration specification parsing");
 
     // large declaration specification state machine
     enum {
@@ -799,7 +806,7 @@ static void parse_declaration_specification(data_type_t **rtype, storage_t *stor
         do {                                                           \
             if (VALUE == 0)                                            \
                 goto state_machine_error;                              \
-            set_check(*storage, VALUE);                                \
+            set_check(storage, VALUE);                                 \
         } while (0)
 
     #define state_machine_try(THING) \
@@ -862,53 +869,48 @@ static void parse_declaration_specification(data_type_t **rtype, storage_t *stor
         #undef set_uncheck
     }
 
-    if (user) {
-        *rtype = user;
-        return;
-    }
+    if (rstorage)
+        *rstorage = storage;
+
+    if (user)
+        return user;
 
     switch (type) {
         case kvoid:
-            *rtype = ast_data_void;
-            return;
+            return ast_data_void;
         case kchar:
-            *rtype = ast_type_create(TYPE_CHAR,  signature != kunsigned);
-            return;
+            return ast_type_create(TYPE_CHAR,  signature != kunsigned);
         case kfloat:
-            *rtype = ast_type_create(TYPE_FLOAT, false);
-            return;
+            return ast_type_create(TYPE_FLOAT, false);
         case kdouble:
-            *rtype = ast_type_create(
+            return ast_type_create(
                 (size == klong)
                     ? TYPE_LDOUBLE
                     : TYPE_DOUBLE,
                 false
             );
-            return;
         default:
             break;
     }
 
     switch (size) {
         case kshort:
-            *rtype = ast_type_create(TYPE_SHORT, signature != kunsigned);
-            return;
+            return ast_type_create(TYPE_SHORT, signature != kunsigned);
         case klong:
-            *rtype = ast_type_create(TYPE_LONG,  signature != kunsigned);
-            return;
+            return ast_type_create(TYPE_LONG,  signature != kunsigned);
         case kllong:
-            *rtype = ast_type_create(TYPE_LLONG, signature != kunsigned);
-
+            return ast_type_create(TYPE_LLONG, signature != kunsigned);
         default:
             // retarded implicit int becomes easy this way, at least on of the
             // useful benefits of such a complicated state machine.
-            *rtype = ast_type_create(TYPE_INT,   signature != kunsigned);
-            return;
+            return ast_type_create(TYPE_INT,   signature != kunsigned);
     }
 
     compile_error("ICE (BAD)");
 state_machine_error:
     compile_error("ICE (GOOD)");
+
+    return NULL;
 }
 
 static ast_t *parse_declaration_initialization_value(data_type_t *type) {
@@ -956,7 +958,7 @@ static void parse_function_parameter(data_type_t **rtype, char **name, bool next
     data_type_t *basetype;
     storage_t    storage;
 
-    parse_declaration_specification(&basetype, &storage);
+    basetype = parse_declaration_specification(&storage);
     basetype = parse_declarator(name, basetype, NULL, next ? CDECL_TYPEONLY : CDECL_PARAMETER);
     *rtype = parse_array_dimensions(basetype);
 }
@@ -1235,13 +1237,11 @@ static bool parse_function_definition_check(void) {
 }
 
 static ast_t *parse_function_definition_intermediate(void) {
-    storage_t    storage;
     data_type_t *basetype;
     char        *name;
     list_t      *parameters = list_create();
 
-    parse_declaration_specification(&basetype, &storage);
-
+    basetype     = parse_declaration_specification(NULL);
     ast_localenv = table_create(ast_globalenv);
 
     data_type_t *functype = parse_declarator(&name, basetype, parameters, CDECL_BODY);
@@ -1347,11 +1347,10 @@ static data_type_t *parse_declarator(char **rname, data_type_t *basetype, list_t
 }
 
 static void parse_declaration(list_t *list, ast_t *(*make)(data_type_t *, char *)) {
-    data_type_t *basetype;
-    storage_t    storage;
-    parse_declaration_specification(&basetype, &storage);
+    storage_t      storage;
+    data_type_t   *basetype = parse_declaration_specification(&storage);
+    lexer_token_t *token    = lexer_next();
 
-    lexer_token_t *token = lexer_next();
     if (lexer_ispunct(token, ';'))
         return;
 

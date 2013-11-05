@@ -708,6 +708,14 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
         case LEXER_TOKEN_LEQUAL:    ast_string_binary(string, "<=", ast); break;
         case LEXER_TOKEN_NEQUAL:    ast_string_binary(string, "!=", ast); break;
 
+        case AST_TYPE_EXPRESSION_CAST:
+            string_catf(string, "((%s) -> (%s) %s)",
+                ast_type_string(ast->unary.operand->ctype),
+                ast_type_string(ast->ctype),
+                ast_string(ast->unary.operand)
+            );
+            break;
+
         default:
             left  = ast_string(ast->left);
             right = ast_string(ast->right);

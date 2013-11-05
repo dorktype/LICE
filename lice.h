@@ -79,6 +79,7 @@ typedef enum {
 
     // expression
     AST_TYPE_EXPRESSION_TERNARY,
+    AST_TYPE_EXPRESSION_CAST,
 
     // statements
     AST_TYPE_STATEMENT_IF,

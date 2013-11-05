@@ -780,6 +780,12 @@ static void gen_expression(ast_t *ast) {
         case LEXER_TOKEN_INCREMENT: gen_emit_postfix(ast, "add"); break;
         case LEXER_TOKEN_DECREMENT: gen_emit_postfix(ast, "sub"); break;
 
+        // load convert is sufficent for a cast
+        case AST_TYPE_EXPRESSION_CAST:
+            gen_expression(ast->unary.operand);
+            gen_load(ast->ctype, ast->unary.operand->ctype);
+            break;
+
         default:
             gen_binary(ast);
     }
