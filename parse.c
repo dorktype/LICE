@@ -476,10 +476,10 @@ static bool parse_type_check(lexer_token_t *token) {
         return false;
 
     static const char *keywords[] = {
-        "char",     "short",  "int",    "long",     "float",    "double",
-        "struct",   "union",  "signed", "unsigned", "enum",     "void",
-        "typedef",  "extern", "static", "auto",     "register", "const",
-        "volatile", "inline"
+        "char",     "short",  "int",     "long",     "float",    "double",
+        "struct",   "union",  "signed",  "unsigned", "enum",     "void",
+        "typedef",  "extern", "static",  "auto",     "register", "const",
+        "volatile", "inline", "restrict"
     };
 
     for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++)
@@ -1279,8 +1279,11 @@ static data_type_t *parse_declarator(data_type_t *base) {
     data_type_t *type = base;
     for (;;) {
         lexer_token_t *token = lexer_next();
-        if (parse_identifer_check(token, "const"))
+        if (parse_identifer_check(token, "const")
+         || parse_identifer_check(token, "volatile")
+         || parse_identifer_check(token, "restrict")) {
             continue; // ignore const for now
+        }
         if (!lexer_ispunct(token, '*')) {
             lexer_unget(token);
             return type;

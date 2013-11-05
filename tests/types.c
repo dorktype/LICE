@@ -42,6 +42,7 @@ void test_storage() {
     register int f;
 }
 
+
 void test_odd() {
     int unsigned const const *const a;
     int *const b[5];
@@ -49,6 +50,8 @@ void test_odd() {
     static const unsigned *const d;
     const static signed const *const e;
     int unsigned auto *const *const f;
+    void *restrict g;
+    volatile int *const restrict h;
 }
 
 int main() {
