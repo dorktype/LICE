@@ -49,8 +49,8 @@ Operators | Description
 Lice doesn't support compound assignment operators `+=, -=, *=, /= ...`
 or prefix operators `++, --`
 
-### Constructs:
-Lice supports only the following constructs:
+### Constructs/Statements:
+Lice supports only the following constructs / statements
 
 
  Construct            | Description
@@ -59,7 +59,13 @@ Lice supports only the following constructs:
  union                | Standard unions
  initializer list     | Works for arrays and structures
  enum                 | Subset enumerations (no forward declaring or assigning to)
- switch               | Standard switch statement
+ switch               | Standard switch statement (case, default)
+ for                  | Standard for loop
+ while                | Standard while loop
+ do                   | Standard do-while loop
+ return               | Standard return
+ break, continue      | Standard break and countinue
+
 
 Support for declaring structures and unions inside functions is supported as
 well as anywhere a typename is expected, e.g a function argument. Initializer
