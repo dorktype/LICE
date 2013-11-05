@@ -18,10 +18,12 @@ static ast_t       *parse_statement_compound(void);
 static void         parse_statement_declaration(list_t *);
 static ast_t       *parse_statement(void);
 
-static data_type_t *parse_cast_type(void);
+
 static data_type_t *parse_declarator(data_type_t *basetype);
 static void         parse_declaration(list_t *, ast_t *(*)(data_type_t *, char *));
 static void         parse_declaration_type(void *, void (*)(void*, data_type_t*, char *));
+static void         parse_function_parameter(data_type_t **, char **, bool);
+static void         parse_function_parameters(data_type_t **, list_t *, data_type_t *);
 
 table_t *parse_typedefs = &SENTINEL_TABLE;
 
@@ -299,7 +301,8 @@ static ast_t *parse_sizeof(bool typename) {
     lexer_token_t *token = lexer_next();
     if (typename && parse_type_check(token)) {
         lexer_unget(token);
-        data_type_t *type = parse_cast_type();
+        data_type_t *type;
+        parse_function_parameter(&type, NULL, true);
         return ast_new_integer(ast_data_long, type->size);
     }
     // deal with the sizeof () thing
@@ -925,12 +928,25 @@ static ast_t *parse_declaration_initialization(ast_t *var) {
     return ast_new_decl(var, init);
 }
 
-static data_type_t *parse_cast_type(void) {
+static void parse_function_parameter(data_type_t **rtype, char **name, bool next) {
     data_type_t *basetype;
     storage_t    storage;
 
     parse_declaration_specification(&basetype, &storage);
-    return parse_declarator(basetype);
+    basetype = parse_declarator(basetype);
+
+    lexer_token_t *token = lexer_next();
+    if (token->type == LEXER_TOKEN_IDENTIFIER) {
+        if (!name && !next)
+            compile_error("ICE");
+        if (name)
+            *name = token->string;
+    } else if (!next) {
+        compile_error("ICE");
+    } else {
+        lexer_unget(token);
+    }
+    *rtype = parse_array_dimensions(basetype);
 }
 
 static void parse_declaration_type(void *opaque, void (*define)(void *, data_type_t *, char *)) {
@@ -1125,28 +1141,16 @@ static void parse_function_parameters(data_type_t **rtype, list_t *paramvars, da
             lexer_unget(token);
         }
 
-        // specification basetype
-        data_type_t   *basetype;
-        storage_t      storage;
-        parse_declaration_specification(&basetype, &storage);
+        // paramater parse
+        data_type_t *ptype;
+        char        *name;
+        parse_function_parameter(&ptype, &name, typeonly);
+        if (ptype->type == TYPE_ARRAY)
+            ptype = ast_new_pointer(ptype->pointer);
+        list_push(paramtypes, ptype);
 
-        data_type_t   *type     = parse_declarator(basetype);
-        lexer_token_t *name     = lexer_next();
-
-        if (name->type != LEXER_TOKEN_IDENTIFIER) {
-            if (!typeonly)
-                compile_error("ICE: %s (1) [%s]", __func__, lexer_tokenstr(name));
-            lexer_unget(name);
-            name = NULL;
-        }
-
-        type = parse_array_dimensions(type);
-        if (type->type == TYPE_ARRAY)
-            type = ast_new_pointer(type->pointer);
-
-        list_push(paramtypes, type);
         if (!typeonly)
-            list_push(paramvars, ast_new_variable_local(type, name->string));
+            list_push(paramvars, ast_new_variable_local(ptype, name));
 
         lexer_token_t *token = lexer_next();
         if (lexer_ispunct(token, ')')) {
