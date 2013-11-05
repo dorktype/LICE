@@ -12,7 +12,6 @@ static void gen_expression(ast_t *);
 static void gen_load_dereference(data_type_t *, data_type_t *, int);
 
 #define gen_emit(...)        gen_emit_impl(__LINE__, "\t" __VA_ARGS__)
-#define gen_emit_label(...)  gen_emit_impl(__LINE__,      __VA_ARGS__)
 #define gen_emit_inline(...) gen_emit_impl(__LINE__,      __VA_ARGS__)
 #define gen_push(X)          gen_push_    (X, __LINE__)
 #define gen_pop(X)           gen_pop_     (X, __LINE__)
@@ -409,6 +408,19 @@ static list_t *gen_function_argument_types(ast_t *ast) {
     return list;
 }
 
+static void gen_je(const char *label) {
+    gen_emit("test %%rax, %%rax");
+    gen_emit("je %s", label);
+}
+
+static void gen_label(const char *label) {
+    gen_emit("%s:", label);
+}
+
+static void gen_jmp(const char *label) {
+    gen_emit("jmp %s", label);
+}
+
 static void gen_expression(ast_t *ast) {
     if (!ast) return;
 
@@ -567,17 +579,16 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_EXPRESSION_TERNARY:
             gen_expression(ast->ifstmt.cond);
             ne = ast_new_label();
-            gen_emit("test %%rax, %%rax");
-            gen_emit("je %s", ne);
+            gen_je(ne);
             gen_expression(ast->ifstmt.then);
             if (ast->ifstmt.last) {
                 end = ast_new_label();
-                gen_emit("jmp %s", end);
-                gen_emit_label("%s:", ne);
+                gen_jmp(end);
+                gen_label(ne);
                 gen_expression(ast->ifstmt.last);
-                gen_emit_label("%s:", end);
+                gen_label(end);
             } else {
-                gen_emit_label("%s:", ne);
+                gen_label(ne);
             }
             break;
 
@@ -586,17 +597,16 @@ static void gen_expression(ast_t *ast) {
                 gen_expression(ast->forstmt.init);
             begin = ast_new_label();
             end   = ast_new_label();
-            gen_emit_label("%s:", begin);
+            gen_label(begin);
             if (ast->forstmt.cond) {
                 gen_expression(ast->forstmt.cond);
-                gen_emit("test %%rax, %%rax");
-                gen_emit("je %s", end);
+                gen_je(end);
             }
             gen_expression(ast->forstmt.body);
             if (ast->forstmt.step)
                 gen_expression(ast->forstmt.step);
-            gen_emit("jmp %s", begin);
-            gen_emit_label("%s:", end);
+            gen_jmp(begin);
+            gen_label(end);
             break;
 
         case AST_TYPE_STATEMENT_RETURN:
@@ -687,8 +697,8 @@ static void gen_data_integer(ast_t *data) {
 }
 
 static void gen_data(ast_t *ast) {
-    gen_emit_label(".global %s", ast->decl.var->variable.name);
-    gen_emit_label("%s:", ast->decl.var->variable.name);
+    gen_emit_inline(".global %s", ast->decl.var->variable.name);
+    gen_emit_inline("%s:", ast->decl.var->variable.name);
 
     // emit the initializer list
     if (ast->decl.init->type == AST_TYPE_INITIALIZERLIST) {
@@ -718,7 +728,7 @@ void gen_data_section(void) {
     // strings
     for (list_iterator_t *it = list_iterator(ast_strings); !list_iterator_end(it); ) {
         ast_t *ast = list_iterator_next(it);
-        gen_emit_label("%s: ", ast->string.label);
+        gen_emit_inline("%s: ", ast->string.label);
         gen_emit(".string \"%s\"", string_quote(ast->string.data));
     }
 
@@ -728,7 +738,7 @@ void gen_data_section(void) {
         char  *label = ast_new_label();
 
         ast->floating.label = label;
-        gen_emit_label("%s:", label);
+        gen_emit_inline("%s:", label);
         gen_emit(".long %d", ((int*)&ast->floating.value)[0]);
         gen_emit(".long %d", ((int*)&ast->floating.value)[1]);
     }
@@ -749,7 +759,7 @@ static void gen_function_prologue(ast_t *ast) {
     //printf("# prologue {\n");
     gen_emit_inline(".text");
     gen_emit_inline(".global %s", ast->function.name);
-    gen_emit_label("%s:", ast->function.name);
+    gen_emit_inline("%s:", ast->function.name);
     gen_push("rbp"); // doesn't count towards misalignment
     //gen_stack -= 16; //
     gen_emit("mov %%rsp, %%rbp");
