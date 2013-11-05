@@ -858,8 +858,8 @@ static void parse_declaration_specification(data_type_t **rtype, storage_t *stor
         case kdouble:
             *rtype = ast_type_create(
                 (size == klong)
-                    ? TYPE_DOUBLE
-                    : TYPE_LDOUBLE,
+                    ? TYPE_LDOUBLE
+                    : TYPE_DOUBLE,
                 false
             );
             return;

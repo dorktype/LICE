@@ -142,6 +142,7 @@ static void gen_save_global(char *name, data_type_t *type, int offset) {
 static void gen_save_local(data_type_t *type, int offset) {
     if (type->type == TYPE_FLOAT) {
         gen_push_xmm(0);
+        gen_emit("unpcklpd %%xmm0, %%xmm0");
         gen_emit("cvtpd2ps %%xmm0, %%xmm0");
         gen_emit("movss %%xmm0, %d(%%rbp)", offset);
         gen_pop_xmm(0);
