@@ -14,7 +14,7 @@ static list_t *lexer_buffer = &SENTINEL_LIST;
 
 static lexer_token_t *lexer_identifier(string_t *str) {
     lexer_token_t *token = lexer_token_new();
-    token->type          = LEXER_TOKEN_IDENT;
+    token->type          = LEXER_TOKEN_IDENTIFIER;
     token->string        = string_buffer(str);
     return token;
 }
@@ -319,7 +319,7 @@ char *lexer_tokenstr(lexer_token_t *token) {
             string_catf(string, "\"%s\"", token->string);
             return string_buffer(string);
 
-        case LEXER_TOKEN_IDENT:
+        case LEXER_TOKEN_IDENTIFIER:
             return token->string;
 
         default:

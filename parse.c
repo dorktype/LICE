@@ -44,7 +44,7 @@ static void parse_expect(char punct) {
 }
 
 static bool parse_identifer_check(lexer_token_t *token, const char *identifier) {
-    return token->type == LEXER_TOKEN_IDENT && !strcmp(token->string, identifier);
+    return token->type == LEXER_TOKEN_IDENTIFIER && !strcmp(token->string, identifier);
 }
 
 // the following is a feature complete evaluator via recursiveness, yes the
@@ -255,7 +255,7 @@ static ast_t *parse_expression_primary(void) {
         return NULL;
 
     switch (token->type) {
-        case LEXER_TOKEN_IDENT:
+        case LEXER_TOKEN_IDENTIFIER:
             return parse_generic(token->string);
 
         // ast generating ones
@@ -377,7 +377,7 @@ static ast_t *parse_structure_field(ast_t *structure) {
     if (structure->ctype->type != TYPE_STRUCTURE)
         compile_error("Internal error: parse_structure_field (1)");
     lexer_token_t *name = lexer_next();
-    if (name->type != LEXER_TOKEN_IDENT)
+    if (name->type != LEXER_TOKEN_IDENTIFIER)
         compile_error("Internal error: parse_structure_field (2)");
 
     data_type_t *field = table_find(structure->ctype->fields, name->string);
@@ -471,7 +471,7 @@ static ast_t *parse_expression(void) {
 }
 
 static bool parse_type_check(lexer_token_t *token) {
-    if (token->type != LEXER_TOKEN_IDENT)
+    if (token->type != LEXER_TOKEN_IDENTIFIER)
         return false;
 
     static const char *keywords[] = {
@@ -582,7 +582,7 @@ static ast_t *parse_declaration_structure_initializer_value(data_type_t *type) {
 // parses a union/structure tag
 static char *parse_memory_tag(void) {
     lexer_token_t *token = lexer_next();
-    if (token->type == LEXER_TOKEN_IDENT)
+    if (token->type == LEXER_TOKEN_IDENTIFIER)
         return token->string;
     lexer_unget(token);
     return NULL;
@@ -660,7 +660,7 @@ static data_type_t *parse_tag_definition(table_t *table, int (*compute)(table_t 
 
 static data_type_t *parse_enumeration(void) {
     lexer_token_t *token = lexer_next();
-    if (token->type == LEXER_TOKEN_IDENT)
+    if (token->type == LEXER_TOKEN_IDENTIFIER)
         token = lexer_next();
     if (!lexer_ispunct(token, '{')) {
         lexer_unget(token);
@@ -672,7 +672,7 @@ static data_type_t *parse_enumeration(void) {
         if (lexer_ispunct(token, '}'))
             break;
 
-        if (token->type != LEXER_TOKEN_IDENT)
+        if (token->type != LEXER_TOKEN_IDENTIFIER)
             compile_error("NOPE");
 
         char *name = token->string;
@@ -700,7 +700,7 @@ static void parse_declaration_specification(data_type_t **rtype, storage_t *stor
     *storage = 0;
 
     lexer_token_t *token = lexer_peek();
-    if (!token || token->type != LEXER_TOKEN_IDENT)
+    if (!token || token->type != LEXER_TOKEN_IDENTIFIER)
         return;
 
     // large declaration specification state machine
@@ -789,7 +789,7 @@ static void parse_declaration_specification(data_type_t **rtype, storage_t *stor
         if (!token)
             compile_error("ICE");
 
-        if (token->type != LEXER_TOKEN_IDENT) {
+        if (token->type != LEXER_TOKEN_IDENTIFIER) {
             lexer_unget(token);
             break;
         }
@@ -941,7 +941,7 @@ static void parse_declaration_intermediate(char **name, data_type_t **ctype, sto
         return;
     }
 
-    if (token->type != LEXER_TOKEN_IDENT) {
+    if (token->type != LEXER_TOKEN_IDENTIFIER) {
         lexer_unget(token);
         *name = NULL;
     } else {
@@ -998,7 +998,7 @@ static ast_t *parse_statement_if(void) {
     then  = parse_statement();
     token = lexer_next();
 
-    if (!token || token->type != LEXER_TOKEN_IDENT || strcmp(token->string, "else")) {
+    if (!token || token->type != LEXER_TOKEN_IDENTIFIER || strcmp(token->string, "else")) {
         lexer_unget(token);
         return ast_new_if(cond, then, NULL);
     }
@@ -1121,7 +1121,7 @@ static void parse_function_parameters(data_type_t **rtype, list_t *paramvars, da
         data_type_t   *type     = parse_declarator(basetype);
         lexer_token_t *name     = lexer_next();
 
-        if (name->type != LEXER_TOKEN_IDENT) {
+        if (name->type != LEXER_TOKEN_IDENTIFIER) {
             if (!typeonly)
                 compile_error("ICE: %s (1) [%s]", __func__, lexer_tokenstr(name));
             lexer_unget(name);
@@ -1221,7 +1221,7 @@ static ast_t *parse_function_definition_intermediate(void) {
     data_type_t   *returntype = parse_declarator(basetype);
     lexer_token_t *name       = lexer_next();
 
-    if (name->type != LEXER_TOKEN_IDENT)
+    if (name->type != LEXER_TOKEN_IDENTIFIER)
         compile_error("ICE");
 
     ast_localenv = table_create(ast_globalenv);
@@ -1263,7 +1263,7 @@ static void parse_toplevel(list_t *list) {
         if (lexer_ispunct(name, ';'))
             continue;
 
-        if (name->type != LEXER_TOKEN_IDENT)
+        if (name->type != LEXER_TOKEN_IDENTIFIER)
             compile_error("Internal error TOPLEVEL");
 
         type = parse_array_dimensions(type);

@@ -8,7 +8,7 @@
 ////////////////////////////////////////////////////////////////////////
 // lexer
 typedef enum {
-    LEXER_TOKEN_IDENT,
+    LEXER_TOKEN_IDENTIFIER,
     LEXER_TOKEN_PUNCT,
     LEXER_TOKEN_CHAR,
     LEXER_TOKEN_STRING,
