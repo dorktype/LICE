@@ -443,7 +443,7 @@ static ast_t *parse_expression_intermediate(int precision) {
 
         next = parse_expression_intermediate(pri + !!parse_semantic_rightassoc(token));
         if (!next)
-            compile_error("Internal error: parse_expression_intermediate");
+            compile_error("Internal error: parse_expression_intermediate (next)");
         if (lexer_ispunct(token, '^')
         ||  lexer_ispunct(token, '%')
         ||  lexer_ispunct(token, LEXER_TOKEN_LSHIFT)
@@ -1038,6 +1038,29 @@ static ast_t *parse_statement_for(void) {
     return ast_new_for(init, cond, step, body);
 }
 
+static ast_t *parse_statement_while(void) {
+    parse_expect('(');
+    ast_t *cond = parse_expression();
+    parse_expect(')');
+    ast_t *body = parse_statement();
+    return ast_new_while(cond, body);
+}
+
+static ast_t *parse_statement_do(void) {
+    ast_t         *body  = parse_statement();
+    lexer_token_t *token = lexer_next();
+
+    if (!parse_identifer_check(token, "while"))
+        compile_error("expected while for do");
+
+    parse_expect('(');
+    ast_t *cond = parse_expression();
+    parse_expect(')');
+    parse_expect(';');
+
+    return ast_new_do(cond, body);
+}
+
 static ast_t *parse_statement_return(void) {
     ast_t *val = parse_expression();
     parse_expect(';');
@@ -1050,6 +1073,8 @@ static ast_t *parse_statement(void) {
 
     if (parse_identifer_check(token, "if"))     return parse_statement_if();
     if (parse_identifer_check(token, "for"))    return parse_statement_for();
+    if (parse_identifer_check(token, "while"))  return parse_statement_while();
+    if (parse_identifer_check(token, "do"))     return parse_statement_do();
     if (parse_identifer_check(token, "return")) return parse_statement_return();
     if (lexer_ispunct        (token, '{'))      return parse_statement_compound();
 

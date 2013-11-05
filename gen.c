@@ -609,6 +609,28 @@ static void gen_expression(ast_t *ast) {
             gen_label(end);
             break;
 
+        case AST_TYPE_STATEMENT_WHILE:
+            begin = ast_new_label();
+            end   = ast_new_label();
+            gen_label(begin);
+            gen_expression(ast->forstmt.cond);
+            gen_je(end);
+            gen_expression(ast->forstmt.body);
+            gen_jmp(begin);
+            gen_label(end);
+            break;
+
+        case AST_TYPE_STATEMENT_DO:
+            begin = ast_new_label();
+            end   = ast_new_label();
+            gen_label(begin);
+            gen_expression(ast->forstmt.body);
+            gen_expression(ast->forstmt.cond);
+            gen_je(end);
+            gen_jmp(begin);
+            gen_label(end);
+            break;
+
         case AST_TYPE_STATEMENT_RETURN:
             if (ast->returnstmt) {
                 gen_expression(ast->returnstmt);
@@ -645,7 +667,7 @@ static void gen_expression(ast_t *ast) {
             gen_emit("mov $0, %%rax");
             gen_emit("je %s", end);
             gen_emit("mov $1, %%rax");
-            gen_emit("%s:", end);
+            gen_label(end);
             break;
 
         case LEXER_TOKEN_OR:
@@ -659,7 +681,7 @@ static void gen_expression(ast_t *ast) {
             gen_emit("mov $1, %%rax");
             gen_emit("jne %s", end);
             gen_emit("mov $0, %%rax");
-            gen_emit("%s:", end);
+            gen_label(end);
             break;
 
         case '&':
@@ -721,7 +743,6 @@ static void gen_global(ast_t *var) {
     }
 }
 
-
 void gen_data_section(void) {
     gen_emit(".data");
 
@@ -750,7 +771,6 @@ static int gen_alignment(int n, int align) {
                 ? n
                 : n - remainder + align;
 }
-
 
 static void gen_function_prologue(ast_t *ast) {
     if (list_length(ast->function.params) > sizeof(registers)/sizeof(registers[0]))
@@ -810,7 +830,7 @@ void gen_function(ast_t *ast) {
     } else if (ast->type == AST_TYPE_DECLARATION) {
         gen_global(ast);
     } else {
-        compile_error("TODO: gen_function");
+        compile_error("ICE");
     }
     if (gen_stack > 8)
         printf("## stack is misaligned by %d (bytes)\n", gen_stack);

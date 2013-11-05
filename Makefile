@@ -29,5 +29,7 @@ test: $(EXECUTABLE)
 	@cat tests/expect.c tests/operators.c | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/array.c     | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/forloop.c   | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
+	@cat tests/expect.c tests/whileloop.c | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
+	@cat tests/expect.c tests/doloop.c    | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/struct.c    | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/union.c     | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out

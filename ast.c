@@ -385,6 +385,18 @@ ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last)
 
 ////////////////////////////////////////////////////////////////////////
 // statements
+static ast_t *ast_new_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
+    ast_t *ast        = ast_new_node();
+    ast->type         = type;
+    ast->ctype        = NULL;
+    ast->forstmt.init = init;
+    ast->forstmt.cond = cond;
+    ast->forstmt.step = step;
+    ast->forstmt.body = body;
+
+    return ast;
+}
+
 ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last) {
     ast_t *ast       = ast_new_node();
     ast->type        = AST_TYPE_STATEMENT_IF;
@@ -397,15 +409,15 @@ ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last) {
 }
 
 ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
-    ast_t *ast        = ast_new_node();
-    ast->type         = AST_TYPE_STATEMENT_FOR;
-    ast->ctype        = NULL;
-    ast->forstmt.init = init;
-    ast->forstmt.cond = cond;
-    ast->forstmt.step = step;
-    ast->forstmt.body = body;
+    return ast_new_for_intermediate(AST_TYPE_STATEMENT_FOR, init, cond, step, body);
+}
 
-    return ast;
+ast_t *ast_new_while(ast_t *cond, ast_t *body) {
+    return ast_new_for_intermediate(AST_TYPE_STATEMENT_WHILE, NULL, cond, NULL, body);
+}
+
+ast_t *ast_new_do(ast_t *cond, ast_t *body) {
+    return ast_new_for_intermediate(AST_TYPE_STATEMENT_DO, NULL, cond, NULL, body);
 }
 
 ast_t *ast_new_return(data_type_t *returntype, ast_t *value) {
@@ -616,6 +628,20 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
                 ast_string(ast->forstmt.init),
                 ast_string(ast->forstmt.cond),
                 ast_string(ast->forstmt.step),
+                ast_string(ast->forstmt.body)
+            );
+            break;
+
+        case AST_TYPE_STATEMENT_WHILE:
+            string_catf(string, "(while %s %s)",
+                ast_string(ast->forstmt.cond),
+                ast_string(ast->forstmt.body)
+            );
+            break;
+
+        case AST_TYPE_STATEMENT_DO:
+            string_catf(string, "(do %s %s)",
+                ast_string(ast->forstmt.cond),
                 ast_string(ast->forstmt.body)
             );
             break;
