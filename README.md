@@ -19,8 +19,7 @@ on the stack.
 
 ### Statements
 Lice supports most of the statements in C, including: `if, for, while,
-do, break, continue` and `return`. Lice still lacks support for switch
-statements and a few other things.
+do, break, continue, switch, case, default` and `return`.
 
 ### Operators
 Lice supports all the standard operators which includes
