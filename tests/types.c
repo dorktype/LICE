@@ -48,6 +48,7 @@ void test_odd() {
     unsigned const *const c[5];
     static const unsigned *const d;
     const static signed const *const e;
+    int unsigned auto *const *const f;
 }
 
 int main() {
