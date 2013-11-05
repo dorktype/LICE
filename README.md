@@ -144,6 +144,8 @@ The following sources where used in the construction of LICE
 -   "Instruction Set Reference, A-Z." Intel 64 and IA-32 Architectures Software Developer's Manual. Vol. 2. [Calif.?]: Intel, 2013. N. pag. Print.
     http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-instruction-set-reference-manual-325383.pdf
 
+-   Bendersky, Eli. "Complete C99 parser in pure Python." pycparser. N.p., N.d. Web.
+    https://github.com/eliben/pycparser
 
 ### Inspiration
 The following where inspiration in the creation of LICE
