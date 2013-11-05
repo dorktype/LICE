@@ -233,6 +233,14 @@ data_type_t *ast_type_create(type_t type, bool sign) {
     return t;
 }
 
+data_type_t *ast_type_stub(void) {
+    data_type_t *type = malloc(sizeof(data_type_t));
+    type->type = TYPE_CDECL;
+    type->size = 0;
+
+    return type;
+}
+
 ast_t *ast_new_integer(data_type_t *type, int value) {
     ast_t *ast   = ast_new_node();
     ast->type    = AST_TYPE_LITERAL;
@@ -487,14 +495,14 @@ const char *ast_type_string(data_type_t *type) {
 
         case TYPE_FUNCTION:
             string = string_create();
-            string_catf(string, "%s(", ast_type_string(type->returntype));
+            string_cat(string, '(');
             for (list_iterator_t *it = list_iterator(type->parameters); !list_iterator_end(it); ) {
                 data_type_t *next = list_iterator_next(it);
                 string_catf(string, "%s", ast_type_string(next));
                 if (!list_iterator_end(it))
                     string_cat(string, ',');
             }
-            string_cat(string, ')');
+            string_catf(string, ") -> %s", ast_type_string(type->returntype));
             return string_buffer(string);
 
         case TYPE_POINTER:
@@ -519,6 +527,9 @@ const char *ast_type_string(data_type_t *type) {
                 string_catf(string, " (%s)", ast_type_string(list_iterator_next(it)));
             string_cat(string, ')');
             return string_buffer(string);
+
+        default:
+            break;
     }
     return NULL;
 }

@@ -109,8 +109,19 @@ typedef enum {
     TYPE_ARRAY,
     TYPE_POINTER,
     TYPE_STRUCTURE,
-    TYPE_FUNCTION
+    TYPE_FUNCTION,
+
+    // other language types are only used as part of the
+    // parser or ast
+    TYPE_CDECL
 } type_t;
+
+typedef enum {
+    CDECL_BODY = 1,
+    CDECL_PARAMETER,
+    CDECL_TYPEONLY,
+    CDECL_CAST
+} cdecl_t;
 
 // storage class
 typedef enum {
@@ -289,6 +300,7 @@ bool ast_type_integer(data_type_t *type);
 bool ast_type_floating(data_type_t *type);
 data_type_t *ast_type_copy(data_type_t *type);
 data_type_t *ast_type_create(type_t type, bool sign);
+data_type_t *ast_type_stub(void);
 
 // data
 extern data_type_t *ast_data_void;

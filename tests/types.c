@@ -52,6 +52,13 @@ void test_odd() {
     int unsigned auto *const *const f;
     void *restrict g;
     volatile int *const restrict h;
+
+    int *(*A)[3];
+    char (*(*B[3])())[5];
+    int (*(*C)(void))[3];
+    float *(*(*D)(int))(double **, char);
+    unsigned **(*(*E)[5])(char const *, int *);
+    char *(*F(const char *))(char *);
 }
 
 int main() {
