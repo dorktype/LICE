@@ -19,32 +19,6 @@ void test() {
     expecti(d.array[0], 100);
     expecti(d.array[1], 200);
     expecti(d.array[2], 200);
-
-    struct s *p = &d;
-    (*p).a = 101;
-    (*p).b = 202;
-    p->array[0] = p->a;
-    p->array[1] = p->b;
-    *(p->array + 2) = 104;
-
-    expecti(p->a, 101);
-    expecti(p->b, 202);
-    expecti(p->array[0], 101);
-    expecti(p->array[1], 202);
-    expecti(p->array[2], 104);
-
-    // incomplete type struct
-    struct complete {
-        struct incomplete *a;
-    } completed;
-
-    struct incomplete {
-        int a;
-    } incompleted = { 100 };
-
-    completed.a = &incompleted;
-
-    expecti(completed.a->a, 100);
 }
 
 int main() {
