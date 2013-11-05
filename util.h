@@ -175,6 +175,13 @@ void *table_parent(table_t *table);
 list_t *table_values(table_t *table);
 
 /*
+ * Function: table_keys
+ *  Generate a list of all the keys in the table, useful for
+ *  iteration over the keys.
+ */
+list_t *table_keys(table_t *table);
+
+/*
  * Macro: SENTINEL_TABLE
  *  Initialize an empty table in place
  */

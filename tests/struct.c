@@ -19,6 +19,23 @@ void test() {
     expecti(d.array[0], 100);
     expecti(d.array[1], 200);
     expecti(d.array[2], 200);
+
+    struct {
+        union {
+            struct {
+                int x;
+                int y;
+            };
+            struct {
+                char data[8];
+            };
+        };
+    } a;
+    a.x = 100;
+    a.y = 200;
+
+    expecti(a.data[0], 100);
+    expecti(a.data[4], 200);
 }
 
 int main() {

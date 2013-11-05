@@ -239,3 +239,11 @@ list_t *table_values(table_t *table) {
             list_push(list, ((table_entry_t*)list_iterator_next(it))->value);
     return list;
 }
+
+list_t *table_keys(table_t *table) {
+    list_t *list = list_create();
+    for (; table; table = table->parent)
+        for (list_iterator_t *it = list_iterator(table->list); !list_iterator_end(it); )
+            list_push(list, ((table_entry_t*)list_iterator_next(it))->key);
+    return list;
+}

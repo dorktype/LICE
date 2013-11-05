@@ -615,6 +615,15 @@ static int parse_memory_fields_padding(int offset, int size) {
     return (offset % size == 0) ? 0 : size - offset % size;
 }
 
+static void parse_memory_fields_squash(table_t *table, data_type_t *unnamed, int offset) {
+    for (list_iterator_t *it = list_iterator(table_keys(unnamed->fields)); !list_iterator_end(it); ) {
+        char         *name = list_iterator_next(it);
+        data_type_t  *type = ast_type_copy(table_find(unnamed->fields, name));
+        type->offset += offset;
+        table_insert(table, name, type);
+    }
+}
+
 static table_t *parse_memory_fields(int *rsize, bool isstruct) {
     lexer_token_t *token = lexer_next();
     if (!lexer_ispunct(token, '{')) {
@@ -631,6 +640,17 @@ static table_t *parse_memory_fields(int *rsize, bool isstruct) {
             break;
 
         data_type_t *basetype = parse_declaration_specification(NULL);
+
+        if (basetype->type == TYPE_STRUCTURE && lexer_ispunct(lexer_peek(), ';')) {
+            lexer_next(); // skip
+            parse_memory_fields_squash(table, basetype, offset);
+            if (isstruct)
+                offset += basetype->size;
+            else
+                maxsize = MAX(maxsize, basetype->size);
+            continue;
+        }
+
         for (;;) {
             char        *name;
             data_type_t *fieldtype = parse_declarator(&name, basetype, NULL, CDECL_PARAMETER);
