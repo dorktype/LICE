@@ -50,7 +50,7 @@ Lice doesn't support compound assignment operators `+=, -=, *=, /= ...`
 or prefix operators `++, --`
 
 ### Constructs:
-Lice supports only three constructs:
+Lice supports only the following constructs:
 
 
  Construct            | Description
