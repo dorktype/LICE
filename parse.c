@@ -10,14 +10,18 @@
 #define PARSE_CALLS     6    // only six registers to use for amd64
 #define PARSE_ALIGNMENT 16
 
-static ast_t *parse_expression(void);
-static ast_t *parse_expression_unary(void);
-static ast_t *parse_expression_intermediate(int);
-static ast_t *parse_statement_compound(void);
-static ast_t *parse_statement_declaration(void);
-static ast_t *parse_statement(void);
-static void   parse_declaration_intermediate(char **name, data_type_t **ctype, storage_t *storage);
+static ast_t       *parse_expression(void);
+static ast_t       *parse_expression_unary(void);
+static ast_t       *parse_expression_intermediate(int);
+
+static ast_t       *parse_statement_compound(void);
+static void         parse_statement_declaration(list_t *);
+static ast_t       *parse_statement(void);
+
+static data_type_t *parse_cast_type(void);
 static data_type_t *parse_declarator(data_type_t *basetype);
+static void         parse_declaration(list_t *, ast_t *(*)(data_type_t *, char *));
+static void         parse_declaration_type(void *, void (*)(void*, data_type_t*, char *));
 
 table_t *parse_typedefs = &SENTINEL_TABLE;
 
@@ -295,13 +299,7 @@ static ast_t *parse_sizeof(bool typename) {
     lexer_token_t *token = lexer_next();
     if (typename && parse_type_check(token)) {
         lexer_unget(token);
-
-        char        *ignore;
-        storage_t    storage;
-        data_type_t *type = NULL;
-
-        parse_declaration_intermediate(&ignore, &type, &storage);
-
+        data_type_t *type = parse_cast_type();
         return ast_new_integer(ast_data_long, type->size);
     }
     // deal with the sizeof () thing
@@ -590,6 +588,10 @@ static char *parse_memory_tag(void) {
     return NULL;
 }
 
+static void parse_define_memory_field(void *table, data_type_t *type, char *name) {
+    table_insert(table, name, ast_structure_field_new(type, 0));
+}
+
 static table_t *parse_memory_fields(void) {
     lexer_token_t *token = lexer_next();
     if (!lexer_ispunct(token, '{')) {
@@ -602,14 +604,7 @@ static table_t *parse_memory_fields(void) {
         if (!parse_type_check(lexer_peek()))
             break;
 
-        char        *name;
-        storage_t    storage;
-        data_type_t *type = NULL;
-
-        parse_declaration_intermediate(&name, &type, &storage);
-
-        table_insert(table, name, ast_structure_field_new(type, 0));
-        parse_expect(';');
+        parse_declaration_type(table, &parse_define_memory_field);
     }
     parse_expect('}');
     return table;
@@ -930,60 +925,41 @@ static ast_t *parse_declaration_initialization(ast_t *var) {
     return ast_new_decl(var, init);
 }
 
-static void parse_declaration_intermediate(char **name, data_type_t **ctype, storage_t *storage) {
+static data_type_t *parse_cast_type(void) {
     data_type_t *basetype;
-    parse_declaration_specification(&basetype, storage);
-
-    data_type_t   *type  = parse_declarator(basetype);
-    lexer_token_t *token = lexer_next();
-
-    if (lexer_ispunct(token, ';')) {
-        lexer_unget(token);
-        *name = NULL;
-        return;
-    }
-
-    if (token->type != LEXER_TOKEN_IDENTIFIER) {
-        lexer_unget(token);
-        *name = NULL;
-    } else {
-        *name = token->string;
-    }
-
-    *ctype = parse_array_dimensions(type);
-}
-
-static ast_t *parse_declaration(void) {
-    char        *name;
-    data_type_t *type;
     storage_t    storage;
 
-    parse_declaration_intermediate(&name, &type, &storage);
+    parse_declaration_specification(&basetype, &storage);
+    return parse_declarator(basetype);
+}
 
-    if (!name) {
+static void parse_declaration_type(void *opaque, void (*define)(void *, data_type_t *, char *)) {
+    data_type_t *basetype;
+    storage_t    storage;
+
+    parse_declaration_specification(&basetype, &storage);
+
+    for (;;) {
+        data_type_t   *type  = parse_declarator(basetype);
+        lexer_token_t *token = lexer_next();
+        char          *name  = NULL;
+
+        if (token->type == LEXER_TOKEN_IDENTIFIER)
+            name = token->string;
+        else
+            lexer_unget(token);
+
+        data_type_t *final = parse_array_dimensions(type);
+        define(opaque, final, name);
+
+        token = lexer_next();
+        if (lexer_ispunct(token, ','))
+            continue;
+
+        lexer_unget(token);
         parse_expect(';');
-        return NULL;
+        return;
     }
-
-    if (storage == STORAGE_TYPEDEF) {
-        table_insert(parse_typedefs, name, type);
-        parse_expect(';');
-        return NULL;
-    }
-
-    ast_t         *var   = ast_new_variable_local(type, name);
-    lexer_token_t *token = lexer_next();
-
-    if (lexer_ispunct(token, '=')) {
-        ast_t *value = parse_declaration_initialization(var);
-        parse_expect(';');
-        return value;
-    }
-
-    lexer_unget(token);
-    parse_expect(';');
-
-    return ast_new_decl(var, NULL);
 }
 
 static ast_t *parse_statement_if(void) {
@@ -1014,7 +990,9 @@ static ast_t *parse_statement_declaration_semicolon(void) {
     if (lexer_ispunct(token, ';'))
         return NULL;
     lexer_unget(token);
-    return parse_statement_declaration();
+    list_t *list = list_create();
+    parse_statement_declaration(list);
+    return list_shift(list);
 }
 
 static ast_t *parse_expression_semicolon(void) {
@@ -1099,26 +1077,21 @@ static ast_t *parse_statement(void) {
     return ast;
 }
 
-static ast_t *parse_statement_declaration(void) {
-    for (;;) {
-        lexer_token_t *token = lexer_peek();
-        if (!token)
-            compile_error("ICE");
-        return parse_type_check(token) ? parse_declaration() : parse_statement();
-    }
+static void parse_statement_declaration(list_t *list){
+    lexer_token_t *token = lexer_peek();
+    if (!token)
+        compile_error("ICE");
+    if (parse_type_check(token))
+        parse_declaration(list, ast_new_variable_local);
+    else
+        list_push(list, parse_statement());
 }
 
 static ast_t *parse_statement_compound(void) {
     ast_localenv = table_create(ast_localenv);
     list_t *statements = list_create();
     for (;;) {
-        ast_t *statement = parse_statement_declaration();
-        if (statement)
-            list_push(statements, statement);
-
-        if (!statement)
-            continue;
-
+        parse_statement_declaration(statements);
         lexer_token_t *token = lexer_next();
         if (lexer_ispunct(token, '}'))
             break;
@@ -1284,16 +1257,17 @@ static data_type_t *parse_declarator(data_type_t *base) {
          || parse_identifer_check(token, "restrict")) {
             continue; // ignore const for now
         }
-        if (!lexer_ispunct(token, '*')) {
-            lexer_unget(token);
-            return type;
+        if (lexer_ispunct(token, '*')) {
+            type = ast_new_pointer(type);
+            continue;
         }
-        type = ast_new_pointer(type);
+        lexer_unget(token);
+        return type;
     }
     return NULL;
 }
 
-static void parse_toplevel(list_t *list) {
+static void parse_declaration(list_t *list, ast_t *(*make)(data_type_t *, char *)) {
     data_type_t *base;
     storage_t    storage;
     parse_declaration_specification(&base, &storage);
@@ -1303,7 +1277,7 @@ static void parse_toplevel(list_t *list) {
         lexer_token_t *name = lexer_next();
 
         if (lexer_ispunct(name, ';'))
-            continue;
+            return;
 
         if (name->type != LEXER_TOKEN_IDENTIFIER)
             compile_error("Internal error TOPLEVEL");
@@ -1313,7 +1287,7 @@ static void parse_toplevel(list_t *list) {
         if (lexer_ispunct(token, '=')) {
             if (storage == STORAGE_TYPEDEF)
                 compile_error("invalid use of typedef");
-            ast_t *var = ast_new_variable_global(type, name->string);
+            ast_t *var = make(type, name->string);
             list_push(list, parse_declaration_initialization(var));
             token = lexer_next();
         } else if (lexer_ispunct(token, '(')) {
@@ -1321,13 +1295,13 @@ static void parse_toplevel(list_t *list) {
             if (storage == STORAGE_TYPEDEF)
                 table_insert(parse_typedefs, name->string, type);
             else
-                ast_new_variable_global(type, name->string);
+                make(type, name->string);
             token = lexer_next();
         } else {
             if (storage == STORAGE_TYPEDEF)
                 table_insert(parse_typedefs, name->string, type);
             else {
-                ast_t *var = ast_new_variable_global(type, name->string);
+                ast_t *var = make(type, name->string);
                 if (storage != STORAGE_EXTERN)
                     list_push(list, ast_new_decl(var, NULL));
             }
@@ -1347,7 +1321,7 @@ list_t *parse_run(void) {
         if (parse_function_definition_check())
             list_push(list, parse_function_definition_intermediate());
         else
-            parse_toplevel(list);
+            parse_declaration(list, &ast_new_variable_global);
     }
     return NULL;
 }

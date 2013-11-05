@@ -86,6 +86,12 @@ void *list_pop(list_t *list);
 int list_length(list_t *list);
 
 /*
+ * Function: list_shift
+ *  Like a list_pop but shift from the head (instead of the tail)
+ */
+void *list_shift(list_t *list);
+
+/*
  * Function: list_reverse
  *  Reverse the contents of a list
  */

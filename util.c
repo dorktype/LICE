@@ -127,6 +127,19 @@ void *list_pop(list_t *list) {
     return element;
 }
 
+void *list_shift(list_t *list) {
+    if (!list->head)
+        return NULL;
+    void *element = list->head->element;
+    list->head = list->head->next;
+    if (list->head)
+        list->head->prev = NULL;
+    else
+        list->tail = NULL;
+    list->length--;
+    return element;
+}
+
 int list_length(list_t *list) {
     return list->length;
 }
