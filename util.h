@@ -183,4 +183,8 @@ list_t *table_values(table_t *table);
     .parent = NULL                  \
 })
 
+
+#define MIN(A, B) (((A) < (B)) ? (A) : (B))
+#define MAX(A, B) (((A) > (B)) ? (A) : (B))
+
 #endif

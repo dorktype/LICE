@@ -610,14 +610,22 @@ static char *parse_memory_tag(void) {
     return NULL;
 }
 
-static table_t *parse_memory_fields(void) {
+static int parse_memory_fields_padding(int offset, int size) {
+    size = MIN(size, PARSE_ALIGNMENT);
+    return (offset % size == 0) ? 0 : size - offset % size;
+}
+
+static table_t *parse_memory_fields(int *rsize, bool isstruct) {
     lexer_token_t *token = lexer_next();
     if (!lexer_ispunct(token, '{')) {
         lexer_unget(token);
         return NULL;
     }
 
-    table_t *table = table_create(NULL);
+    int      offset  = 0;
+    int      maxsize = 0;
+    table_t *table   = table_create(NULL);
+
     for (;;) {
         if (!parse_type_check(lexer_peek()))
             break;
@@ -628,7 +636,16 @@ static table_t *parse_memory_fields(void) {
             data_type_t *fieldtype = parse_declarator(&name, basetype, NULL, CDECL_PARAMETER);
 
             parse_semantic_notvoid(fieldtype);
-            table_insert(table, name, ast_structure_field_new(fieldtype, 0));
+
+            if (isstruct) {
+                offset   += parse_memory_fields_padding(offset, fieldtype->size);
+                fieldtype = ast_structure_field_new(fieldtype, offset);
+                offset   += fieldtype->size;
+            } else {
+                maxsize   = MAX(maxsize, fieldtype->size);
+                fieldtype = ast_structure_field_new(fieldtype, 0);
+            }
+            table_insert(table, name, fieldtype);
 
             token = lexer_next();
             if (lexer_ispunct(token, ','))
@@ -640,46 +657,27 @@ static table_t *parse_memory_fields(void) {
         }
     }
     parse_expect('}');
+    *rsize = isstruct ? offset : maxsize;
     return table;
 }
 
-static int parse_union_size(table_t *fields) {
-    int maxsize = 0;
-    for (list_iterator_t *it = list_iterator(table_values(fields)); !list_iterator_end(it); ) {
-        data_type_t *type = list_iterator_next(it);
-        maxsize = (maxsize < type->size)
-                    ? type->size
-                    : maxsize;
-    }
-    return maxsize;
-}
-
-static int parse_structure_size(table_t *fields) {
-    int offset = 0;
-    for (list_iterator_t *it = list_iterator(table_values(fields)); !list_iterator_end(it); ) {
-        data_type_t *type = list_iterator_next(it);
-        type->offset = offset;
-        offset += type->size;
-    }
-    return offset;
-}
-
-static data_type_t *parse_tag_definition(table_t *table, int (*compute)(table_t *table)) {
+static data_type_t *parse_tag_definition(table_t *table, bool isstruct) {
     char        *tag    = parse_memory_tag();
     data_type_t *prev   = tag ? table_find(ast_unions, tag) : NULL;
-    table_t     *fields = parse_memory_fields();
+    int          size   = 0;
+    table_t     *fields = parse_memory_fields(&size, isstruct);
 
     if (prev && !fields)
         return prev;
 
     if (prev && fields) {
         prev->fields = fields;
-        prev->size   = compute(fields);
+        prev->size   = size;
         return prev;
     }
 
     data_type_t *r = (fields)
-        ? ast_structure_new(fields, compute(fields))
+        ? ast_structure_new(fields, size)
         : ast_structure_new(NULL,   0);
 
     if (tag)
@@ -842,8 +840,8 @@ static data_type_t *parse_declaration_specification(storage_t *rstorage) {
         else state_machine_try("unsigned") set_state(signature, kunsigned);
         else state_machine_try("short")    set_state(size,      kshort);
 
-        else state_machine_try("struct")   set_state(user,      parse_tag_definition(ast_structures, &parse_structure_size));
-        else state_machine_try("union")    set_state(user,      parse_tag_definition(ast_unions,     &parse_union_size));
+        else state_machine_try("struct")   set_state(user,      parse_tag_definition(ast_structures, true));
+        else state_machine_try("union")    set_state(user,      parse_tag_definition(ast_unions,     false));
         else state_machine_try("enum")     set_state(user,      parse_enumeration());
         else state_machine_try("long") {
             switch (size) {

@@ -18,9 +18,10 @@ void test() {
         int a;
         char b[5];
     } data = {
-        100, { 'h', 'e', 'l', 'p', 0 }
+        100
     };
 
+    strcpy(data.b, "help");
 
     expecti(d.a[0], 1);
     expecti(d.a[1], 2);
