@@ -109,9 +109,7 @@ LICE treats the entire system as a giant stack machine, since it's easier
 to generate code that way. The problem is it's hardly efficent. All local
 variables are assigned on the stack for operations. All operations operate
 from the stack and write back the result to the stack location that is
-the destination operand for that operation. Eventually an intermediate
-representation will be added which will perform trivial optimization before
-assembly generation.
+the destination operand for that operation.
 
 ### Porting
 LICE isn't easily retargetable since the parser and ast components of the
@@ -124,6 +122,19 @@ changed to reflect the correct type conversion, that both conforms to
 the ABI for your target, and the standard. The final stage is duplicating
 gen.c and changing it to produce assembly for that architecture.
 
+
+### Future Endeavors
+-   Full C99 support
+
+-   Full C11 support
+
+-   Preprocessor
+
+-   Intermediate stage with optimizations (libfirm?)
+
+-   Code generation (directly to elf/coff, et. all)
+
+-   Support for x86, ARM, PPC
 
 ### Sources
 The following sources where used in the construction of LICE
