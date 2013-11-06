@@ -41,8 +41,7 @@ a list has been provided below.
 
 -   There is no comma operator.
 
--   Boolean operations aren't properly converted to 0 or 1 in accordance
-    to the SystemV ABI.
+-   Boolean operations aren't properly converted to 0 or 1.
 
 -   Conformant implicit and explicit arithmetic conversion isn't supported,
     at least not inline with what the standard defines as promotion ranking.
@@ -58,7 +57,7 @@ a list has been provided below.
 -   Omitting the semicolon at the end of a structure or union member list
     isn't supported.
 
--   Return values are not booleanized in accordance to the SystemV ABI.
+-   Return values are not booleanized.
 
 -   Unspecified fields of a literal structure aren't default initialized
     to zero.
@@ -72,24 +71,18 @@ a list has been provided below.
 
 -   Floating point constants beginning with `.` aren't supported.
 
--   Certain line markers like CR,LF, CRLF, and EOF aren't accepted
-
 -   Designated array initializers aren't supported.
 
 -   Initializer lists, while they are supported, are only supported for one
     level of nesting, similarly nested designators aren't supported either.
 
--   The C99 `typeof` keyword isn't supported.
+-   C99 `typeof` keyword isn't supported.
 
 -   Character literals are interpreted as type `char`, opposed to type `int`,
     this is a direct violation of the C standard.
 
 -   Typedef names don't share the same namespace as ordinary identifiers, this
     is a direct violation of the C standard.
-
--   Various popular extensions like case ranges, flexible array members, alignof,
-    binary literals, statement expressions, __builtin_return_address, etc,
-    aren't supported.
 
 -   Old K&R C style functions aren't supported.
 
@@ -118,6 +111,8 @@ gen.c and changing it to produce assembly for that architecture.
 
 
 ### Future Endeavors
+-   Full C90 support (almost complete)
+
 -   Full C99 support
 
 -   Full C11 support
