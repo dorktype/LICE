@@ -32,8 +32,9 @@ a list has been provided below.
 -   There is no support for copying structures, or passing structures by
     copy through functions.
 
--   String concatenation for adjacent strings, and other preprocessor-aware
-    operations aren't supported since there isn't a preprocessor stage.
+-   String concatenation for adjacent strings isn't supported.
+
+-   There is no preprocessor.
 
 -   Taking the address of a structure for assigning to structure field of pointer
     type of that same structure isn't supported.
