@@ -50,7 +50,7 @@ a list has been provided below.
 
 -   Conformant implicit and explicit arithmetic conversion isn't supported,
     at least not inline with what the standard defines as promotion ranking.
-    Similarly implicit type conversion isn't correct either.
+    Similarly, implicit type conversion isn't correct either.
 
 -   There is no support for logical right shift operations, so code like
     `((unsigned)-1) >> 31)` won't give correct results.
@@ -62,7 +62,7 @@ a list has been provided below.
 -   Omitting the semicolon at the end of a structure or union member list
     isn't supported.
 
--   Return values are booleanized in accordance to the SystemV ABI.
+-   Return values are not booleanized in accordance to the SystemV ABI.
 
 -   Unspecified fields of a literal structure aren't default initialized
     to zero.
