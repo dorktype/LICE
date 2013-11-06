@@ -593,11 +593,11 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_STATEMENT_IF:
         case AST_TYPE_EXPRESSION_TERNARY:
             gen_expression(ast->ifstmt.cond);
-            ne = ast_new_label();
+            ne = ast_label();
             gen_je(ne);
             gen_expression(ast->ifstmt.then);
             if (ast->ifstmt.last) {
-                end = ast_new_label();
+                end = ast_label();
                 gen_jmp(end);
                 gen_label(ne);
                 gen_expression(ast->ifstmt.last);
@@ -610,9 +610,9 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_STATEMENT_FOR:
             if (ast->forstmt.init)
                 gen_expression(ast->forstmt.init);
-            begin = ast_new_label();
-            step  = ast_new_label();
-            end   = ast_new_label();
+            begin = ast_label();
+            step  = ast_label();
+            end   = ast_label();
             gen_jump_save(end, step);
             gen_label(begin);
             if (ast->forstmt.cond) {
@@ -629,8 +629,8 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_STATEMENT_WHILE:
-            begin = ast_new_label();
-            end   = ast_new_label();
+            begin = ast_label();
+            end   = ast_label();
             gen_jump_save(end, begin);
             gen_label(begin);
             gen_expression(ast->forstmt.cond);
@@ -642,8 +642,8 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_STATEMENT_DO:
-            begin = ast_new_label();
-            end   = ast_new_label();
+            begin = ast_label();
+            end   = ast_label();
             gen_jump_save(end, begin);
             gen_label(begin);
             gen_expression(ast->forstmt.body);
@@ -670,8 +670,8 @@ static void gen_expression(ast_t *ast) {
             gen_label_switch_store = gen_label_switch;
             gen_label_break_store  = gen_label_break;
             gen_expression(ast->switchstmt.expr);
-            gen_label_switch = ast_new_label();
-            gen_label_break  = ast_new_label();
+            gen_label_switch = ast_label();
+            gen_label_break  = ast_label();
             gen_jmp(gen_label_switch);
             gen_expression(ast->switchstmt.body);
             gen_label(gen_label_switch);
@@ -683,11 +683,11 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_STATEMENT_CASE:
             if (!gen_label_switch)
                 compile_error("ICE");
-            skip = ast_new_label();
+            skip = ast_label();
             gen_jmp(skip);
             gen_label(gen_label_switch);
             gen_emit("cmp $%d, %%eax", ast->casevalue);
-            gen_label_switch = ast_new_label();
+            gen_label_switch = ast_label();
             gen_emit("jne %s", gen_label_switch);
             gen_label(skip);
             break;
@@ -696,7 +696,16 @@ static void gen_expression(ast_t *ast) {
             if (!gen_label_switch)
                 compile_error("ICE");
             gen_label(gen_label_switch);
-            gen_label_switch = ast_new_label();
+            gen_label_switch = ast_label();
+            break;
+
+        case AST_TYPE_STATEMENT_GOTO:
+            gen_jmp(ast->gotostmt.where);
+            break;
+
+        case AST_TYPE_STATEMENT_LABEL:
+            if (ast->gotostmt.where)
+                gen_label(ast->gotostmt.where);
             break;
 
         case AST_TYPE_STATEMENT_RETURN:
@@ -725,7 +734,7 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case LEXER_TOKEN_AND:
-            end = ast_new_label();
+            end = ast_label();
             gen_expression(ast->left);
             gen_emit("test %%rax, %%rax");
             gen_emit("mov $0, %%rax");
@@ -739,7 +748,7 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case LEXER_TOKEN_OR:
-            end = ast_new_label();
+            end = ast_label();
             gen_expression(ast->left);
             gen_emit("test %%rax, %%rax");
             gen_emit("mov $1, %%rax");
@@ -832,7 +841,7 @@ void gen_data_section(void) {
     // float and doubles
     for (list_iterator_t *it = list_iterator(ast_floats); !list_iterator_end(it); ) {
         ast_t *ast   = list_iterator_next(it);
-        char  *label = ast_new_label();
+        char  *label = ast_label();
 
         ast->floating.label = label;
         gen_emit_inline("%s:", label);

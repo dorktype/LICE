@@ -76,8 +76,6 @@ a list has been provided below.
 
 -   Certain line markers like CR,LF, CRLF, and EOF aren't accepted
 
--   Labels and goto aren't supported.
-
 -   Designated array initializers aren't supported.
 
 -   Initializer lists, while they are supported, are only supported for one

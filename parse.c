@@ -1174,10 +1174,50 @@ static ast_t *parse_statement_return(void) {
     return ast_new_return(ast_data_function->returntype, val); // todo more accurte type
 }
 
+static ast_t *parse_statement_goto(void) {
+    lexer_token_t *token = lexer_next();
+    if (!token || token->type != LEXER_TOKEN_IDENTIFIER)
+        compile_error("expected identifier in goto statement");
+    parse_expect(';');
+
+    ast_t *node = ast_goto_new(token->string);
+    list_push(ast_gotos, node);
+
+    return node;
+}
+
+static void parse_label_backfill(void) {
+    for (list_iterator_t *it = list_iterator(ast_gotos); !list_iterator_end(it); ) {
+        ast_t *source      = list_iterator_next(it);
+        char  *label       = source->gotostmt.label;
+        ast_t *destination = table_find(ast_labels, label);
+
+        if (!destination)
+            compile_error("undefined label: %s", label);
+        if (destination->gotostmt.where)
+            source->gotostmt.where = destination->gotostmt.where;
+        else
+            source->gotostmt.where = destination->gotostmt.where = ast_label();
+    }
+}
+
+static ast_t *parse_label(lexer_token_t *token) {
+    parse_expect(':');
+    char  *label = token->string;
+    ast_t *node  = ast_label_new(label);
+
+    if (table_find(ast_labels, label))
+        compile_error("duplicate label: %s", label);
+    table_insert(ast_labels, label, node);
+
+    return node;
+}
+
 static ast_t *parse_statement(void) {
     lexer_token_t *token = lexer_next();
     ast_t         *ast;
 
+    // deal with the statements
     if (lexer_ispunct        (token, '{'))        return parse_statement_compound();
     if (parse_identifer_check(token, "if"))       return parse_statement_if();
     if (parse_identifer_check(token, "for"))      return parse_statement_for();
@@ -1189,6 +1229,12 @@ static ast_t *parse_statement(void) {
     if (parse_identifer_check(token, "default"))  return parse_statement_default();
     if (parse_identifer_check(token, "break"))    return parse_statement_break();
     if (parse_identifer_check(token, "continue")) return parse_statement_continue();
+    if (parse_identifer_check(token, "goto"))     return parse_statement_goto();
+
+    // technically not a statement, but since it's heavily involved with
+    // goto we call it a statement for organizational reasons.
+    if (token->type == LEXER_TOKEN_IDENTIFIER && lexer_ispunct(lexer_peek(), ':'))
+        return parse_label(token);
 
     lexer_unget(token);
 
@@ -1340,10 +1386,15 @@ static ast_t *parse_function_definition_intermediate(void) {
 
     basetype     = parse_declaration_specification(NULL);
     ast_localenv = table_create(ast_globalenv);
+    ast_labels   = table_create(NULL);
+    ast_gotos    = list_create();
 
     data_type_t *functype = parse_declarator(&name, basetype, parameters, CDECL_BODY);
     parse_expect('{');
     ast_t *value = parse_function_definition(functype, name, parameters);
+
+    parse_label_backfill();
+
     ast_localenv = NULL;
     return value;
 }

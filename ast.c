@@ -21,13 +21,15 @@ data_type_t *ast_data_ullong   = &(data_type_t) { TYPE_LLONG,     8, false };
 data_type_t *ast_data_function = NULL;
 
 list_t      *ast_locals      = NULL;
+list_t      *ast_gotos       = NULL;
 list_t      *ast_floats      = &SENTINEL_LIST;
 list_t      *ast_strings     = &SENTINEL_LIST;
+
+table_t     *ast_labels      = NULL;
 table_t     *ast_globalenv   = &SENTINEL_TABLE;
 table_t     *ast_localenv    = &SENTINEL_TABLE;
 table_t     *ast_structures  = &SENTINEL_TABLE;
 table_t     *ast_unions      = &SENTINEL_TABLE;
-
 
 // ast result
 static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *a, data_type_t *b) {
@@ -267,7 +269,7 @@ ast_t *ast_new_string(char *value) {
     ast->type         = AST_TYPE_STRING;
     ast->ctype        = ast_new_array(ast_data_char, strlen(value) + 1);
     ast->string.data  = value;
-    ast->string.label = ast_new_label();
+    ast->string.label = ast_label();
 
     return ast;
 }
@@ -454,6 +456,24 @@ ast_t *ast_new_do(ast_t *cond, ast_t *body) {
     return ast_new_for_intermediate(AST_TYPE_STATEMENT_DO, NULL, cond, NULL, body);
 }
 
+ast_t *ast_goto_new(char *label) {
+    ast_t *ast          = ast_new_node();
+    ast->type           = AST_TYPE_STATEMENT_GOTO;
+    ast->gotostmt.label = label;
+    ast->gotostmt.where = NULL;
+
+    return ast;
+}
+
+ast_t *ast_label_new(char *label) {
+    ast_t *ast          = ast_new_node();
+    ast->type           = AST_TYPE_STATEMENT_LABEL;
+    ast->gotostmt.label = label;
+    ast->gotostmt.where = NULL;
+
+    return ast;
+}
+
 ast_t *ast_new_return(data_type_t *returntype, ast_t *value) {
     ast_t *ast      = ast_new_node();
     ast->type       = AST_TYPE_STATEMENT_RETURN;
@@ -474,7 +494,7 @@ ast_t *ast_new_compound(list_t *statements) {
 
 ////////////////////////////////////////////////////////////////////////
 // misc
-char *ast_new_label(void) {
+char *ast_label(void) {
     string_t *string = string_create();
     string_catf(string, ".L%d", ast_label_index++);
     return string_buffer(string);

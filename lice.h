@@ -105,6 +105,8 @@ typedef enum {
     AST_TYPE_STATEMENT_BREAK,
     AST_TYPE_STATEMENT_CONTINUE,
     AST_TYPE_STATEMENT_COMPOUND,
+    AST_TYPE_STATEMENT_GOTO,
+    AST_TYPE_STATEMENT_LABEL,
 
     // pre/post increment ast
     AST_TYPE_POST_INCREMENT,
@@ -234,6 +236,11 @@ typedef struct {
     ast_t       *body;
 } ast_switch_t;
 
+typedef struct {
+    char *label;
+    char *where;
+} ast_goto_t;
+
 struct ast_s {
     int           type;
     data_type_t *ctype;
@@ -254,6 +261,7 @@ struct ast_s {
         ast_t          *returnstmt;     // return statement
         list_t         *compound;       // compound statement
         ast_initlist_t  initlist;       // initializer list
+        ast_goto_t      gotostmt;       // goto statement
 
         struct {                        // tree
             ast_t *left;
@@ -283,7 +291,7 @@ ast_t *ast_new_binary(int type, ast_t *left, ast_t *right);
 ast_t *ast_new_integer(data_type_t *type, int value);
 ast_t *ast_new_floating(data_type_t *, double value);
 ast_t *ast_new_char(char value);
-char *ast_new_label(void);
+char *ast_label(void);
 ast_t *ast_new_decl(ast_t *var, ast_t *init);
 ast_t *ast_new_variable_local(data_type_t *type, char *name);
 ast_t *ast_new_reference_local(data_type_t *type, ast_t *var, int off);
@@ -303,6 +311,8 @@ ast_t *ast_new_compound(list_t *statements);
 ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last);
 ast_t *ast_new_switch(ast_t *expr, ast_t *body);
 ast_t *ast_new_case(int value);
+ast_t *ast_label_new(char *);
+ast_t *ast_goto_new(char *);
 
 ast_t *ast_make(int type);
 
@@ -321,7 +331,7 @@ data_type_t *ast_type_copy(data_type_t *type);
 data_type_t *ast_type_create(type_t type, bool sign);
 data_type_t *ast_type_stub(void);
 
-// data
+// data types
 extern data_type_t *ast_data_void;
 extern data_type_t *ast_data_int;
 extern data_type_t *ast_data_char;
@@ -335,13 +345,18 @@ extern data_type_t *ast_data_double;
 extern data_type_t *ast_data_ldouble;
 extern data_type_t *ast_data_function;
 
-list_t      *ast_floats;
-list_t      *ast_strings;
-list_t      *ast_locals;
-table_t     *ast_globalenv;
-table_t     *ast_localenv;
-table_t     *ast_structures;
-table_t     *ast_unions;
+// data
+extern list_t      *ast_floats;
+extern list_t      *ast_strings;
+extern list_t      *ast_locals;
+extern list_t      *ast_gotos;
+
+// enviroment / scoping data
+extern table_t     *ast_globalenv;
+extern table_t     *ast_localenv;
+extern table_t     *ast_structures;
+extern table_t     *ast_unions;
+extern table_t     *ast_labels;
 
 // debug
 char *ast_string(ast_t *ast);
