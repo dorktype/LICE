@@ -12,92 +12,94 @@ support.
 LICE as it stands is fairly complete, the base language support for C99
 only lacks a few trivial things, albeit important ones. For instance, while
 most type specifiers and complicated declarations are accepted, the semantics
-and behaviour of them aren't handled.
+and behaviour of them aren't handled. So, to outline the inconsistencies,
+a list has been provided below.
 
-Most constructs excluding designated initializers are, for the most part,
-fully supported.
+-   Most constructs excluding designated initializers are, for the most part,
+    fully supported.
 
-Direct function calls are fully supported, but limited; for instance,
-function calls cannot exceed six arguments. Some calls may fail since
-stack alignment isn't fully correct, which may break floating point
-operations.
+-   Direct function calls are fully supported, but limited; for instance,
+    function calls cannot exceed six arguments. Some calls may fail since
+    stack alignment isn't fully correct, which may break floating point
+    operations.
 
-Indirect function calls aren't supported, but declaring, and taking
-the address of functions are.
+-   Indirect function calls aren't supported, but declaring, and taking
+    the address of functions are.
 
-Literals of all kinds are supported, but exotic escape sequences in
-string literals or character literals aren't.
+-   Literals of all kinds are supported, but exotic escape sequences in
+    string literals or character literals aren't.
 
-Compound literals are supported, but they aren't supported in function
-definitions or global variable initializers.
+-   Compound literals are supported, but they aren't supported in function
+    definitions or global variable initializers.
 
-There is no support for copying structures, or passing structures by
-copy through functions.
+-   There is no support for copying structures, or passing structures by
+    copy through functions.
 
-String concatenation for adjacent strings, and other preprocessor-aware
-operations aren't supported since there isn't a preprocessor stage.
+-   String concatenation for adjacent strings, and other preprocessor-aware
+    operations aren't supported since there isn't a preprocessor stage.
 
-Prefix increment and decrement operators aren't supported.
+-   Prefix increment and decrement operators aren't supported.
 
-Taking the address of a structure for assigning to structure field of pointer
-type of that same structure isn't supporte.
+-   Taking the address of a structure for assigning to structure field of pointer
+    type of that same structure isn't supported.
 
-There is no comma operator.
+-   There is no comma operator.
 
-Boolean operations aren't properly converted to 0 or 1 in accordance
-to the SystemV ABI.
+-   Boolean operations aren't properly converted to 0 or 1 in accordance
+    to the SystemV ABI.
 
-Conformant implicit and explicit arithmetic conversion isn't supported,
-at least not inline with what the standard defines as promotion ranking.
-Similarly implicit type conversion isn't correct either.
+-   Conformant implicit and explicit arithmetic conversion isn't supported,
+    at least not inline with what the standard defines as promotion ranking.
+    Similarly implicit type conversion isn't correct either.
 
-There is no support for logical right shift operations, so code like
-`((unsigned)-1) >> 31)` won't give correct results.
+-   There is no support for logical right shift operations, so code like
+    `((unsigned)-1) >> 31)` won't give correct results.
 
-Conditional tests that use a `float, double`, or `long double` type
-condition aren't casted to boolean type, so they may give wrong
-results.
+-   Conditional tests that use a `float, double`, or `long double` type
+    condition aren't casted to boolean type, so they may give wrong
+    results.
 
-Omitting the semicolon at the end of a structure or union member list
-isn't supported.
+-   Omitting the semicolon at the end of a structure or union member list
+    isn't supported.
 
-Return values are booleanized in accordance to the SystemV ABI.
+-   Return values are booleanized in accordance to the SystemV ABI.
 
-Unspecified fields of a literal structure aren't default initialized
-to zero.
+-   Unspecified fields of a literal structure aren't default initialized
+    to zero.
 
-Initializing global variable with a pointer to another global variable
-isn't supported.
+-   Initializing global variable with a pointer to another global variable
+    isn't supported.
 
-Structures cannot be initialized with literal struct.
+-   Structures cannot be initialized with literal struct.
 
-Bitfields aren't supported.
+-   Bitfields aren't supported.
 
-Floating point constants beginning with `.` aren't supported.
+-   Floating point constants beginning with `.` aren't supported.
 
-Certain line markers like CR,LF, CRLF, and EOF aren't accepted
+-   Certain line markers like CR,LF, CRLF, and EOF aren't accepted
 
-Labels and goto aren't supported.
+-   Labels and goto aren't supported.
 
-Designated array initializers aren't supported.
+-   Designated array initializers aren't supported.
 
-Initializer lists, while they are supported, are only supported for one
-level of nesting, simlarly nested designatiors aren't supported either.
+-   Initializer lists, while they are supported, are only supported for one
+    level of nesting, simlarly nested designatiors aren't supported either.
 
-The C99 `typeof` keyword isn't supported.
+-   The C99 `typeof` keyword isn't supported.
 
-Character literals are interpreted as type `char`, opposed to type `int`,
-this is a direct violation of the C standard.
+-   Character literals are interpreted as type `char`, opposed to type `int`,
+-   this is a direct violation of the C standard.
 
-Typedef names don't share the same namespace as ordinary identifiers, this
-is a direct violation of the C standard.
+-   Typedef names don't share the same namespace as ordinary identifiers, this
+    is a direct violation of the C standard.
 
-Various popular extensions like case ranges, flexible array members, alignof,
-binary literals, statement expressions, __builtin_return_address, aren't supported.
+-   Various popular extensions like case ranges, flexible array members, alignof,
+    binary literals, statement expressions, __builtin_return_address, etc,
+    aren't supported.
 
-Old K&R C style functions aren't supported.
+-   Old K&R C style functions aren't supported.
 
-Unicode character literals aren't supported.
+-   Unicode character literals aren't supported.
 
 ### Prologue
 If you don't find yourself needing any of the stuff which is marked as being
