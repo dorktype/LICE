@@ -19,6 +19,7 @@ clean:
 test: $(EXECUTABLE)
 	@cat tests/expect.c tests/types.c     | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/numbers.c   | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
+	@cat tests/expect.c tests/cast.c      | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/typedef.c   | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/sizeof.c    | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/enum.c      | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
