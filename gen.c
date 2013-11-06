@@ -86,6 +86,18 @@ static const char *gen_register_integer(data_type_t *type, char r) {
     return "<<lice internal error>>";
 }
 
+static const char *gen_load_instruction(data_type_t *type) {
+    switch (type->size) {
+        case 1: return "movsbq";
+        case 2: return "movswq";
+        case 4: return "movslq";
+        case 8: return "mov";
+        default:
+            compile_error("ICE");
+    }
+    return NULL;
+}
+
 static void gen_load_global(data_type_t *type, char *label, int offset) {
     if (type->type == TYPE_ARRAY) {
         if (offset)
@@ -94,15 +106,7 @@ static void gen_load_global(data_type_t *type, char *label, int offset) {
             gen_emit("lea %s(%%rip), %%rax", label);
         return;
     }
-
-    const char *reg = gen_register_integer(type, 'a');
-    printf("#gen_load_global\n");
-    if (type->size < 4)
-        gen_emit("mov $0, %%eax");
-    if (offset)
-        gen_emit("mov %s+%d(%%rip), %%%s", label, offset, reg);
-    else
-        gen_emit("mov %s(%%rip), %%%s", label, reg);
+    gen_emit("%s %s+%d(%%rip), %%rax", gen_load_instruction(type), label, offset);
 }
 
 static void gen_cast_int(data_type_t *type) {
@@ -125,11 +129,7 @@ static void gen_load_local(data_type_t *var, int offset) {
     } else if (var->type == TYPE_DOUBLE || var->type == TYPE_LDOUBLE) {
         gen_emit("movsd %d(%%rbp), %%xmm0", offset);
     } else {
-        const char *reg = gen_register_integer(var, 'a');
-        if (var->size < 4)
-            gen_emit("mov $0, %%ecx");
-        gen_emit("mov %d(%%rbp), %%%s", offset, reg);
-        //gen_emit("mov %%rcx, %%rax");
+        gen_emit("%s %d(%%%s), %%rax", gen_load_instruction(var), offset, "rbp");
     }
 }
 
