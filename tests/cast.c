@@ -1,3 +1,7 @@
+void *ignore() {
+    return 1024;
+}
+
 void test() {
     float  a = (float)1;
     double b = (double)1;
@@ -10,6 +14,8 @@ void test() {
     expecti(c, 1);
     expecti(d, 1);
     expecti(e, 1);
+
+    expecti((int*)(ignore()), 1024);
 }
 
 int main() {

@@ -16,12 +16,12 @@ void test() {
 
     struct {
         int a;
-        char b[5];
+        struct { char b[5]; }; // todo fix
     } data = {
-        100
+        100 { 'h', 'e', 'l', 'p', 0 }
     };
 
-    strcpy(data.b, "help");
+    //strcpy(data.b, "help");
 
     expecti(d.a[0], 1);
     expecti(d.a[1], 2);
