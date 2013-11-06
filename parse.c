@@ -438,6 +438,8 @@ static ast_t *parse_structure_field(ast_t *structure) {
         compile_error("Internal error: parse_structure_field (2)");
 
     data_type_t *field = table_find(structure->ctype->fields, name->string);
+    if (!field)
+        compile_error("structure has no such field");
     return ast_structure_reference_new(field, structure, name->string);
 }
 
@@ -742,25 +744,29 @@ static table_t *parse_memory_fields(int *rsize, bool isstruct) {
 
 static data_type_t *parse_tag_definition(table_t *table, bool isstruct) {
     char        *tag    = parse_memory_tag();
-    data_type_t *prev   = tag ? table_find(ast_unions, tag) : NULL;
     int          size   = 0;
     table_t     *fields = parse_memory_fields(&size, isstruct);
+    data_type_t *r;
 
-    if (prev && !fields)
-        return prev;
-
-    if (prev && fields) {
-        prev->fields = fields;
-        prev->size   = size;
-        return prev;
+    if (tag) {
+        if (!(r = table_find(table, tag))) {
+            r = ast_structure_new(NULL, 0);
+            table_insert(table, tag, r);
+        }
+    } else {
+        r = ast_structure_new(NULL, 0);
+        if (tag)
+            table_insert(table, tag, r);
     }
 
-    data_type_t *r = (fields)
-        ? ast_structure_new(fields, size)
-        : ast_structure_new(NULL,   0);
+    if (r && !fields)
+        return r;
 
-    if (tag)
-        table_insert(ast_unions, tag, r);
+    if (r && fields) {
+        r->fields = fields;
+        r->size   = size;
+        return r;
+    }
 
     return r;
 }
