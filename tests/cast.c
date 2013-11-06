@@ -16,6 +16,10 @@ void test() {
     expecti(e, 1);
 
     expecti((int*)(ignore()), 1024);
+
+    int n[10];
+    *(int*)(n + c) = (int*)(ignore());
+    expecti(n[c], 1024);
 }
 
 int main() {

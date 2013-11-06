@@ -367,7 +367,7 @@ static ast_t *parse_expression_unary_cast(void) {
     data_type_t *casttype = parse_declarator(NULL, basetype, NULL, CDECL_CAST);
 
     parse_expect(')');
-    ast_t *expression = parse_expression();
+    ast_t *expression = parse_expression_unary();
 
     return ast_new_unary(AST_TYPE_EXPRESSION_CAST, casttype, expression);
 }
