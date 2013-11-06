@@ -88,7 +88,7 @@ a list has been provided below.
 -   The C99 `typeof` keyword isn't supported.
 
 -   Character literals are interpreted as type `char`, opposed to type `int`,
--   this is a direct violation of the C standard.
+    this is a direct violation of the C standard.
 
 -   Typedef names don't share the same namespace as ordinary identifiers, this
     is a direct violation of the C standard.
