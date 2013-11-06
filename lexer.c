@@ -217,37 +217,56 @@ static lexer_token_t *lexer_read_token(void) {
                     lexer_skip_comment_block();
                     return lexer_read_token();
             }
+            if (c == '=')
+                return lexer_punct(LEXER_TOKEN_COMPOUND_DIV);
             ungetc(c, stdin);
             return lexer_punct('/');
 
         // punctuation
-        case '*':
         case '(': case ')':
+        case ',': case ';':
         case '[': case ']':
         case '{': case '}':
-        case ',': case ';':
         case '?': case ':':
-        case '~': case '^':
-        case '%':
+        case '~':
             return lexer_punct(c);
 
-        case '|': return lexer_read_reclassify_one('|', LEXER_TOKEN_OR,         '|');
-        case '&': return lexer_read_reclassify_one('&', LEXER_TOKEN_AND,        '&');
-        case '=': return lexer_read_reclassify_one('=', LEXER_TOKEN_EQUAL,      '=');
-        case '+': return lexer_read_reclassify_one('+', LEXER_TOKEN_INCREMENT,  '+');
-        case '<': return lexer_read_reclassify_two('=', LEXER_TOKEN_LEQUAL,     '<', LEXER_TOKEN_LSHIFT, '<');
-        case '>': return lexer_read_reclassify_two('=', LEXER_TOKEN_GEQUAL,     '>', LEXER_TOKEN_RSHIFT, '>');
-        case '!': return lexer_read_reclassify_one('=', LEXER_TOKEN_NEQUAL,     '!');
+        case '+': return lexer_read_reclassify_two('+', LEXER_TOKEN_INCREMENT,    '=', LEXER_TOKEN_COMPOUND_ADD, '+');
+        case '&': return lexer_read_reclassify_two('&', LEXER_TOKEN_AND,          '=', LEXER_TOKEN_COMPOUND_AND, '&');
+        case '|': return lexer_read_reclassify_two('|', LEXER_TOKEN_OR,           '=', LEXER_TOKEN_COMPOUND_OR,  '|');
+        case '*': return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_MUL, '*');
+        case '%': return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_MOD, '%');
+        case '=': return lexer_read_reclassify_one('=', LEXER_TOKEN_EQUAL,        '=');
+        case '!': return lexer_read_reclassify_one('=', LEXER_TOKEN_NEQUAL,       '!');
+        case '^': return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_XOR, '^');
 
-        // special handling for ->
+        // - is super special because it's the most used (in other tokens)
+        // you have, -, --, ->, and -=
         case '-':
-            c = getc(stdin);
-            switch (c) {
+            switch ((c = getc(stdin))) {
                 case '-': return lexer_punct(LEXER_TOKEN_DECREMENT);
                 case '>': return lexer_punct(LEXER_TOKEN_ARROW);
+                case '=': return lexer_punct(LEXER_TOKEN_COMPOUND_SUB);
+                default:
+                    break;
             }
             ungetc(c, stdin);
             return lexer_punct('-');
+
+        case '<':
+            if ((c = getc(stdin)) == '=')
+                return lexer_punct(LEXER_TOKEN_LEQUAL);
+            if (c == '<')
+                return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_LSHIFT, LEXER_TOKEN_LSHIFT);
+            ungetc(c, stdin);
+            return lexer_punct('<');
+        case '>':
+            if ((c = getc(stdin)) == '=')
+                return lexer_punct(LEXER_TOKEN_GEQUAL);
+            if (c == '>')
+                return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_RSHIFT, LEXER_TOKEN_RSHIFT);
+            ungetc(c, stdin);
+            return lexer_punct('>');
 
         case '.':
             c = getc(stdin);

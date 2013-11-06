@@ -28,6 +28,7 @@ test: $(EXECUTABLE)
 	@cat tests/expect.c tests/control.c   | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/switch.c    | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/operators.c | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
+	@cat tests/expect.c tests/compound.c  | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/array.c     | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/forloop.c   | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out
 	@cat tests/expect.c tests/whileloop.c | ./$(EXECUTABLE) | $(CC) -xassembler - && ./a.out

@@ -43,8 +43,8 @@ Operators | Description
 ~,^       | Bitwise not and xor
 <<,>>     | Bitshift operators
 
-Lice doesn't support compound assignment operators `+=, -=, *=, /= ...`
-or prefix operators `++, --`
+Lice also supports compound assignment versions of those operators, `
++=, =, *=, %=, ...`. Lice however doesn't support prefix operators `++, --`
 
 ### Constructs/Statements:
 Lice supports only the following constructs / statements

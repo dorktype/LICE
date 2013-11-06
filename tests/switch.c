@@ -38,7 +38,7 @@ void test() {
         case 3:      a++;
         case 2:      a++;
         case 1:      a++;
-                } while ((accumulate = accumulate - 8) > 0);
+                } while ((accumulate -= 8) > 0);
     }
 
     expecti(a, 38);

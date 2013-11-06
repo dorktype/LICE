@@ -46,6 +46,11 @@ static void parse_semantic_notvoid(data_type_t *type) {
         compile_error("void not allowed");
 }
 
+static void parse_semantic_integer(ast_t *node) {
+    if (!ast_type_integer(node->ctype))
+        compile_error("expected integer type");
+}
+
 static bool parse_semantic_rightassoc(lexer_token_t *token) {
     return (token->punct == '=');
 }
@@ -138,6 +143,16 @@ static int parse_operator_priority(lexer_token_t *token) {
         case '?':
             return 13;
         case '=':
+        case LEXER_TOKEN_COMPOUND_ADD:
+        case LEXER_TOKEN_COMPOUND_AND:
+        case LEXER_TOKEN_COMPOUND_DIV:
+        case LEXER_TOKEN_COMPOUND_LSHIFT:
+        case LEXER_TOKEN_COMPOUND_MOD:
+        case LEXER_TOKEN_COMPOUND_MUL:
+        case LEXER_TOKEN_COMPOUND_OR:
+        case LEXER_TOKEN_COMPOUND_RSHIFT:
+        case LEXER_TOKEN_COMPOUND_SUB:
+        case LEXER_TOKEN_COMPOUND_XOR:
             return 14;
     }
     return -1;
@@ -426,6 +441,35 @@ static ast_t *parse_structure_field(ast_t *structure) {
     return ast_structure_reference_new(field, structure, name->string);
 }
 
+static int parse_operation_compound_operator(lexer_token_t *token) {
+    if (token->type != LEXER_TOKEN_PUNCT)
+        return 0;
+
+    switch (token->punct) {
+        case LEXER_TOKEN_COMPOUND_RSHIFT: return LEXER_TOKEN_RSHIFT;
+        case LEXER_TOKEN_COMPOUND_LSHIFT: return LEXER_TOKEN_LSHIFT;
+        case LEXER_TOKEN_COMPOUND_ADD:    return '+';
+        case LEXER_TOKEN_COMPOUND_AND:    return '&';
+        case LEXER_TOKEN_COMPOUND_DIV:    return '/';
+        case LEXER_TOKEN_COMPOUND_MOD:    return '%';
+        case LEXER_TOKEN_COMPOUND_MUL:    return '*';
+        case LEXER_TOKEN_COMPOUND_OR:     return '|';
+        case LEXER_TOKEN_COMPOUND_SUB:    return '-';
+        case LEXER_TOKEN_COMPOUND_XOR:    return '^';
+        default:
+            return 0;
+    }
+
+    return -1;
+}
+
+static bool parse_operation_integer_check(int operation) {
+    return operation == '^'
+        || operation == '%'
+        || operation == LEXER_TOKEN_LSHIFT
+        || operation == LEXER_TOKEN_RSHIFT;
+}
+
 static ast_t *parse_expression_intermediate(int precision) {
     ast_t       *ast;
     ast_t       *next;
@@ -479,31 +523,25 @@ static ast_t *parse_expression_intermediate(int precision) {
             continue;
         }
 
-        if (lexer_ispunct(token, '='))
+        int compound = parse_operation_compound_operator(token);
+        if (lexer_ispunct(token, '=') || compound)
             parse_semantic_lvalue(ast);
 
         next = parse_expression_intermediate(pri + !!parse_semantic_rightassoc(token));
         if (!next)
             compile_error("Internal error: parse_expression_intermediate (next)");
-        if (lexer_ispunct(token, '^')
-        ||  lexer_ispunct(token, '%')
-        ||  lexer_ispunct(token, LEXER_TOKEN_LSHIFT)
-        ||  lexer_ispunct(token, LEXER_TOKEN_RSHIFT))
-        {
-            if (!ast_type_integer(ast->ctype) ||
-                !ast_type_integer(next->ctype)) {
+        int op = compound ? compound : token->punct;
 
-                // eh?
-                compile_error(
-                    "Not a valid expression: %s ^ %s (types %s and %s)",
-                    ast_string(ast),
-                    ast_string(next),
-                    ast_type_string(ast->ctype),
-                    ast_type_string(next->ctype)
-                );
-            }
+        if (parse_operation_integer_check(op)) {
+            parse_semantic_integer(ast);
+            parse_semantic_integer(next);
         }
-        ast = ast_new_binary(token->punct, ast, next);
+
+        // deal with compound assignments
+        if (compound)
+            ast = ast_new_binary('=', ast, ast_new_binary(op, ast, next));
+        else
+            ast = ast_new_binary(op, ast, next);
     }
     return NULL;
 }
