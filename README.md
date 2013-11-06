@@ -1,121 +1,127 @@
-LICE is an experiment to see how close I can get to a C compiler looking
-at the sources of existing ones like TCC, GCC and SubC, while still
-keeping the code easy to understand and well documented for my own sake.
+### Epilogue
+LICE is a work in progress C99 compiler designed as a solution for
+teaching myself and others about the C programming language, how to
+write a compiler for it, and code generation.
 
-### Types
-Lice supports all the default data types in C, `char, short, int, long,
-long long, float, double, long double` as well as `signed, unsigned`.
-Lice also allows these types for arrays and pointers, while there is support
-for the `volatile, restrict, register` and `const` type specifiers, the
-semantics of those specifiers aren't implement, they're ignored.
-The `void` type is also supported as well.
+Part of the philosophy behind LICE is to provide a public domain
+implementation of a working conformant C99 compiler. As well as borrowing
+extensions and ideas from existing compilers to ensure a wider range of
+support.
 
-### Functions
-Functions and function prototypes are fully supported, including variable
-arguments and function pointers. Calling function pointers however aren't
-supported. Function calls are limited to six arguments currently since the
-code generator doesn't know how to deal with passing additional arguments
-on the stack.
+### Status
+LICE as it stands is fairly complete, the base language support for C99
+only lacks a few trivial things, albeit important ones. For instance, while
+most type specifiers and complicated declarations are accepted, the semantics
+and behaviour of them aren't handled.
 
-### Statements
-Lice supports most of the statements in C, including: `if, for, while,
-do, break, continue, switch, case, default` and `return`.
+Most constructs excluding designated initializers are, for the most part,
+fully supported.
 
-### Operators
-Lice supports all the standard operators which includes
+Direct function calls are fully supported, but limited; for instance,
+function calls cannot exceed six arguments. Some calls may fail since
+stack alignment isn't fully correct, which may break floating point
+operations.
 
-Operators | Description
-----------|:-------------------------------------------------------
-+,-,/,*   | Arithmetic operators
-=         | Assignment operator
-==,!=     | Equality operators
-<         | Less than operator
-\>        | Greater than operator
-!         | Boolean not operator
-%         | Modulo operator
-(,)       | Standard Parentheses
-[]        | Array subscript operator
-++,--     | Postfix operators only (e.g a++)
-?,:       | Ternary operator
-&,&#124;  | Bitwise operators
-->        | Standard pointer syntax sugar operator
->=,<=     | Greater/Less than or equal to operators
-~,^       | Bitwise not and xor
-<<,>>     | Bitshift operators
+Indirect function calls aren't supported, but declaring, and taking
+the address of functions are.
 
-Lice also supports compound assignment versions of those operators, `
-+=, =, *=, %=, ...`. Lice however doesn't support prefix operators `++, --`
+Literals of all kinds are supported, but exotic escape sequences in
+string literals or character literals aren't.
 
-### Constructs/Statements:
-Lice supports only the following constructs / statements
+Compound literals are supported, but they aren't supported in function
+definitions or global variable initializers.
 
+There is no support for copying structures, or passing structures by
+copy through functions.
 
- Construct            | Description
-----------------------|:-----------------------------------------------------------
- struct               | Standard structures
- union                | Standard unions
- initializer list     | Works for arrays and structures
- enum                 | Subset enumerations (no forward declaring or assigning to)
- switch               | Standard switch statement (case, default)
- for                  | Standard for loop
- while                | Standard while loop
- do                   | Standard do-while loop
- return               | Standard return
- break, continue      | Standard break and countinue
+String concatenation for adjacent strings, and other preprocessor-aware
+operations aren't supported since there isn't a preprocessor stage.
 
+Prefix increment and decrement operators aren't supported.
 
-Support for declaring structures and unions inside functions is supported as
-well as anywhere a typename is expected, e.g a function argument. Initializer
-lists work on char arrays as well with the use of strings, e.g:
-`struct { char a[6]; } v = { "hello" };` works.
+Taking the address of a structure for assigning to structure field of pointer
+type of that same structure isn't supporte.
 
-### Pointers
-Pointers work how they typically would work, you can define one,
-take the address of one and have as many layers of referencing
-and dereferencing as you want. Pointer arithmetic works as well.
-Pointers to functions aren't supported. You can also dereference
-pointers into assignments, e.g *a=b; works, as does *(a+N)=b;
+There is no comma operator.
 
-### Expressions
-All typical expressions should work including integer constant expressions
-for things like `int a[5*5];`. There are some things that aren't supported
-like type casts, but for the most part they all work, including ternary
-expressions, and weird nesting. The `sizeof` operator, which returns a constant
-value expression doesn't support typenames as of yet, only literals are
-currently supported as the operand to `sizeof`.
+Boolean operations aren't properly converted to 0 or 1 in accordance
+to the SystemV ABI.
 
-### Comments
-C block comments and C++ line comments are supported, as well as
-line continuation.
+Conformant implicit and explicit arithmetic conversion isn't supported,
+at least not inline with what the standard defines as promotion ranking.
+Similarly implicit type conversion isn't correct either.
 
-### Code generation
-The codegen is unoptimal crap, it produces a 'stack machine'
-model which isn't exactly efficent. All registers are saved
-and restored while they mostly may not need to be. Return
-statements need to emit leave instructions even though they
-might not need to be. Operations will always load operands
-into the first closest registers and store the result back
-into the first, even though that operation may already
-put the result into the first.
+There is no support for logical right shift operations, so code like
+`((unsigned)-1) >> 31)` won't give correct results.
 
-### Platforms
-The code generator produces code compatible in accordance to
-the SysV ABI for AMD64. So it should function on any AMD64
-Linux or FreeBSD system.
+Conditional tests that use a `float, double`, or `long double` type
+condition aren't casted to boolean type, so they may give wrong
+results.
 
-### What does LICE stand for?
-This was a topic of serious debate amongst myself and peers. Some
-of the ideas were:
+Omitting the semicolon at the end of a structure or union member list
+isn't supported.
 
--   LICE Isn't Cee
--   Limitless Internal Compiler Errors
--   Lamest Implemenation of C, Ever!
+Return values are booleanized in accordance to the SystemV ABI.
 
-I like to think the last one suits the current status of the project
-currently. To be fair I don't care what you think it stands for, just
-find solace in one of the choices above, or one of your own and stick with
-it. If you do happen to find a nice marketable explination of the acronym
-you can email me your suggestion and I'll include it here.
+Unspecified fields of a literal structure aren't default initialized
+to zero.
+
+Initializing global variable with a pointer to another global variable
+isn't supported.
+
+Structures cannot be initialized with literal struct.
+
+Bitfields aren't supported.
+
+Floating point constants beginning with `.` aren't supported.
+
+Certain line markers like CR,LF, CRLF, and EOF aren't accepted
+
+Labels and goto aren't supported.
+
+Designated array initializers aren't supported.
+
+Initializer lists, while they are supported, are only supported for one
+level of nesting, simlarly nested designatiors aren't supported either.
+
+The C99 `typeof` keyword isn't supported.
+
+Character literals are interpreted as type `char`, opposed to type `int`,
+this is a direct violation of the C standard.
+
+Typedef names don't share the same namespace as ordinary identifiers, this
+is a direct violation of the C standard.
+
+Various popular extensions like case ranges, flexible array members, alignof,
+binary literals, statement expressions, __builtin_return_address, aren't supported.
+
+Old K&R C style functions aren't supported.
+
+Unicode character literals aren't supported.
+
+### Prologue
+If you don't find yourself needing any of the stuff which is marked as being
+unsupported above then you may find that LICE will happily compile your
+source into x86-64 assembly. The code generation is close from optimal.
+LICE treats the entire system as a giant stack machine, since it's easier
+to generate code that way. The problem is it's hardly efficent. All local
+variables are assigned on the stack for operations. All operations operate
+from the stack and write back the result to the stack location that is
+the destination operand for that operation. Eventually an intermediate
+representation will be added which will perform trivial optimization before
+assembly generation.
+
+### Porting
+LICE isn't easily retargetable since the parser and ast components of the
+compiler make huge architectual specific assumptions. Assuming you wanted
+to port you'd need to change the size of types respectfully inside ast.c,
+and strucute / type alignment inside parser.c, this should be farily
+trivial since both of those things exist at the top of each of those files
+respectfully. After that is acomplished ast_result_type will need to be
+changed to reflect the correct type conversion, that both conforms to
+the ABI for your target, and the standard. The final stage is duplicating
+gen.c and changing it to produce assembly for that architecture.
+
 
 ### Sources
 The following sources where used in the construction of LICE
@@ -148,11 +154,14 @@ The following sources where used in the construction of LICE
     https://github.com/eliben/pycparser
 
 ### Inspiration
-The following where inspiration in the creation of LICE
+The following projects were seen as inspiration in the construciton of
+LICE.
 
--   SubC compiler sources for ideas
+-   SubC
     http://www.t3x.org/subc/
 
 -   TCC
     http://bellard.org/tcc/
 
+-   lcc
+    https://sites.google.com/site/lccretargetablecompiler/
