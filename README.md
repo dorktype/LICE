@@ -26,9 +26,6 @@ a list has been provided below.
 -   Indirect function calls aren't supported, but declaring, and taking
     the address of functions are.
 
--   Literals of all kinds are supported, but exotic escape sequences in
-    string literals or character literals aren't.
-
 -   Compound literals are supported, but they aren't supported in function
     definitions or global variable initializers.
 

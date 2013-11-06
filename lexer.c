@@ -6,38 +6,34 @@
 #include "lice.h"
 #include "util.h"
 
-// now the lexer
-#define lexer_token_new() \
-    ((lexer_token_t*)malloc(sizeof(lexer_token_t)))
-
 static list_t *lexer_buffer = &SENTINEL_LIST;
 
 static lexer_token_t *lexer_identifier(string_t *str) {
-    lexer_token_t *token = lexer_token_new();
+    lexer_token_t *token = malloc(sizeof(lexer_token_t));
     token->type          = LEXER_TOKEN_IDENTIFIER;
     token->string        = string_buffer(str);
     return token;
 }
 static lexer_token_t *lexer_strtok(string_t *str) {
-    lexer_token_t *token = lexer_token_new();
+    lexer_token_t *token = malloc(sizeof(lexer_token_t));
     token->type          = LEXER_TOKEN_STRING;
     token->string        = string_buffer(str);
     return token;
 }
 static lexer_token_t *lexer_punct(int punct) {
-    lexer_token_t *token = lexer_token_new();
+    lexer_token_t *token = malloc(sizeof(lexer_token_t));
     token->type          = LEXER_TOKEN_PUNCT;
     token->punct         = punct;
     return token;
 }
 static lexer_token_t *lexer_number(char *string) {
-    lexer_token_t *token = lexer_token_new();
+    lexer_token_t *token = malloc(sizeof(lexer_token_t));
     token->type          = LEXER_TOKEN_NUMBER;
     token->string        = string;
     return token;
 }
 static lexer_token_t *lexer_char(char value) {
-    lexer_token_t *token = lexer_token_new();
+    lexer_token_t *token = malloc(sizeof(lexer_token_t));
     token->type          = LEXER_TOKEN_CHAR;
     token->character     = value;
     return token;
@@ -95,27 +91,81 @@ static lexer_token_t *lexer_read_number(int c) {
     return NULL;
 }
 
+static bool lexer_read_character_octal_brace(int c, int *r) {
+    if ('0' <= c && c <= '7') {
+        *r = (*r << 3) | (c - '0');
+        return true;
+    }
+    return false;
+}
+
+static int lexer_read_character_octal(int c) {
+    int r = c - '0';
+    if (lexer_read_character_octal_brace((c = getc(stdin)), &r)) {
+        if (!lexer_read_character_octal_brace((c = getc(stdin)), &r))
+            ungetc(c, stdin);
+    } else
+        ungetc(c, stdin);
+    return r;
+}
+
+static int lexer_read_character_hexadecimal(void) {
+    int c = getc(stdin);
+    int r = 0;
+
+    if (!isxdigit(c))
+        compile_error("malformatted hexadecimal character");
+
+    for (;; c = getc(stdin)) {
+        switch (c) {
+            case '0' ... '9': r = (r << 4) | (c - '0');      continue;
+            case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
+            case 'A' ... 'F': r = (r << 4) | (c - 'f' + 10); continue;
+
+            default:
+                ungetc(c, stdin);
+                return r;
+        }
+    }
+    return -1;
+}
+
+static int lexer_read_character_escaped(void) {
+    int c = getc(stdin);
+
+    switch (c) {
+        case '\'':        return '\'';
+        case '"':         return '"';
+        case '?':         return '?';
+        case '\\':        return '\\';
+        case 'a':         return '\a';
+        case 'b':         return '\b';
+        case 'f':         return '\f';
+        case 'n':         return '\n';
+        case 'r':         return '\r';
+        case 't':         return '\t';
+        case 'v':         return '\v';
+        case 'e':         return '\033';
+        case '0' ... '7': return lexer_read_character_octal(c);
+        case 'x':         return lexer_read_character_hexadecimal();
+        case EOF:
+            compile_error("malformatted escape sequence");
+
+        default:
+            //compile_error("invalid escape sequenmce");
+            return c;
+    }
+}
+
 // read a character and build character token for the token stream
 static lexer_token_t *lexer_read_character(void) {
-    int c1 = getc(stdin);
-    int c2;
+    int c = getc(stdin);
+    int r = (c == '\\') ? lexer_read_character_escaped() : c;
 
-    // sanity
-    if (c1 == EOF)
-        goto lexer_read_character_error;
-    if (c1 == '\\' && ((c1 = getc(stdin)) == EOF))
-        goto lexer_read_character_error;
+    if (getc(stdin) != '\'')
+        compile_error("unterminated character");
 
-    if ((c2 = getc(stdin)) == EOF)
-        goto lexer_read_character_error;
-    if (c2 != '\'')
-        compile_error("Malformatted character literal");
-
-    return lexer_char(c1);
-
-lexer_read_character_error:
-    compile_error("Expected termination for character literal");
-    return NULL;
+    return lexer_char((char)r);
 }
 
 // read a string and build string token for the token stream

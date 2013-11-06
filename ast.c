@@ -133,14 +133,10 @@ data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b) {
     return NULL;
 }
 
-#define ast_new_node() \
-    ((ast_t*)malloc(sizeof(ast_t)))
-
-
 ////////////////////////////////////////////////////////////////////////
 // structures
 ast_t *ast_structure_reference_new(data_type_t *type, ast_t *structure, char *name) {
-    ast_t *ast     = ast_new_node();
+    ast_t *ast     = malloc(sizeof(ast_t));
     ast->type      = AST_TYPE_STRUCT;
     ast->ctype     = type;
     ast->structure = structure;
@@ -167,7 +163,7 @@ data_type_t *ast_structure_new(table_t *fields, int size) {
 ////////////////////////////////////////////////////////////////////////
 // unary and binary
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand) {
-    ast_t *ast         = ast_new_node();
+    ast_t *ast         = malloc(sizeof(ast_t));
     ast->type          = type;
     ast->ctype         = data;
     ast->unary.operand = operand;
@@ -176,7 +172,7 @@ ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand) {
 }
 
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right) {
-    ast_t *ast         = ast_new_node();
+    ast_t *ast         = malloc(sizeof(ast_t));
     ast->type          = type;
     ast->ctype         = ast_result_type(type, left->ctype, right->ctype);
     if (type != '='
@@ -247,7 +243,7 @@ data_type_t *ast_type_stub(void) {
 }
 
 ast_t *ast_new_integer(data_type_t *type, int value) {
-    ast_t *ast   = ast_new_node();
+    ast_t *ast   = malloc(sizeof(ast_t));
     ast->type    = AST_TYPE_LITERAL;
     ast->ctype   = type;
     ast->integer = value;
@@ -256,7 +252,7 @@ ast_t *ast_new_integer(data_type_t *type, int value) {
 }
 
 ast_t *ast_new_floating(data_type_t *type, double value) {
-    ast_t *ast          = ast_new_node();
+    ast_t *ast          = malloc(sizeof(ast_t));
     ast->type           = AST_TYPE_LITERAL;
     ast->ctype          = type;
     ast->floating.value = value;
@@ -265,7 +261,7 @@ ast_t *ast_new_floating(data_type_t *type, double value) {
 }
 
 ast_t *ast_new_string(char *value) {
-    ast_t *ast        = ast_new_node();
+    ast_t *ast        = malloc(sizeof(ast_t));
     ast->type         = AST_TYPE_STRING;
     ast->ctype        = ast_new_array(ast_data_char, strlen(value) + 1);
     ast->string.data  = value;
@@ -277,7 +273,7 @@ ast_t *ast_new_string(char *value) {
 ////////////////////////////////////////////////////////////////////////
 // variables (global and local)
 ast_t *ast_new_variable_local(data_type_t *type, char *name) {
-    ast_t *ast         = ast_new_node();
+    ast_t *ast         = malloc(sizeof(ast_t));
     ast->type          = AST_TYPE_VAR_LOCAL;
     ast->ctype         = type;
     ast->variable.name = name;
@@ -291,7 +287,7 @@ ast_t *ast_new_variable_local(data_type_t *type, char *name) {
 }
 
 ast_t *ast_new_variable_global(data_type_t *type, char *name) {
-    ast_t *ast          = ast_new_node();
+    ast_t *ast          = malloc(sizeof(ast_t));
     ast->type           = AST_TYPE_VAR_GLOBAL;
     ast->ctype          = type;
     ast->variable.name  = name;
@@ -304,7 +300,7 @@ ast_t *ast_new_variable_global(data_type_t *type, char *name) {
 ////////////////////////////////////////////////////////////////////////
 // functions and calls
 ast_t *ast_new_call(data_type_t *type, char *name, list_t *arguments, list_t *parametertypes) {
-    ast_t *ast                   = ast_new_node();
+    ast_t *ast                   = malloc(sizeof(ast_t));
     ast->type                    = AST_TYPE_CALL;
     ast->ctype                    = type;
     ast->function.call.paramtypes = parametertypes;
@@ -315,7 +311,7 @@ ast_t *ast_new_call(data_type_t *type, char *name, list_t *arguments, list_t *pa
 }
 
 ast_t *ast_new_function(data_type_t *ret, char *name, list_t *params, ast_t *body, list_t *locals) {
-    ast_t *ast           = ast_new_node();
+    ast_t *ast           = malloc(sizeof(ast_t));
     ast->type            = AST_TYPE_FUNCTION;
     ast->ctype           = ret;
     ast->function.name   = name;
@@ -329,7 +325,7 @@ ast_t *ast_new_function(data_type_t *ret, char *name, list_t *params, ast_t *bod
 ////////////////////////////////////////////////////////////////////////
 // declarations
 ast_t *ast_new_decl(ast_t *var, ast_t *init) {
-    ast_t *ast     = ast_new_node();
+    ast_t *ast     = malloc(sizeof(ast_t));
     ast->type      = AST_TYPE_DECLARATION;
     ast->ctype     = NULL;
     ast->decl.var  = var;
@@ -341,7 +337,7 @@ ast_t *ast_new_decl(ast_t *var, ast_t *init) {
 ////////////////////////////////////////////////////////////////////////
 // constructs
 ast_t *ast_new_initializerlist(list_t *init) {
-    ast_t *ast         = ast_new_node();
+    ast_t *ast         = malloc(sizeof(ast_t));
     ast->type          = AST_TYPE_INITIALIZERLIST;
     ast->ctype         = NULL;
     ast->initlist.list = init;
@@ -386,7 +382,7 @@ data_type_t *ast_new_pointer(data_type_t *type) {
 // while technically not a construct .. or an expression ternary
 // can be considered a construct
 ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
-    ast_t *ast       = ast_new_node();
+    ast_t *ast       = malloc(sizeof(ast_t));
     ast->type        = AST_TYPE_EXPRESSION_TERNARY;
     ast->ctype       = type;
     ast->ifstmt.cond = cond;
@@ -399,7 +395,7 @@ ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last)
 ////////////////////////////////////////////////////////////////////////
 // statements
 static ast_t *ast_new_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
-    ast_t *ast        = ast_new_node();
+    ast_t *ast        = malloc(sizeof(ast_t));
     ast->type         = type;
     ast->ctype        = NULL;
     ast->forstmt.init = init;
@@ -411,7 +407,7 @@ static ast_t *ast_new_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t
 }
 
 ast_t *ast_new_switch(ast_t *expr, ast_t *body) {
-    ast_t *ast           = ast_new_node();
+    ast_t *ast           = malloc(sizeof(ast_t));
     ast->type            = AST_TYPE_STATEMENT_SWITCH;
     ast->switchstmt.expr = expr;
     ast->switchstmt.body = body;
@@ -420,7 +416,7 @@ ast_t *ast_new_switch(ast_t *expr, ast_t *body) {
 }
 
 ast_t *ast_new_case(int value) {
-    ast_t *ast     = ast_new_node();
+    ast_t *ast     = malloc(sizeof(ast_t));
     ast->type      = AST_TYPE_STATEMENT_CASE;
     ast->casevalue = value;
 
@@ -428,13 +424,13 @@ ast_t *ast_new_case(int value) {
 }
 
 ast_t *ast_make(int type) {
-    ast_t *ast  = ast_new_node();
+    ast_t *ast  = malloc(sizeof(ast_t));
     ast->type = type;
     return ast;
 }
 
 ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last) {
-    ast_t *ast       = ast_new_node();
+    ast_t *ast       = malloc(sizeof(ast_t));
     ast->type        = AST_TYPE_STATEMENT_IF;
     ast->ctype       = NULL;
     ast->ifstmt.cond = cond;
@@ -457,7 +453,7 @@ ast_t *ast_new_do(ast_t *cond, ast_t *body) {
 }
 
 ast_t *ast_goto_new(char *label) {
-    ast_t *ast          = ast_new_node();
+    ast_t *ast          = malloc(sizeof(ast_t));
     ast->type           = AST_TYPE_STATEMENT_GOTO;
     ast->gotostmt.label = label;
     ast->gotostmt.where = NULL;
@@ -466,7 +462,7 @@ ast_t *ast_goto_new(char *label) {
 }
 
 ast_t *ast_label_new(char *label) {
-    ast_t *ast          = ast_new_node();
+    ast_t *ast          = malloc(sizeof(ast_t));
     ast->type           = AST_TYPE_STATEMENT_LABEL;
     ast->gotostmt.label = label;
     ast->gotostmt.where = NULL;
@@ -475,7 +471,7 @@ ast_t *ast_label_new(char *label) {
 }
 
 ast_t *ast_new_return(data_type_t *returntype, ast_t *value) {
-    ast_t *ast      = ast_new_node();
+    ast_t *ast      = malloc(sizeof(ast_t));
     ast->type       = AST_TYPE_STATEMENT_RETURN;
     ast->ctype      = returntype;
     ast->returnstmt = value;
@@ -484,7 +480,7 @@ ast_t *ast_new_return(data_type_t *returntype, ast_t *value) {
 }
 
 ast_t *ast_new_compound(list_t *statements) {
-    ast_t *ast    = ast_new_node();
+    ast_t *ast    = malloc(sizeof(ast_t));
     ast->type     = AST_TYPE_STATEMENT_COMPOUND;
     ast->ctype    = NULL;
     ast->compound = statements;
