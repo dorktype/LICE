@@ -12,7 +12,7 @@ support.
 LICE as it stands is fairly complete, the base language support for C99
 only lacks a few trivial things, albeit important ones. For instance, while
 most type specifiers and complicated declarations are accepted, the semantics
-and behaviour of them aren't handled. So, to outline the inconsistencies,
+and behavior of them aren't handled. So, to outline the inconsistencies,
 a list has been provided below.
 
 -   Most constructs excluding designated initializers are, for the most part,
@@ -81,7 +81,7 @@ a list has been provided below.
 -   Designated array initializers aren't supported.
 
 -   Initializer lists, while they are supported, are only supported for one
-    level of nesting, simlarly nested designatiors aren't supported either.
+    level of nesting, similarly nested designators aren't supported either.
 
 -   The C99 `typeof` keyword isn't supported.
 
@@ -111,11 +111,11 @@ the destination operand for that operation.
 
 ### Porting
 LICE isn't easily retargetable since the parser and ast components of the
-compiler make huge architectual specific assumptions. Assuming you wanted
+compiler make huge architectural specific assumptions. Assuming you wanted
 to port you'd need to change the size of types respectfully inside ast.c,
 and structure / union / type alignment inside parser.c, this should be farily
 trivial since both of those things exist at the top of each of those files
-respectfully. After that is acomplished ast_result_type will need to be
+respectfully. After that is accomplished ast_result_type will need to be
 changed to reflect the correct type conversion, that both conforms to
 the ABI for your target, and the standard. The final stage is duplicating
 gen.c and changing it to produce assembly for that architecture.
