@@ -418,6 +418,16 @@ static ast_t *parse_expression_unary(void) {
 
         return ast_new_unary(AST_TYPE_DEREFERENCE, operand->ctype->pointer, operand);
     }
+    if (lexer_ispunct(token, LEXER_TOKEN_INCREMENT)
+    ||  lexer_ispunct(token, LEXER_TOKEN_DECREMENT))
+    {
+        ast_t *next = parse_expression_intermediate(3);
+        parse_semantic_lvalue(next);
+        int operand = lexer_ispunct(token, LEXER_TOKEN_INCREMENT)
+                            ? AST_TYPE_PRE_INCREMENT
+                            : AST_TYPE_PRE_DECREMENT;
+        return ast_new_unary(operand, next->ctype, next);
+    }
 
     lexer_unget(token);
     return parse_expression_primary();
@@ -521,7 +531,11 @@ static ast_t *parse_expression_intermediate(int precision) {
             lexer_ispunct(token, LEXER_TOKEN_DECREMENT)) {
 
             parse_semantic_lvalue(ast);
-            ast = ast_new_unary(token->punct, ast->ctype, ast);
+            int operand = lexer_ispunct(token, LEXER_TOKEN_INCREMENT)
+                                ? AST_TYPE_POST_INCREMENT
+                                : AST_TYPE_POST_DECREMENT;
+
+            ast = ast_new_unary(operand, ast->ctype, ast);
             continue;
         }
 

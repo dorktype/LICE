@@ -388,6 +388,12 @@ static void gen_binary(ast_t *ast) {
         compile_error("Internal error");
 }
 
+static void gen_emit_prefix(ast_t *ast, const char *op) {
+    gen_expression(ast->unary.operand);
+    gen_emit("%s $1, %%rax", op);
+    gen_assignment(ast->unary.operand);
+}
+
 static void gen_emit_postfix(ast_t *ast, const char *op) {
     gen_expression(ast->unary.operand);
     gen_push("rax");
@@ -760,8 +766,10 @@ static void gen_expression(ast_t *ast) {
             gen_emit("not %%rax");
             break;
 
-        case LEXER_TOKEN_INCREMENT: gen_emit_postfix(ast, "add"); break;
-        case LEXER_TOKEN_DECREMENT: gen_emit_postfix(ast, "sub"); break;
+        case AST_TYPE_POST_INCREMENT: gen_emit_postfix(ast, "add"); break;
+        case AST_TYPE_POST_DECREMENT: gen_emit_postfix(ast, "sub"); break;
+        case AST_TYPE_PRE_INCREMENT:  gen_emit_prefix (ast, "add"); break;
+        case AST_TYPE_PRE_DECREMENT:  gen_emit_prefix (ast, "sub"); break;
 
         // load convert is sufficent for a cast
         case AST_TYPE_EXPRESSION_CAST:

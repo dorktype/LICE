@@ -60,6 +60,15 @@ void test() {
     b++;
     expecti(a, 99);
     expecti(b, 201);
+
+    expecti(a++, 99);
+    expecti(b++, 201);
+    expecti(a--, 100);
+    expecti(b--, 202);
+    expecti(++a, 100);
+    expecti(++b, 202);
+    expecti(--a, 99);
+    expecti(--b, 201);
 }
 
 int main() {
