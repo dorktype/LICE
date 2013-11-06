@@ -115,7 +115,7 @@ the destination operand for that operation.
 LICE isn't easily retargetable since the parser and ast components of the
 compiler make huge architectual specific assumptions. Assuming you wanted
 to port you'd need to change the size of types respectfully inside ast.c,
-and strucute / type alignment inside parser.c, this should be farily
+and structure / union / type alignment inside parser.c, this should be farily
 trivial since both of those things exist at the top of each of those files
 respectfully. After that is acomplished ast_result_type will need to be
 changed to reflect the correct type conversion, that both conforms to
