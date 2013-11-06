@@ -178,3 +178,6 @@ LICE.
 
 -   lcc
     https://sites.google.com/site/lccretargetablecompiler/
+
+-   Kaleidoscope
+    http://llvm.org/docs/tutorial/index.html
