@@ -99,15 +99,12 @@ from the stack and write back the result to the stack location that is
 the destination operand for that operation.
 
 ### Porting
-LICE isn't easily retargetable since the parser and ast components of the
-compiler make huge architectural specific assumptions. Assuming you wanted
-to port you'd need to change the size of types respectfully inside ast.c,
-and structure / union / type alignment inside parser.c, this should be farily
-trivial since both of those things exist at the top of each of those files
-respectfully. After that is accomplished ast_result_type will need to be
-changed to reflect the correct type conversion, that both conforms to
-the ABI for your target, and the standard. The final stage is duplicating
-gen.c and changing it to produce assembly for that architecture.
+LICE should be farily straightforward to retarget for a specific architecture
+or ABI. Simply writing a backend code generator and duplicating `amd64.h`,
+and making the nessecary changes should be sufficent enough. Implicit and
+explicit type conversions may need to be changed to compensate for oddities
+in the architecture, the good news is that is self contained as part of `ast.c`
+in `ast_type_result`. Retargeting is otherwise a painless task.
 
 
 ### Future Endeavors
