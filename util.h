@@ -194,4 +194,10 @@ list_t *table_keys(table_t *table);
 #define MIN(A, B) (((A) < (B)) ? (A) : (B))
 #define MAX(A, B) (((A) > (B)) ? (A) : (B))
 
+/*
+ * Function: memory_allocate
+ * Allocate some memory
+ */
+void *memory_allocate(size_t bytes);
+
 #endif

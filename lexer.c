@@ -9,31 +9,31 @@
 static list_t *lexer_buffer = &SENTINEL_LIST;
 
 static lexer_token_t *lexer_identifier(string_t *str) {
-    lexer_token_t *token = malloc(sizeof(lexer_token_t));
+    lexer_token_t *token = memory_allocate(sizeof(lexer_token_t));
     token->type          = LEXER_TOKEN_IDENTIFIER;
     token->string        = string_buffer(str);
     return token;
 }
 static lexer_token_t *lexer_strtok(string_t *str) {
-    lexer_token_t *token = malloc(sizeof(lexer_token_t));
+    lexer_token_t *token = memory_allocate(sizeof(lexer_token_t));
     token->type          = LEXER_TOKEN_STRING;
     token->string        = string_buffer(str);
     return token;
 }
 static lexer_token_t *lexer_punct(int punct) {
-    lexer_token_t *token = malloc(sizeof(lexer_token_t));
+    lexer_token_t *token = memory_allocate(sizeof(lexer_token_t));
     token->type          = LEXER_TOKEN_PUNCT;
     token->punct         = punct;
     return token;
 }
 static lexer_token_t *lexer_number(char *string) {
-    lexer_token_t *token = malloc(sizeof(lexer_token_t));
+    lexer_token_t *token = memory_allocate(sizeof(lexer_token_t));
     token->type          = LEXER_TOKEN_NUMBER;
     token->string        = string;
     return token;
 }
 static lexer_token_t *lexer_char(char value) {
-    lexer_token_t *token = malloc(sizeof(lexer_token_t));
+    lexer_token_t *token = memory_allocate(sizeof(lexer_token_t));
     token->type          = LEXER_TOKEN_CHAR;
     token->character     = value;
     return token;
