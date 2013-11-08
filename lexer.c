@@ -243,14 +243,22 @@ static lexer_token_t *lexer_read_token(void) {
         case '"':          return lexer_read_string();
         case '\'':         return lexer_read_character();
         case 'a' ... 'z':
-        case 'A' ... 'Z':
+        case 'A' ... 'K':
+        case 'M' ... 'Z':
         case '$':
         case '_':
             return lexer_read_identifier(c);
 
+        case 'L':
+            switch ((c = getc(stdin))) {
+                case '"':  return lexer_read_string();
+                case '\'': return lexer_read_character();
+            }
+            ungetc(c, stdin);
+            return lexer_read_identifier('L');
+
         case '/':
-            c = getc(stdin);
-            switch (c) {
+            switch ((c = getc(stdin))) {
                 case '/':
                     lexer_skip_comment_line();
                     return lexer_read_token();
