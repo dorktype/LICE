@@ -6,21 +6,19 @@
 #include "ast.h"
 #include "lexer.h"
 
-static int ast_label_index = 0; // todo remove this hack
-
 data_type_t *ast_data_table[AST_DATA_COUNT] = {
-    &(data_type_t) { TYPE_VOID,    0, true },   // void
-    &(data_type_t) { TYPE_LONG,    8, true },   // long
-    &(data_type_t) { TYPE_LLONG,   8, true },   // long long
-    &(data_type_t) { TYPE_INT,     4, true },   // int
-    &(data_type_t) { TYPE_SHORT,   2, true },   // short
-    &(data_type_t) { TYPE_CHAR,    1, true },   // char
-    &(data_type_t) { TYPE_FLOAT,   4, true },   // float
-    &(data_type_t) { TYPE_DOUBLE,  8, true },   // double
-    &(data_type_t) { TYPE_LDOUBLE, 8, true },   // long double
-    &(data_type_t) { TYPE_LONG,    8, false },  // unsigned long
-    &(data_type_t) { TYPE_LLONG,   8, false },  // unsigned long long
-    NULL                                        // function
+    &(data_type_t) { TYPE_VOID,    0,                      true },   // void
+    &(data_type_t) { TYPE_LONG,    ARCH_TYPE_SIZE_LONG,    true },   // long
+    &(data_type_t) { TYPE_LLONG,   ARCH_TYPE_SIZE_LLONG,   true },   // long long
+    &(data_type_t) { TYPE_INT,     ARCH_TYPE_SIZE_INT,     true },   // int
+    &(data_type_t) { TYPE_SHORT,   ARCH_TYPE_SIZE_SHORT,   true },   // short
+    &(data_type_t) { TYPE_CHAR,    ARCH_TYPE_SIZE_CHAR,    true },   // char
+    &(data_type_t) { TYPE_FLOAT,   ARCH_TYPE_SIZE_FLOAT,   true },   // float
+    &(data_type_t) { TYPE_DOUBLE,  ARCH_TYPE_SIZE_DOUBLE,  true },   // double
+    &(data_type_t) { TYPE_LDOUBLE, ARCH_TYPE_SIZE_LDOUBLE, true },   // long double
+    &(data_type_t) { TYPE_LONG,    ARCH_TYPE_SIZE_LONG,    false },  // unsigned long
+    &(data_type_t) { TYPE_LLONG,   ARCH_TYPE_SIZE_LLONG,   false },  // unsigned long long
+    NULL                                                             // function
 };
 
 data_type_t *ast_data_function = NULL;
@@ -223,15 +221,15 @@ data_type_t *ast_type_create(type_t type, bool sign) {
     t->sign = sign;
 
     switch (type) {
-        case TYPE_VOID:    t->size = 0; break;
-        case TYPE_CHAR:    t->size = 1; break;
-        case TYPE_SHORT:   t->size = 2; break;
-        case TYPE_INT:     t->size = 4; break;
-        case TYPE_LONG:    t->size = 8; break;
-        case TYPE_LLONG:   t->size = 8; break;
-        case TYPE_FLOAT:   t->size = 8; break;
-        case TYPE_DOUBLE:  t->size = 8; break;
-        case TYPE_LDOUBLE: t->size = 8; break;
+        case TYPE_VOID:    t->size = 0;                      break;
+        case TYPE_CHAR:    t->size = ARCH_TYPE_SIZE_CHAR;    break;
+        case TYPE_SHORT:   t->size = ARCH_TYPE_SIZE_SHORT;   break;
+        case TYPE_INT:     t->size = ARCH_TYPE_SIZE_INT;     break;
+        case TYPE_LONG:    t->size = ARCH_TYPE_SIZE_LONG;    break;
+        case TYPE_LLONG:   t->size = ARCH_TYPE_SIZE_LLONG;   break;
+        case TYPE_FLOAT:   t->size = ARCH_TYPE_SIZE_FLOAT;   break;
+        case TYPE_DOUBLE:  t->size = ARCH_TYPE_SIZE_DOUBLE;  break;
+        case TYPE_LDOUBLE: t->size = ARCH_TYPE_SIZE_LDOUBLE; break;
         default:
             compile_error("ICE");
     }
@@ -379,7 +377,7 @@ data_type_t *ast_new_pointer(data_type_t *type) {
     data_type_t *data = memory_allocate(sizeof(data_type_t));
     data->type        = TYPE_POINTER;
     data->pointer     = type;
-    data->size        = 8;
+    data->size        = ARCH_TYPE_SIZE_POINTER;
 
     return data;
 }
@@ -496,8 +494,9 @@ ast_t *ast_new_compound(list_t *statements) {
 ////////////////////////////////////////////////////////////////////////
 // misc
 char *ast_label(void) {
+    static int index = 0;
     string_t *string = string_create();
-    string_catf(string, ".L%d", ast_label_index++);
+    string_catf(string, ".L%d", index++);
     return string_buffer(string);
 }
 

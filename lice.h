@@ -2,6 +2,7 @@
 #define LICE_HDR
 #include "util.h"
 #include "ast.h"
+#include "amd64.h"
 
 // gmcc.c
 void compile_error(const char *fmt, ...);

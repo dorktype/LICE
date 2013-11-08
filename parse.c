@@ -6,10 +6,6 @@
 #include "lice.h"
 #include "lexer.h"
 
-#define PARSE_BUFFER    1024
-#define PARSE_CALLS     6    // only six registers to use for amd64
-#define PARSE_ALIGNMENT 16
-
 static ast_t       *parse_expression(void);
 static ast_t       *parse_expression_unary(void);
 static ast_t       *parse_expression_intermediate(int);
@@ -199,7 +195,7 @@ static ast_t *parse_function_call(char *name) {
             compile_error("Unexpected character in function call");
     }
 
-    if (PARSE_CALLS < list_length(list))
+    if (ARCH_CALLREGISTERS < list_length(list))
         compile_error("too many arguments");
 
     ast_t *func = table_find(ast_localenv, name);
@@ -703,7 +699,7 @@ static char *parse_memory_tag(void) {
 }
 
 static int parse_memory_fields_padding(int offset, int size) {
-    size = MIN(size, PARSE_ALIGNMENT);
+    size = MIN(size, ARCH_ALIGNMENT);
     return (offset % size == 0) ? 0 : size - offset % size;
 }
 
