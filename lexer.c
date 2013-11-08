@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "lexer.h"
 #include "util.h"
@@ -8,35 +9,39 @@
 
 static list_t *lexer_buffer = &SENTINEL_LIST;
 
+static lexer_token_t *lexer_token_copy(lexer_token_t *token) {
+    return memcpy(malloc(sizeof(lexer_token_t)), token, sizeof(lexer_token_t));
+}
+
 static lexer_token_t *lexer_identifier(string_t *str) {
-    lexer_token_t *token = memory_allocate(sizeof(lexer_token_t));
-    token->type          = LEXER_TOKEN_IDENTIFIER;
-    token->string        = string_buffer(str);
-    return token;
+    return lexer_token_copy(&(lexer_token_t){
+        .type      = LEXER_TOKEN_IDENTIFIER,
+        .string    = string_buffer(str)
+    });
 }
 static lexer_token_t *lexer_strtok(string_t *str) {
-    lexer_token_t *token = memory_allocate(sizeof(lexer_token_t));
-    token->type          = LEXER_TOKEN_STRING;
-    token->string        = string_buffer(str);
-    return token;
+    return lexer_token_copy(&(lexer_token_t){
+        .type      = LEXER_TOKEN_STRING,
+        .string    = string_buffer(str)
+    });
 }
 static lexer_token_t *lexer_punct(int punct) {
-    lexer_token_t *token = memory_allocate(sizeof(lexer_token_t));
-    token->type          = LEXER_TOKEN_PUNCT;
-    token->punct         = punct;
-    return token;
+    return lexer_token_copy(&(lexer_token_t){
+        .type      = LEXER_TOKEN_PUNCT,
+        .punct     = punct
+    });
 }
 static lexer_token_t *lexer_number(char *string) {
-    lexer_token_t *token = memory_allocate(sizeof(lexer_token_t));
-    token->type          = LEXER_TOKEN_NUMBER;
-    token->string        = string;
-    return token;
+    return lexer_token_copy(&(lexer_token_t){
+        .type      = LEXER_TOKEN_NUMBER,
+        .string    = string
+    });
 }
 static lexer_token_t *lexer_char(char value) {
-    lexer_token_t *token = memory_allocate(sizeof(lexer_token_t));
-    token->type          = LEXER_TOKEN_CHAR;
-    token->character     = value;
-    return token;
+    return lexer_token_copy(&(lexer_token_t){
+        .type      = LEXER_TOKEN_CHAR,
+        .character = value
+    });
 }
 
 static void lexer_skip_comment_line(void) {
