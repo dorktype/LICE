@@ -1,5 +1,5 @@
 CC ?= clang
-CFLAGS=-c -Wall -std=gnu99 -MD
+CFLAGS=-c -Wall -std=gnu99 -MD -DLICE_TARGET_AMD64
 LDFLAGS=
 SOURCES=ast.c parse.c lice.c gen.c lexer.c util.c
 OBJECTS=$(SOURCES:.c=.o)

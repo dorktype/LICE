@@ -1,6 +1,6 @@
-#ifndef LICE_AMD64_HDR
+#ifndef LICE_ARCH_AMD64_HDR
 /*
- * File: amd64.h
+ * File: arch_amd64.h
  *  Isolates AMD64 / SystemV ABI specific details that are used in
  *  a variety of places of the compiler to target AMD64.
  */
