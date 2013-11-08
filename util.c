@@ -53,7 +53,7 @@ void string_catf(string_t *string, const char *fmt, ...) {
         write = vsnprintf(string->buffer + string->length, left, fmt, va);
         va_end(va);
 
-        if (left < write) {
+        if (left <= write) {
             string_reallocate(string);
             continue;
         }
@@ -64,8 +64,8 @@ void string_catf(string_t *string, const char *fmt, ...) {
 
 string_t *string_create(void) {
     string_t *string  = memory_allocate(sizeof(string_t));
-    string->buffer    = memory_allocate(1024);
-    string->allocated = 1024;
+    string->buffer    = memory_allocate(8);
+    string->allocated = 8;
     string->length    = 0;
     string->buffer[0] = '\0';
     return string;

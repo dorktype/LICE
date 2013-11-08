@@ -120,7 +120,26 @@ error:
     return NULL;
 }
 
-data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b) {
+data_type_t *ast_result_type(int op, data_type_t *a, data_type_t *b) {
+
+    switch (op) {
+        case '!':
+        case '~':
+        case '<':
+        case '>':
+        case '&':
+        case '%':
+        case AST_TYPE_EQUAL:
+        case AST_TYPE_GEQUAL:
+        case AST_TYPE_LEQUAL:
+        case AST_TYPE_NEQUAL:
+        case AST_TYPE_LSHIFT:
+        case AST_TYPE_RSHIFT:
+        case AST_TYPE_AND:
+        case AST_TYPE_OR:
+            return ast_data_table[AST_DATA_INT];
+    }
+
     jmp_buf jmpbuf;
     if (setjmp(jmpbuf) == 0) {
         return ast_result_type_impl(
@@ -130,7 +149,14 @@ data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b) {
                     ast_array_convert(b)
         );
     }
-    compile_error("Incompatible types in expression");
+
+    compile_error(
+        "incompatible operands `%s' and `%s' in `%c` operation",
+        ast_type_string(a),
+        ast_type_string(b),
+        op
+    );
+
     return NULL;
 }
 

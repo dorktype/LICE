@@ -482,6 +482,7 @@ typedef struct {
     ast_t  *body;
 } ast_for_t;
 
+
 typedef struct {
     list_t      *list;
     data_type_t *type;
@@ -614,7 +615,7 @@ data_type_t *ast_prototype(data_type_t *returntype, list_t *paramtypes, bool dot
 data_type_t *ast_pointer(data_type_t *type);
 data_type_t *ast_array(data_type_t *type, int size);
 data_type_t *ast_array_convert(data_type_t *ast);
-data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b);
+data_type_t *ast_result_type(int op, data_type_t *a, data_type_t *b);
 
 const char *ast_type_string(data_type_t *type);
 bool ast_type_integer(data_type_t *type);
