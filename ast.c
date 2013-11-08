@@ -136,38 +136,27 @@ data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b) {
     return NULL;
 }
 
+ast_t *ast_copy(ast_t *ast) {
+    ast_t *copy = memory_allocate(sizeof(ast_t));
+    memcpy(copy, ast, sizeof(ast_t));
+    return copy;
+}
+
 ast_t *ast_structure_reference(data_type_t *type, ast_t *structure, char *name) {
-    ast_t *ast     = memory_allocate(sizeof(ast_t));
-    ast->type      = AST_TYPE_STRUCT;
-    ast->ctype     = type;
-    ast->structure = structure;
-    ast->field     = name;
-
-    return ast;
-}
-
-data_type_t *ast_structure_field(data_type_t *type, int offset) {
-    data_type_t *field = ast_type_copy(type);
-    field->offset = offset;
-    return field;
-}
-
-data_type_t *ast_structure_new(table_t *fields, int size) {
-    data_type_t *structure = memory_allocate(sizeof(data_type_t));
-    structure->type        = TYPE_STRUCTURE;
-    structure->size        = size;
-    structure->fields      = fields;
-
-    return structure;
+    return ast_copy(&(ast_t) {
+        .type       = AST_TYPE_STRUCT,
+        .ctype      = type,
+        .structure  = structure,
+        .field      = name
+    });
 }
 
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand) {
-    ast_t *ast         = memory_allocate(sizeof(ast_t));
-    ast->type          = type;
-    ast->ctype         = data;
-    ast->unary.operand = operand;
-
-    return ast;
+    return ast_copy(&(ast_t) {
+        .type          = type,
+        .ctype         = data,
+        .unary.operand = operand
+    });
 }
 
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right) {
@@ -188,6 +177,210 @@ ast_t *ast_new_binary(int type, ast_t *left, ast_t *right) {
     return ast;
 }
 
+ast_t *ast_new_integer(data_type_t *type, int value) {
+    return ast_copy(&(ast_t) {
+        .type    = AST_TYPE_LITERAL,
+        .ctype   = type,
+        .integer = value
+    });
+}
+
+ast_t *ast_new_floating(data_type_t *type, double value) {
+    ast_t *ast = ast_copy(&(ast_t){
+        .type           = AST_TYPE_LITERAL,
+        .ctype          = type,
+        .floating.value = value
+    });
+    list_push(ast_floats, ast);
+    return ast;
+}
+
+ast_t *ast_new_string(char *value) {
+    return ast_copy(&(ast_t) {
+        .type         = AST_TYPE_STRING,
+        .ctype        = ast_array(ast_data_table[AST_DATA_CHAR], strlen(value) + 1),
+        .string.data  = value,
+        .string.label = ast_label()
+    });
+}
+
+ast_t *ast_variable_local(data_type_t *type, char *name) {
+    ast_t *ast = ast_copy(&(ast_t){
+        .type          = AST_TYPE_VAR_LOCAL,
+        .ctype         = type,
+        .variable.name = name
+    });
+    if (ast_localenv)
+        table_insert(ast_localenv, name, ast);
+    if (ast_locals)
+        list_push(ast_locals, ast);
+    return ast;
+}
+
+ast_t *ast_variable_global(data_type_t *type, char *name) {
+    ast_t *ast = ast_copy(&(ast_t){
+        .type           = AST_TYPE_VAR_GLOBAL,
+        .ctype          = type,
+        .variable.name  = name,
+        .variable.label = name
+    });
+    table_insert(ast_globalenv, name, ast);
+    return ast;
+}
+
+ast_t *ast_call(data_type_t *type, char *name, list_t *arguments, list_t *parametertypes) {
+    return ast_copy(&(ast_t) {
+        .type                     = AST_TYPE_CALL,
+        .ctype                    = type,
+        .function.call.paramtypes = parametertypes,
+        .function.call.args       = arguments,
+        .function.name            = name
+    });
+}
+
+ast_t *ast_function(data_type_t *ret, char *name, list_t *params, ast_t *body, list_t *locals) {
+    return ast_copy(&(ast_t) {
+        .type            = AST_TYPE_FUNCTION,
+        .ctype           = ret,
+        .function.name   = name,
+        .function.params = params,
+        .function.locals = locals,
+        .function.body   = body
+    });
+}
+
+ast_t *ast_declaration(ast_t *var, ast_t *init) {
+    return ast_copy(&(ast_t) {
+        .type      = AST_TYPE_DECLARATION,
+        .ctype     = NULL,
+        .decl.var  = var,
+        .decl.init = init
+    });
+}
+
+ast_t *ast_initializerlist(list_t *init) {
+    return ast_copy(&(ast_t){
+        .type          = AST_TYPE_INITIALIZERLIST,
+        .ctype         = NULL,
+        .initlist.list = init
+    });
+}
+
+ast_t *ast_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
+    return ast_copy(&(ast_t){
+        .type         = AST_TYPE_EXPRESSION_TERNARY,
+        .ctype        = type,
+        .ifstmt.cond  = cond,
+        .ifstmt.then  = then,
+        .ifstmt.last  = last
+    });
+}
+
+static ast_t *ast_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
+    return ast_copy(&(ast_t){
+        .type         = type,
+        .ctype        = NULL,
+        .forstmt.init = init,
+        .forstmt.cond = cond,
+        .forstmt.step = step,
+        .forstmt.body = body
+    });
+}
+
+ast_t *ast_switch(ast_t *expr, ast_t *body) {
+    return ast_copy(&(ast_t){
+        .type            = AST_TYPE_STATEMENT_SWITCH,
+        .switchstmt.expr = expr,
+        .switchstmt.body = body
+    });
+}
+
+ast_t *ast_case(int value) {
+    return ast_copy(&(ast_t){
+        .type      = AST_TYPE_STATEMENT_CASE,
+        .casevalue = value
+    });
+}
+
+ast_t *ast_make(int type) {
+    return ast_copy(&(ast_t){
+        .type = type
+    });
+}
+
+ast_t *ast_if(ast_t *cond, ast_t *then, ast_t *last) {
+    return ast_copy(&(ast_t){
+        .type        = AST_TYPE_STATEMENT_IF,
+        .ctype       = NULL,
+        .ifstmt.cond = cond,
+        .ifstmt.then = then,
+        .ifstmt.last = last
+    });
+}
+
+ast_t *ast_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
+    return ast_for_intermediate(AST_TYPE_STATEMENT_FOR, init, cond, step, body);
+}
+ast_t *ast_while(ast_t *cond, ast_t *body) {
+    return ast_for_intermediate(AST_TYPE_STATEMENT_WHILE, NULL, cond, NULL, body);
+}
+ast_t *ast_do(ast_t *cond, ast_t *body) {
+    return ast_for_intermediate(AST_TYPE_STATEMENT_DO, NULL, cond, NULL, body);
+}
+
+ast_t *ast_goto(char *label) {
+    return ast_copy(&(ast_t){
+        .type           = AST_TYPE_STATEMENT_GOTO,
+        .gotostmt.label = label,
+        .gotostmt.where = NULL
+    });
+}
+
+ast_t *ast_label_new(char *label) {
+    return ast_copy(&(ast_t){
+        .type           = AST_TYPE_STATEMENT_LABEL,
+        .gotostmt.label = label,
+        .gotostmt.where = NULL
+    });
+}
+
+ast_t *ast_return(data_type_t *returntype, ast_t *value) {
+    return ast_copy(&(ast_t){
+        .type       = AST_TYPE_STATEMENT_RETURN,
+        .ctype      = returntype,
+        .returnstmt = value
+    });
+}
+
+ast_t *ast_compound(list_t *statements) {
+    return ast_copy(&(ast_t){
+        .type     = AST_TYPE_STATEMENT_COMPOUND,
+        .ctype    = NULL,
+        .compound = statements
+    });
+}
+
+data_type_t *ast_structure_field(data_type_t *type, int offset) {
+    data_type_t *field = ast_type_copy(type);
+    field->offset = offset;
+    return field;
+}
+
+data_type_t *ast_structure_new(table_t *fields, int size) {
+    return ast_type_copy(&(data_type_t) {
+        .type   = TYPE_STRUCTURE,
+        .size   = size,
+        .fields = fields
+    });
+}
+
+char *ast_label(void) {
+    static int index = 0;
+    string_t *string = string_create();
+    string_catf(string, ".L%d", index++);
+    return string_buffer(string);
+}
+
 bool ast_type_integer(data_type_t *type) {
     return type->type == TYPE_CHAR
         || type->type == TYPE_SHORT
@@ -203,12 +396,11 @@ bool ast_type_floating(data_type_t *type) {
 }
 
 data_type_t *ast_type_copy(data_type_t *type) {
-    data_type_t *t = memory_allocate(sizeof(data_type_t));
-    memcpy(t, type, sizeof(data_type_t));
-    return t;
+    return memcpy(memory_allocate(sizeof(data_type_t)), type, sizeof(data_type_t));
 }
 
 data_type_t *ast_type_create(type_t type, bool sign) {
+
     data_type_t *t = memory_allocate(sizeof(data_type_t));
 
     t->type = type;
@@ -232,125 +424,28 @@ data_type_t *ast_type_create(type_t type, bool sign) {
 }
 
 data_type_t *ast_type_stub(void) {
-    data_type_t *type = memory_allocate(sizeof(data_type_t));
-    type->type = TYPE_CDECL;
-    type->size = 0;
-
-    return type;
-}
-
-ast_t *ast_new_integer(data_type_t *type, int value) {
-    ast_t *ast   = memory_allocate(sizeof(ast_t));
-    ast->type    = AST_TYPE_LITERAL;
-    ast->ctype   = type;
-    ast->integer = value;
-
-    return ast;
-}
-
-ast_t *ast_new_floating(data_type_t *type, double value) {
-    ast_t *ast          = memory_allocate(sizeof(ast_t));
-    ast->type           = AST_TYPE_LITERAL;
-    ast->ctype          = type;
-    ast->floating.value = value;
-    list_push(ast_floats, ast);
-    return ast;
-}
-
-ast_t *ast_new_string(char *value) {
-    ast_t *ast        = memory_allocate(sizeof(ast_t));
-    ast->type         = AST_TYPE_STRING;
-    ast->ctype        = ast_array(ast_data_table[AST_DATA_CHAR], strlen(value) + 1);
-    ast->string.data  = value;
-    ast->string.label = ast_label();
-
-    return ast;
-}
-
-ast_t *ast_variable_local(data_type_t *type, char *name) {
-    ast_t *ast         = memory_allocate(sizeof(ast_t));
-    ast->type          = AST_TYPE_VAR_LOCAL;
-    ast->ctype         = type;
-    ast->variable.name = name;
-
-    if (ast_localenv)
-        table_insert(ast_localenv, name, ast);
-    if (ast_locals)
-        list_push(ast_locals, ast);
-
-    return ast;
-}
-
-ast_t *ast_variable_global(data_type_t *type, char *name) {
-    ast_t *ast          = memory_allocate(sizeof(ast_t));
-    ast->type           = AST_TYPE_VAR_GLOBAL;
-    ast->ctype          = type;
-    ast->variable.name  = name;
-    ast->variable.label = name;
-
-    table_insert(ast_globalenv, name, ast);
-    return ast;
-}
-
-ast_t *ast_call(data_type_t *type, char *name, list_t *arguments, list_t *parametertypes) {
-    ast_t *ast                   = memory_allocate(sizeof(ast_t));
-    ast->type                    = AST_TYPE_CALL;
-    ast->ctype                    = type;
-    ast->function.call.paramtypes = parametertypes;
-    ast->function.call.args       = arguments;
-    ast->function.name            = name;
-
-    return ast;
-}
-
-ast_t *ast_function(data_type_t *ret, char *name, list_t *params, ast_t *body, list_t *locals) {
-    ast_t *ast           = memory_allocate(sizeof(ast_t));
-    ast->type            = AST_TYPE_FUNCTION;
-    ast->ctype           = ret;
-    ast->function.name   = name;
-    ast->function.params = params;
-    ast->function.locals = locals;
-    ast->function.body   = body;
-
-    return ast;
-}
-
-ast_t *ast_declaration(ast_t *var, ast_t *init) {
-    ast_t *ast     = memory_allocate(sizeof(ast_t));
-    ast->type      = AST_TYPE_DECLARATION;
-    ast->ctype     = NULL;
-    ast->decl.var  = var;
-    ast->decl.init = init;
-
-    return ast;
-}
-
-ast_t *ast_initializerlist(list_t *init) {
-    ast_t *ast         = memory_allocate(sizeof(ast_t));
-    ast->type          = AST_TYPE_INITIALIZERLIST;
-    ast->ctype         = NULL;
-    ast->initlist.list = init;
-
-    return ast;
+    return ast_type_copy(&(data_type_t) {
+        .type = TYPE_CDECL,
+        .size = 0
+    });
 }
 
 data_type_t *ast_prototype(data_type_t *returntype, list_t *paramtypes, bool dots) {
-    data_type_t *type  = memory_allocate(sizeof(data_type_t));
-    type->type         = TYPE_FUNCTION;
-    type->returntype   = returntype;
-    type->parameters   = paramtypes;
-    type->hasdots      = dots;
-    return type;
+    return ast_type_copy(&(data_type_t){
+        .type       = TYPE_FUNCTION,
+        .returntype = returntype,
+        .parameters = paramtypes,
+        .hasdots    = dots
+    });
 }
 
 data_type_t *ast_array(data_type_t *type, int length) {
-    data_type_t *data = memory_allocate(sizeof(data_type_t));
-    data->type        = TYPE_ARRAY;
-    data->pointer     = type;
-    data->size        = (length < 0) ? -1 : type->size * length;
-    data->length      = length;
-
-    return data;
+    return ast_type_copy(&(data_type_t){
+        .type    = TYPE_ARRAY,
+        .pointer = type,
+        .size    = (length < 0) ? -1 : type->size * length,
+        .length  = length
+    });
 }
 
 data_type_t *ast_array_convert(data_type_t *type) {
@@ -360,124 +455,11 @@ data_type_t *ast_array_convert(data_type_t *type) {
 }
 
 data_type_t *ast_pointer(data_type_t *type) {
-    data_type_t *data = memory_allocate(sizeof(data_type_t));
-    data->type        = TYPE_POINTER;
-    data->pointer     = type;
-    data->size        = ARCH_TYPE_SIZE_POINTER;
-
-    return data;
-}
-
-ast_t *ast_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
-    ast_t *ast       = memory_allocate(sizeof(ast_t));
-    ast->type        = AST_TYPE_EXPRESSION_TERNARY;
-    ast->ctype       = type;
-    ast->ifstmt.cond = cond;
-    ast->ifstmt.then = then;
-    ast->ifstmt.last = last;
-
-    return ast;
-}
-
-static ast_t *ast_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
-    ast_t *ast        = memory_allocate(sizeof(ast_t));
-    ast->type         = type;
-    ast->ctype        = NULL;
-    ast->forstmt.init = init;
-    ast->forstmt.cond = cond;
-    ast->forstmt.step = step;
-    ast->forstmt.body = body;
-
-    return ast;
-}
-
-ast_t *ast_switch(ast_t *expr, ast_t *body) {
-    ast_t *ast           = memory_allocate(sizeof(ast_t));
-    ast->type            = AST_TYPE_STATEMENT_SWITCH;
-    ast->switchstmt.expr = expr;
-    ast->switchstmt.body = body;
-
-    return ast;
-}
-
-ast_t *ast_case(int value) {
-    ast_t *ast     = memory_allocate(sizeof(ast_t));
-    ast->type      = AST_TYPE_STATEMENT_CASE;
-    ast->casevalue = value;
-
-    return ast;
-}
-
-ast_t *ast_make(int type) {
-    ast_t *ast  = memory_allocate(sizeof(ast_t));
-    ast->type = type;
-    return ast;
-}
-
-ast_t *ast_if(ast_t *cond, ast_t *then, ast_t *last) {
-    ast_t *ast       = memory_allocate(sizeof(ast_t));
-    ast->type        = AST_TYPE_STATEMENT_IF;
-    ast->ctype       = NULL;
-    ast->ifstmt.cond = cond;
-    ast->ifstmt.then = then;
-    ast->ifstmt.last = last;
-
-    return ast;
-}
-
-ast_t *ast_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
-    return ast_for_intermediate(AST_TYPE_STATEMENT_FOR, init, cond, step, body);
-}
-
-ast_t *ast_while(ast_t *cond, ast_t *body) {
-    return ast_for_intermediate(AST_TYPE_STATEMENT_WHILE, NULL, cond, NULL, body);
-}
-
-ast_t *ast_do(ast_t *cond, ast_t *body) {
-    return ast_for_intermediate(AST_TYPE_STATEMENT_DO, NULL, cond, NULL, body);
-}
-
-ast_t *ast_goto(char *label) {
-    ast_t *ast          = memory_allocate(sizeof(ast_t));
-    ast->type           = AST_TYPE_STATEMENT_GOTO;
-    ast->gotostmt.label = label;
-    ast->gotostmt.where = NULL;
-
-    return ast;
-}
-
-ast_t *ast_label_new(char *label) {
-    ast_t *ast          = memory_allocate(sizeof(ast_t));
-    ast->type           = AST_TYPE_STATEMENT_LABEL;
-    ast->gotostmt.label = label;
-    ast->gotostmt.where = NULL;
-
-    return ast;
-}
-
-ast_t *ast_return(data_type_t *returntype, ast_t *value) {
-    ast_t *ast      = memory_allocate(sizeof(ast_t));
-    ast->type       = AST_TYPE_STATEMENT_RETURN;
-    ast->ctype      = returntype;
-    ast->returnstmt = value;
-
-    return ast;
-}
-
-ast_t *ast_compound(list_t *statements) {
-    ast_t *ast    = memory_allocate(sizeof(ast_t));
-    ast->type     = AST_TYPE_STATEMENT_COMPOUND;
-    ast->ctype    = NULL;
-    ast->compound = statements;
-
-    return ast;
-}
-
-char *ast_label(void) {
-    static int index = 0;
-    string_t *string = string_create();
-    string_catf(string, ".L%d", index++);
-    return string_buffer(string);
+    return ast_type_copy(&(data_type_t){
+        .type    = TYPE_POINTER,
+        .pointer = type,
+        .size    = ARCH_TYPE_SIZE_POINTER
+    });
 }
 
 ////////////////////////////////////////////////////////////////////////
