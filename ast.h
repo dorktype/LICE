@@ -166,7 +166,6 @@ typedef enum {
     AST_DATA_COUNT
 } ast_data_type_t;
 
-
 /*
  * Type: cdecl_t
  *  Describes type of declarations
@@ -253,7 +252,6 @@ struct data_type_s {
      * wise.
      */
     data_type_t *pointer;
-
 
     /* structure */
     struct {
@@ -403,7 +401,6 @@ typedef struct {
     ast_t  *body;
 } ast_function_t;
 
-
 /*
  * Class: ast_unary_t
  *  Represents a unary operation in the AST tree
@@ -540,19 +537,63 @@ struct ast_s {
     };
 };
 
+/*
+ * Function: ast_structure_reference
+ *  Creates an structure reference of a given type for a given field
+ *
+ * Parameters:
+ *  type      - The type of the field for reference
+ *  structure - The structure that contains said field to be referenced
+ *  name      - The name of the field in that structure to reference
+ *
+ * Returns:
+ *  An ast node referencing that field in that paticular structure on
+ *  success, otherwise NULL.
+ */
 ast_t *ast_structure_reference(data_type_t *type, ast_t *structure, char *name);
+
+/*
+ * Function: ast_structure_field
+ *  Copies a given field data type and changes it offset
+ *
+ * Parameters:
+ *  type   - Pointer to the structure field data type
+ *  offset - The offset of the copied data type in the structure
+ *
+ * Returns:
+ *  A copy of the structure fields data type with the supplied
+ *  offset on success, NULL otherwise.
+ */
 data_type_t *ast_structure_field(data_type_t *type, int offset);
+
+/*
+ * Function: ast_structure_new
+ *  Creates a structure data type
+ *
+ * Parameters;
+ *  field   - A table of data_type_t fields for the structure
+ *  size    - The size of the structure
+ *
+ * Returns:
+ *  A new structure data type with the specified fields and size on
+ *  success, NULL otherwise.
+ */
 data_type_t *ast_structure_new(table_t *fields, int size);
+
+
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand);
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right);
 ast_t *ast_new_integer(data_type_t *type, int value);
 ast_t *ast_new_floating(data_type_t *, double value);
 ast_t *ast_new_char(char value);
+ast_t *ast_new_string(char *value);
+ast_t *ast_new_label(char *);
+
 char *ast_label(void);
+
 ast_t *ast_declaration(ast_t *var, ast_t *init);
 ast_t *ast_variable_local(data_type_t *type, char *name);
 ast_t *ast_variable_global(data_type_t *type, char *name);
-ast_t *ast_new_string(char *value);
 ast_t *ast_call(data_type_t *type, char *name, list_t *args, list_t *paramtypes);
 ast_t *ast_function(data_type_t *type, char *name, list_t *params, ast_t *body, list_t *locals);
 ast_t *ast_declaration(ast_t *var, ast_t *init);
@@ -566,14 +607,15 @@ ast_t *ast_compound(list_t *statements);
 ast_t *ast_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last);
 ast_t *ast_switch(ast_t *expr, ast_t *body);
 ast_t *ast_case(int value);
-ast_t *ast_label_new(char *);
 ast_t *ast_goto(char *);
 ast_t *ast_make(int type);
+
 data_type_t *ast_prototype(data_type_t *returntype, list_t *paramtypes, bool dots);
 data_type_t *ast_pointer(data_type_t *type);
 data_type_t *ast_array(data_type_t *type, int size);
 data_type_t *ast_array_convert(data_type_t *ast);
 data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b);
+
 const char *ast_type_string(data_type_t *type);
 bool ast_type_integer(data_type_t *type);
 bool ast_type_floating(data_type_t *type);

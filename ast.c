@@ -334,7 +334,7 @@ ast_t *ast_goto(char *label) {
     });
 }
 
-ast_t *ast_label_new(char *label) {
+ast_t *ast_new_label(char *label) {
     return ast_copy(&(ast_t){
         .type           = AST_TYPE_STATEMENT_LABEL,
         .gotostmt.label = label,

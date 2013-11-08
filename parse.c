@@ -1239,7 +1239,7 @@ static void parse_label_backfill(void) {
 static ast_t *parse_label(lexer_token_t *token) {
     parse_expect(':');
     char  *label = token->string;
-    ast_t *node  = ast_label_new(label);
+    ast_t *node  = ast_new_label(label);
 
     if (table_find(ast_labels, label))
         compile_error("duplicate label: %s", label);
