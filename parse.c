@@ -34,17 +34,17 @@ static void parse_semantic_lvalue(ast_t *ast) {
         case AST_TYPE_STRUCT:
             return;
     }
-    compile_error("Internal error: parse_semantic_lvalue %s", ast_string(ast));
+    compile_error("expected lvalue, `%s' isn't a valid lvalue", ast_string(ast));
 }
 
 static void parse_semantic_notvoid(data_type_t *type) {
     if (type->type == TYPE_VOID)
-        compile_error("void not allowed");
+        compile_error("void not allowed in expression");
 }
 
 static void parse_semantic_integer(ast_t *node) {
     if (!ast_type_integer(node->ctype))
-        compile_error("expected integer type");
+        compile_error("expected integer type, `%s' isn't a valid integer type", ast_string(node));
 }
 
 static bool parse_semantic_rightassoc(lexer_token_t *token) {
@@ -54,7 +54,7 @@ static bool parse_semantic_rightassoc(lexer_token_t *token) {
 static void parse_expect(char punct) {
     lexer_token_t *token = lexer_next();
     if (!lexer_ispunct(token, punct))
-        compile_error("Expected `%c`, got %s instead", punct, lexer_tokenstr(token));
+        compile_error("expected `%c`, got %s instead", punct, lexer_tokenstr(token));
 }
 
 static bool parse_identifer_check(lexer_token_t *token, const char *identifier) {
@@ -66,7 +66,7 @@ static int parse_evaluate(ast_t *ast) {
         case AST_TYPE_LITERAL:
             if (ast_type_integer(ast->ctype))
                 return ast->integer;
-            compile_error("Not a valid integer constant expression");
+            compile_error("not a valid integer constant expression `%s'", ast_string(ast));
             break;
 
         case '+':                return parse_evaluate(ast->left) +  parse_evaluate(ast->right);
@@ -92,7 +92,7 @@ static int parse_evaluate(ast_t *ast) {
         case AST_TYPE_EXPRESSION_CAST: return  parse_evaluate(ast->unary.operand);
 
         default:
-            compile_error("Not a valid integer constant expression");
+            compile_error("not a valid integer constant expression `%s'", ast_string(ast));
     }
     return -1;
 }
@@ -161,7 +161,7 @@ static list_t *parse_parameter_types(list_t *parameters) {
 
 static void parse_function_typecheck(const char *name, list_t *parameters, list_t *arguments) {
     if (list_length(arguments) < list_length(parameters))
-        compile_error("Too few arguments: %s", name);
+        compile_error("too few arguments for function `%s'", name);
     for (list_iterator_t *it = list_iterator(parameters),
                          *jt = list_iterator(arguments); !list_iterator_end(jt); )
     {
@@ -189,7 +189,7 @@ static ast_t *parse_function_call(char *name) {
         if (lexer_ispunct(token, ')'))
             break;
         if (!lexer_ispunct(token, ','))
-            compile_error("Unexpected character in function call");
+            compile_error("unexpected token `%s'", lexer_tokenstr(token));
     }
 
     if (ARCH_CALLREGISTERS < list_length(list))
@@ -199,11 +199,11 @@ static ast_t *parse_function_call(char *name) {
     if (func) {
         data_type_t *declaration = func->ctype;
         if (declaration->type != TYPE_FUNCTION)
-            compile_error("%s isn't a function fool!\n", name);
+            compile_error("expected a function name, `%s' isn't a function", name);
         parse_function_typecheck(name, declaration->parameters, parse_parameter_types(list));
         return ast_call(declaration->returntype, name, list, declaration->parameters);
     }
-
+    /* TODO: warn about implicit int return */
     return ast_call(ast_data_table[AST_DATA_INT], name, list, list_create());
 }
 
@@ -218,7 +218,7 @@ static ast_t *parse_generic(char *name) {
     lexer_unget(token);
 
     if (!(var = table_find(ast_localenv, name)))
-        compile_error("Undefined variable: %s", name);
+        compile_error("undefined variable `%s'", name);
 
     return var;
 }
@@ -344,7 +344,7 @@ static ast_t *parse_sizeof(bool typename) {
     lexer_unget(token);
     ast_t *expression = parse_expression_unary();
     if (expression->ctype->size == 0)
-        compile_error("sizeof void makes no sense!");
+        compile_error("sizeof(void) illegal");
     return ast_new_integer(ast_data_table[AST_DATA_LONG], expression->ctype->size);
 }
 
@@ -362,7 +362,7 @@ static ast_t *parse_expression_unary(void) {
     lexer_token_t *token = lexer_next();
 
     if (!token)
-        compile_error("internal error %s", __func__);
+        compile_error("unexpected end of input");
 
     if (parse_identifer_check(token, "sizeof")) {
         return parse_sizeof(false);
@@ -391,7 +391,7 @@ static ast_t *parse_expression_unary(void) {
     if (lexer_ispunct(token, '~')) {
         ast_t *ast = parse_expression_intermediate(3);
         if (!ast_type_integer(ast->ctype))
-            compile_error("Internal error: parse_expression_unary (1)");
+            compile_error("invalid expression `%s'", ast_string(ast));
         return ast_new_unary('~', ast->ctype, ast);
     }
     if (lexer_ispunct(token, '*')) {
@@ -399,7 +399,7 @@ static ast_t *parse_expression_unary(void) {
         data_type_t *type    = ast_array_convert(operand->ctype);
 
         if (type->type != TYPE_POINTER)
-            compile_error("Internal error: parse_expression_unary (2)");
+            compile_error("expected pointer type, `%s' isn't pointer type", ast_string(operand));
 
         return ast_new_unary(AST_TYPE_DEREFERENCE, operand->ctype->pointer, operand);
     }
@@ -427,14 +427,14 @@ static ast_t *parse_expression_condition(ast_t *condition) {
 
 static ast_t *parse_structure_field(ast_t *structure) {
     if (structure->ctype->type != TYPE_STRUCTURE)
-        compile_error("Internal error: parse_structure_field (1)");
+        compile_error("expected structure type, `%s' isn't structure type", ast_string(structure));
     lexer_token_t *name = lexer_next();
     if (name->type != LEXER_TOKEN_IDENTIFIER)
-        compile_error("Internal error: parse_structure_field (2)");
+        compile_error("expected field name, got `%s' instead", lexer_tokenstr(name));
 
     data_type_t *field = table_find(structure->ctype->fields, name->string);
     if (!field)
-        compile_error("structure has no such field");
+        compile_error("structure has no such field `%s'", lexer_tokenstr(name));
     return ast_structure_reference(field, structure, name->string);
 }
 
