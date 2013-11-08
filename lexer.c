@@ -180,25 +180,8 @@ static lexer_token_t *lexer_read_string(void) {
             break;
 
         /* TODO fix */
-        if (c == '\\') {
-            c = getc(stdin);
-            switch (c) {
-                case EOF:
-                    compile_error("Unterminated `\\`");
-                    break;
-
-                case '\"':
-                    break;
-
-                case 'n':
-                    c = '\n';
-                    break;
-
-                default:
-                    compile_error("Unknown quote: %c", c);
-                    break;
-            }
-        }
+        if (c == '\\')
+            c = lexer_read_character_escaped();
         string_cat(string, c);
     }
     return lexer_strtok(string);
