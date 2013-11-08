@@ -316,7 +316,7 @@ typedef struct {
 
 /*
  * Class: ast_variable_t
- *  The *AST_TYPE_VARIABLE_LOCAL* and *AST_TYPE_VARIABLE_GLOBAL* ast node.
+ *  The *AST_TYPE_VAR_LOCAL* and *AST_TYPE_VAR_GLOBAL* ast node.
  */
 typedef struct {
     /*
@@ -403,25 +403,85 @@ typedef struct {
     ast_t  *body;
 } ast_function_t;
 
+
+/*
+ * Class: ast_unary_t
+ *  Represents a unary operation in the AST tree
+ */
 typedef struct {
+    /*
+     * Variable: operand
+     *  Pointer to the operand the unary operation is to
+     *  be performed on.
+     */
     ast_t *operand;
 } ast_unary_t;
 
+/*
+ * Class: ast_decl_t
+ *  Represents a declaration in the AST tree
+ */
 typedef struct {
+    /*
+     * Variable: var
+     *  Pointer to the variable node associated with the
+     *  declaration.
+     */
     ast_t *var;
+
+    /*
+     * Variable: init
+     *  When the declaration includes an initialization this points
+     *  to such a node, otherwise it points to NULL.
+     */
     ast_t *init;
 } ast_decl_t;
 
+/*
+ * Class: ast_ifthan_t
+ *  Represents a if-than node in the AST tree.
+ *
+ * Remarks:
+ *  Describes a two-branch gaurded by conditional test node in the AST
+ *  tree for implementing ternary expressions and if statements.
+ */
 typedef struct {
+    /*
+     * Variable: cond
+     *  The condition node
+     */
     ast_t  *cond;
+
+    /*
+     * Variable: then
+     *  Basic block for truth path in branch
+     */
     ast_t  *then;
+
+    /*
+     * Variable: last
+     *  Basic block for false path in branch
+     */
     ast_t  *last;
 } ast_ifthan_t;
 
+/*
+ * Class: ast_for_t
+ *  Represents a for-loop node in the AST tree.
+ *
+ * Remarks:
+ *  Standard for loop with precondition / initilization
+ *  expression, conditionally testsed, and post step /
+ *  expression, ergo for(init; cond; step) body;
+ */
 typedef struct {
+    /* Variable: init */
     ast_t  *init;
+    /* Variable: cond */
     ast_t  *cond;
+    /* Variable: step */
     ast_t  *step;
+    /* Variable: body */
     ast_t  *body;
 } ast_for_t;
 

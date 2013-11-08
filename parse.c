@@ -591,7 +591,7 @@ static void parse_declaration_initializerlist_element(list_t *list, data_type_t 
     ast_t         *init  = parse_expression();
 
     if (!init)
-        compile_error("Expected expression");
+        compile_error("expected expression, `%s' isn't an expression", ast_string(init));
 
     ast_result_type('=', init->ctype, type);
 
@@ -620,7 +620,7 @@ static void parse_declaration_array_initializer_intermediate(list_t *initlist, d
     }
 
     if (!lexer_ispunct(token, '{'))
-        compile_error("Expected initializer list");
+        compile_error("expected initializer list");
 
     for (;;) {
         token = lexer_next();
@@ -857,8 +857,8 @@ static data_type_t *parse_declaration_specification(storage_t *rstorage) {
      *         self explanatory
      *
      *    7: user (can include redundant partial specification), e.g
-     *          typedef unsigned int foo; signed foo; <--- what to do?
-     *          this also includes enums, unions, and structures.
+     *        typedef unsigned int foo; signed foo; <--- what to do?
+     *        this also includes enums, unions, and structures.
      */
     enum {
         kvoid = 1,
@@ -1488,7 +1488,7 @@ static data_type_t *parse_declarator_direct(char **rname, data_type_t *basetype,
 
     if (token->type == LEXER_TOKEN_IDENTIFIER) {
         if (context == CDECL_CAST)
-            compile_error("casts not implemented yet");
+            compile_error("wasn't expecting identifier `%s'", lexer_tokenstr(token));
         *rname = token->string;
         return parse_declarator_direct_restage(basetype, parameters);
     }
