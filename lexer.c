@@ -185,7 +185,7 @@ static lexer_token_t *lexer_read_string(void) {
             break;
 
         // handle continuation and quote continuation correctly
-        // I think.
+        // TODO eliminate
         if (c == '\\') {
             c = getc(stdin);
             switch (c) {
@@ -218,9 +218,6 @@ static lexer_token_t *lexer_read_identifier(int c1) {
 
     for (;;) {
         int c2 = getc(stdin);
-
-        // underscores are allowed in identifiers, as is
-        // $ (GNU extension)
         if (isalnum(c2) || c2 == '_' || c2 == '$') {
             string_cat(string, c2);
         } else {
@@ -339,8 +336,6 @@ static lexer_token_t *lexer_read_token(void) {
         default:
             compile_error("Unexpected character: `%c`", c);
     }
-
-    // never reached
     return NULL;
 }
 
@@ -351,14 +346,12 @@ bool lexer_ispunct(lexer_token_t *token, int c) {
 void lexer_unget(lexer_token_t *token) {
     if (!token)
         return;
-
     list_push(lexer_buffer, token);
 }
 
 lexer_token_t *lexer_next(void) {
     if (list_length(lexer_buffer) > 0)
         return list_pop(lexer_buffer);
-
     return lexer_read_token();
 }
 
@@ -370,32 +363,25 @@ lexer_token_t *lexer_peek(void) {
 
 char *lexer_tokenstr(lexer_token_t *token) {
     string_t *string = string_create();
-
     if (!token)
         return "(null)";
-
     switch (token->type) {
         case LEXER_TOKEN_PUNCT:
             if (token->punct == LEXER_TOKEN_EQUAL) {
                 string_catf(string, "==");
                 return string_buffer(string);
             }
-            // fall
         case LEXER_TOKEN_CHAR:
             string_cat(string, token->character);
             return string_buffer(string);
-
         case LEXER_TOKEN_NUMBER:
             string_catf(string, "%d", token->integer);
             return string_buffer(string);
-
         case LEXER_TOKEN_STRING:
             string_catf(string, "\"%s\"", token->string);
             return string_buffer(string);
-
         case LEXER_TOKEN_IDENTIFIER:
             return token->string;
-
         default:
             break;
     }
