@@ -1,6 +1,8 @@
 #include <stdarg.h>
-#include <string.h>
+#include <stdio.h>
+
 #include "lice.h"
+#include "lexer.h" // TODO reclassify lexer token types as ast
 
 // registers for function call
 static const char *registers[] = {
@@ -410,7 +412,7 @@ static list_t *gen_function_argument_types(ast_t *ast) {
         ast_t       *value = list_iterator_next(it);
         data_type_t *type  = list_iterator_next(jt);
 
-        list_push(list, type ? type : ast_result_type('=', value->ctype, ast_data_int));
+        list_push(list, type ? type : ast_result_type('=', value->ctype, ast_data_table[AST_DATA_INT]));
     }
     return list;
 }

@@ -1,10 +1,10 @@
-#include <stdarg.h>
 #include <stdlib.h>
-#include <string.h>
 #include <ctype.h>
+#include <stdio.h>
 
-#include "lice.h"
+#include "lexer.h"
 #include "util.h"
+#include "lice.h"
 
 static list_t *lexer_buffer = &SENTINEL_LIST;
 

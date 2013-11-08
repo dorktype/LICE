@@ -3,21 +3,26 @@
 #include <setjmp.h>
 
 #include "lice.h"
+#include "ast.h"
+#include "lexer.h"
 
-// todo remove
-static int ast_label_index = 0;
+static int ast_label_index = 0; // todo remove this hack
 
-data_type_t *ast_data_void     = &(data_type_t) { TYPE_VOID,      0, true  };
-data_type_t *ast_data_long     = &(data_type_t) { TYPE_LONG,      8, true  };
-data_type_t *ast_data_llong    = &(data_type_t) { TYPE_LLONG,     8, true  };
-data_type_t *ast_data_int      = &(data_type_t) { TYPE_INT,       4, true  };
-data_type_t *ast_data_short    = &(data_type_t) { TYPE_SHORT,     2, true  };
-data_type_t *ast_data_char     = &(data_type_t) { TYPE_CHAR,      1, true  };
-data_type_t *ast_data_float    = &(data_type_t) { TYPE_FLOAT,     4, true  };
-data_type_t *ast_data_double   = &(data_type_t) { TYPE_DOUBLE,    8, true  };
-data_type_t *ast_data_ldouble  = &(data_type_t) { TYPE_LDOUBLE,   8, true  };
-data_type_t *ast_data_ulong    = &(data_type_t) { TYPE_LONG,      8, false };
-data_type_t *ast_data_ullong   = &(data_type_t) { TYPE_LLONG,     8, false };
+data_type_t *ast_data_table[AST_DATA_COUNT] = {
+    &(data_type_t) { TYPE_VOID,    0, true },   // void
+    &(data_type_t) { TYPE_LONG,    8, true },   // long
+    &(data_type_t) { TYPE_LLONG,   8, true },   // long long
+    &(data_type_t) { TYPE_INT,     4, true },   // int
+    &(data_type_t) { TYPE_SHORT,   2, true },   // short
+    &(data_type_t) { TYPE_CHAR,    1, true },   // char
+    &(data_type_t) { TYPE_FLOAT,   4, true },   // float
+    &(data_type_t) { TYPE_DOUBLE,  8, true },   // double
+    &(data_type_t) { TYPE_LDOUBLE, 8, true },   // long double
+    &(data_type_t) { TYPE_LONG,    8, false },  // unsigned long
+    &(data_type_t) { TYPE_LLONG,   8, false },  // unsigned long long
+    NULL                                        // function
+};
+
 data_type_t *ast_data_function = NULL;
 
 list_t      *ast_locals      = NULL;
@@ -60,14 +65,14 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
                 case TYPE_INT:
                 case TYPE_CHAR:
                 case TYPE_SHORT:
-                    return ast_data_int;
+                    return ast_data_table[AST_DATA_INT];
                 case TYPE_LONG:
                 case TYPE_LLONG:
-                    return ast_data_long;
+                    return ast_data_table[AST_DATA_LONG];
                 case TYPE_FLOAT:
                 case TYPE_DOUBLE:
                 case TYPE_LDOUBLE:
-                    return ast_data_double;
+                    return ast_data_table[AST_DATA_DOUBLE];
                 case TYPE_ARRAY:
                 case TYPE_POINTER:
                     return b;
@@ -82,11 +87,11 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
             switch (b->type) {
                 case TYPE_LONG:
                 case TYPE_LLONG:
-                    return ast_data_long;
+                    return ast_data_table[AST_DATA_LONG];
                 case TYPE_FLOAT:
                 case TYPE_DOUBLE:
                 case TYPE_LDOUBLE:
-                    return ast_data_double;
+                    return ast_data_table[AST_DATA_DOUBLE];
                 case TYPE_ARRAY:
                 case TYPE_POINTER:
                     return b;
@@ -97,13 +102,13 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
 
         case TYPE_FLOAT:
             if (b->type == TYPE_FLOAT || b->type == TYPE_DOUBLE || b->type == TYPE_LDOUBLE)
-                return ast_data_double;
+                return ast_data_table[AST_DATA_DOUBLE];
             goto error;
 
         case TYPE_DOUBLE:
         case TYPE_LDOUBLE:
             if (b->type == TYPE_DOUBLE || b->type == TYPE_LDOUBLE)
-                return ast_data_double;
+                return ast_data_table[AST_DATA_DOUBLE];
             goto error;
 
         case TYPE_ARRAY:
@@ -263,7 +268,7 @@ ast_t *ast_new_floating(data_type_t *type, double value) {
 ast_t *ast_new_string(char *value) {
     ast_t *ast        = malloc(sizeof(ast_t));
     ast->type         = AST_TYPE_STRING;
-    ast->ctype        = ast_new_array(ast_data_char, strlen(value) + 1);
+    ast->ctype        = ast_new_array(ast_data_table[AST_DATA_CHAR], strlen(value) + 1);
     ast->string.data  = value;
     ast->string.label = ast_label();
 

@@ -1,10 +1,10 @@
-#include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 
 #include "lice.h"
+#include "lexer.h"
 
 #define PARSE_BUFFER    1024
 #define PARSE_CALLS     6    // only six registers to use for amd64
@@ -178,7 +178,7 @@ static void parse_function_typecheck(const char *name, list_t *parameters, list_
         if (parameter)
             ast_result_type('=', parameter, argument);
         else
-            ast_result_type('=', argument, ast_data_int);
+            ast_result_type('=', argument, ast_data_table[AST_DATA_INT]);
     }
 }
 
@@ -211,7 +211,7 @@ static ast_t *parse_function_call(char *name) {
         return ast_new_call(declaration->returntype, name, list, declaration->parameters);
     }
 
-    return ast_new_call(ast_data_int, name, list, list_create());
+    return ast_new_call(ast_data_table[AST_DATA_INT], name, list, list_create());
 }
 
 
@@ -252,20 +252,20 @@ static ast_t *parse_number_integer(const char *string) {
     }
 
     if (!strcasecmp(p, "l"))
-        return ast_new_integer(ast_data_long, strtol(string, NULL, base));
+        return ast_new_integer(ast_data_table[AST_DATA_LONG], strtol(string, NULL, base));
     if (!strcasecmp(p, "ul") || !strcasecmp(p, "lu"))
-        return ast_new_integer(ast_data_ulong, strtoul(string, NULL, base));
+        return ast_new_integer(ast_data_table[AST_DATA_ULONG], strtoul(string, NULL, base));
     if (!strcasecmp(p, "ll"))
-        return ast_new_integer(ast_data_llong, strtoll(string, NULL, base));
+        return ast_new_integer(ast_data_table[AST_DATA_LLONG], strtoll(string, NULL, base));
     if (!strcasecmp(p, "ull") || !strcasecmp(p, "llu"))
-        return ast_new_integer(ast_data_ullong, strtoull(string, NULL, base));
+        return ast_new_integer(ast_data_table[AST_DATA_ULLONG], strtoull(string, NULL, base));
     if (*p != '\0')
         compile_error("invalid suffix for literal");
 
     long value = strtol(string, NULL, base);
     return (value & ~(long)UINT_MAX)
-                ? ast_new_integer(ast_data_long, value)
-                : ast_new_integer(ast_data_int, value);
+                ? ast_new_integer(ast_data_table[AST_DATA_LONG], value)
+                : ast_new_integer(ast_data_table[AST_DATA_INT], value);
 }
 
 static ast_t *parse_number_floating(const char *string) {
@@ -277,11 +277,11 @@ static ast_t *parse_number_floating(const char *string) {
 
     ast_t *ast;
     if (*p == 'l' || *p == 'L')
-        ast = ast_new_floating(ast_data_ldouble, strtold(string, &end));
+        ast = ast_new_floating(ast_data_table[AST_DATA_LDOUBLE], strtold(string, &end));
     else if (*p == 'f' || *p == 'F')
-        ast = ast_new_floating(ast_data_float, strtof(string, &end));
+        ast = ast_new_floating(ast_data_table[AST_DATA_FLOAT], strtof(string, &end));
     else {
-        ast = ast_new_floating(ast_data_double, strtod(string, &end));
+        ast = ast_new_floating(ast_data_table[AST_DATA_DOUBLE], strtod(string, &end));
         p++;
     }
 
@@ -313,7 +313,7 @@ static ast_t *parse_expression_primary(void) {
             return parse_number(token->string);
 
         case LEXER_TOKEN_CHAR:
-            return ast_new_integer(ast_data_char, token->character);
+            return ast_new_integer(ast_data_table[AST_DATA_CHAR], token->character);
 
         case LEXER_TOKEN_STRING:
             ast = ast_new_string(token->string);
@@ -346,7 +346,7 @@ static ast_t *parse_sizeof(bool typename) {
         lexer_unget(token);
         data_type_t *type;
         parse_function_parameter(&type, NULL, true);
-        return ast_new_integer(ast_data_long, type->size);
+        return ast_new_integer(ast_data_table[AST_DATA_LONG], type->size);
     }
     // deal with the sizeof () thing
     if (lexer_ispunct(token, '(')) {
@@ -359,7 +359,7 @@ static ast_t *parse_sizeof(bool typename) {
     ast_t *expression = parse_expression_unary();
     if (expression->ctype->size == 0)
         compile_error("sizeof void makes no sense!");
-    return ast_new_integer(ast_data_long, expression->ctype->size);
+    return ast_new_integer(ast_data_table[AST_DATA_LONG], expression->ctype->size);
 }
 
 static ast_t *parse_expression_unary_cast(void) {
@@ -397,11 +397,11 @@ static ast_t *parse_expression_unary(void) {
     }
     if (lexer_ispunct(token, '!')) {
         ast_t *operand = parse_expression_intermediate(3);
-        return ast_new_unary('!', ast_data_int, operand);
+        return ast_new_unary('!', ast_data_table[AST_DATA_INT], operand);
     }
     if (lexer_ispunct(token, '-')) {
         ast_t *ast = parse_expression_intermediate(3);
-        return ast_new_binary('-', ast_new_integer(ast_data_int, 0), ast);
+        return ast_new_binary('-', ast_new_integer(ast_data_table[AST_DATA_INT], 0), ast);
     }
     if (lexer_ispunct(token, '~')) {
         ast_t *ast = parse_expression_intermediate(3);
@@ -610,12 +610,12 @@ static void parse_declaration_array_initializer_intermediate(list_t *initlist, d
 
     if (type->pointer->type == TYPE_CHAR && token->type == LEXER_TOKEN_STRING) {
         for (char *p = token->string; *p; p++) {
-            ast_t *value = ast_new_integer(ast_data_char, *p);
-            value->initlist.type = ast_data_char;
+            ast_t *value = ast_new_integer(ast_data_table[AST_DATA_CHAR], *p);
+            value->initlist.type = ast_data_table[AST_DATA_CHAR];
             list_push(initlist, value);
         }
-        ast_t *value = ast_new_integer(ast_data_char, '\0');
-        value->initlist.type = ast_data_char;
+        ast_t *value = ast_new_integer(ast_data_table[AST_DATA_CHAR], '\0');
+        value->initlist.type = ast_data_table[AST_DATA_CHAR];
         list_push(initlist, value);
         return;
     }
@@ -791,7 +791,7 @@ static data_type_t *parse_enumeration(void) {
         token = lexer_next();
     if (!lexer_ispunct(token, '{')) {
         lexer_unget(token);
-        return ast_data_int;
+        return ast_data_table[AST_DATA_INT];
     }
     int accumulate = 0;
     for (;;) {
@@ -809,7 +809,7 @@ static data_type_t *parse_enumeration(void) {
         else
             lexer_unget(token);
 
-        ast_t *constval = ast_new_integer(ast_data_int, accumulate++);
+        ast_t *constval = ast_new_integer(ast_data_table[AST_DATA_INT], accumulate++);
         table_insert(ast_localenv ? ast_localenv : ast_globalenv, name, constval);
         token = lexer_next();
         if (lexer_ispunct(token, ','))
@@ -819,7 +819,7 @@ static data_type_t *parse_enumeration(void) {
 
         compile_error("NOPE!");
     }
-    return ast_data_int;
+    return ast_data_table[AST_DATA_INT];
 }
 
 static data_type_t *parse_declaration_specification(storage_t *rstorage) {
@@ -974,7 +974,7 @@ static data_type_t *parse_declaration_specification(storage_t *rstorage) {
 
     switch (type) {
         case kvoid:
-            return ast_data_void;
+            return ast_data_table[AST_DATA_VOID];
         case kchar:
             return ast_type_create(TYPE_CHAR,  signature != kunsigned);
         case kfloat:
@@ -1047,7 +1047,7 @@ static data_type_t *parse_array_dimensions(data_type_t *basetype) {
 static ast_t *parse_declaration_initialization(ast_t *var) {
     ast_t *init = parse_declaration_initialization_value(var->ctype);
     if (var->type == AST_TYPE_VAR_GLOBAL && ast_type_integer(var->ctype))
-        init = ast_new_integer(ast_data_int, parse_evaluate(init));
+        init = ast_new_integer(ast_data_table[AST_DATA_INT], parse_evaluate(init));
     return ast_new_decl(var, init);
 }
 
@@ -1171,7 +1171,7 @@ static ast_t *parse_statement_default(void) {
 static ast_t *parse_statement_return(void) {
     ast_t *val = parse_expression();
     parse_expect(';');
-    return ast_new_return(ast_data_function->returntype, val); // todo more accurte type
+    return ast_new_return(ast_data_table[AST_DATA_FUNCTION]->returntype, val); // todo more accurte type
 }
 
 static ast_t *parse_statement_goto(void) {
@@ -1315,18 +1315,18 @@ static data_type_t *parse_function_parameters(list_t *paramvars, data_type_t *re
 }
 
 static ast_t *parse_function_definition(data_type_t *functype, char *name, list_t *parameters) {
-    ast_localenv      = table_create(ast_localenv);
-    ast_locals        = list_create();
-    ast_data_function = functype;
+    ast_localenv                      = table_create(ast_localenv);
+    ast_locals                        = list_create();
+    ast_data_table[AST_DATA_FUNCTION] = functype;
 
     ast_t *body = parse_statement_compound();
     ast_t *r    = ast_new_function(functype, name, parameters, body, ast_locals);
 
     table_insert(ast_globalenv, name, r);
 
-    ast_data_function = NULL;
-    ast_localenv      = NULL;
-    ast_locals        = NULL;
+    ast_data_table[AST_DATA_FUNCTION] = NULL;
+    ast_localenv                      = NULL;
+    ast_locals                        = NULL;
 
     return r;
 }
