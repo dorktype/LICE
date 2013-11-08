@@ -205,7 +205,7 @@ typedef enum {
 } storage_t;
 
 /*
- * Class: data_type_t
+ * Struct: data_type_t
  *  A structure that describes a data type.
  */
 typedef struct data_type_s data_type_t;
@@ -295,7 +295,7 @@ struct data_type_s {
 };
 
 /*
- * Class: ast_string_t
+ * Struct: ast_string_t
  *  The *AST_TYPE_STRING* ast node.
  */
 typedef struct {
@@ -313,7 +313,7 @@ typedef struct {
 } ast_string_t;
 
 /*
- * Class: ast_variable_t
+ * Struct: ast_variable_t
  *  The *AST_TYPE_VAR_LOCAL* and *AST_TYPE_VAR_GLOBAL* ast node.
  */
 typedef struct {
@@ -337,7 +337,7 @@ typedef struct {
 } ast_variable_t;
 
 /*
- * Class ast_function_call_t
+ * Struct ast_function_call_t
  *  Function call
  *
  *  Remarks:
@@ -359,7 +359,7 @@ typedef struct {
 } ast_function_call_t;
 
 /*
- * Class: ast_function_t
+ * Struct: ast_function_t
  *  The *AST_TYPE_FUNCTION* ast node.
  */
 typedef struct {
@@ -402,7 +402,7 @@ typedef struct {
 } ast_function_t;
 
 /*
- * Class: ast_unary_t
+ * Struct: ast_unary_t
  *  Represents a unary operation in the AST tree
  */
 typedef struct {
@@ -415,7 +415,7 @@ typedef struct {
 } ast_unary_t;
 
 /*
- * Class: ast_decl_t
+ * Struct: ast_decl_t
  *  Represents a declaration in the AST tree
  */
 typedef struct {
@@ -435,7 +435,7 @@ typedef struct {
 } ast_decl_t;
 
 /*
- * Class: ast_ifthan_t
+ * Struct: ast_ifthan_t
  *  Represents a if-than node in the AST tree.
  *
  * Remarks:
@@ -463,13 +463,13 @@ typedef struct {
 } ast_ifthan_t;
 
 /*
- * Class: ast_for_t
+ * Struct: ast_for_t
  *  Represents a for-loop node in the AST tree.
  *
  * Remarks:
- *  Standard for loop with precondition / initilization
- *  expression, conditionally testsed, and post step /
- *  expression, ergo for(init; cond; step) body;
+ *  Standard for loop with precondition / initilization expression,
+ *  conditionally testsed, and post step / expression, ergo
+ *  for(init; cond; step) body;
  */
 typedef struct {
     /* Variable: init */
@@ -483,23 +483,65 @@ typedef struct {
 } ast_for_t;
 
 
+/*
+ * Struct: ast_initlist_t
+ *  Represents an initializer list in the AST tree.
+ */
 typedef struct {
+    /* Variable: list */
     list_t      *list;
+    /* Variable: type */
     data_type_t *type;
 } ast_initlist_t;
 
+/*
+ * Struct: ast_switch_t
+ *  Represents a switch statement in the AST tree.
+ */
 typedef struct {
+    /* Variable: expr */
     ast_t       *expr;
+    /* Variable: body */
     ast_t       *body;
 } ast_switch_t;
 
+/*
+ * Struct: ast_goto_t
+ *  Represents a goto statement (or label) in the AST tree.
+ */
 typedef struct {
+    /*
+     * Variable: label
+     *  When not used as a goto statement, describes the name of a label
+     *  that may be 'gone to' with 'goto'
+     */
     char *label;
+
+    /*
+     * Variable: where
+     *  Where to go (label wise) for a goto statement.
+     */
     char *where;
 } ast_goto_t;
 
+/*
+ * Struct: ast_t
+ *  The monolthic ast tree and node at the same time.
+ *
+ * Remarks:
+ *  The ast tree is just a doubly-linked list of ast nodes which are
+ *  capable of being all the possible ast nodes at once. This is
+ *  acomplished with a rather large union of all ast nodes. The only
+ *  thing that declares what a node actually is, is the nodes type
+ *  member. This is beneficial to keeping the complexity of the AST
+ *  tree down, while also keeping memory footprint low. One more
+ *  interesting aspect of this is the ability to have the AST tree
+ *  nodes (next, prev), which make up the doubly-linked list part
+ *  of the same union, giving us a free way to terminate the tree
+ *  without using additional space to determine it.
+ */
 struct ast_s {
-    int           type;
+    ast_type_t   type;
     data_type_t *ctype;
 
     union {
@@ -537,6 +579,18 @@ struct ast_s {
 
     };
 };
+
+extern data_type_t *ast_data_table[AST_DATA_COUNT];
+
+extern list_t      *ast_floats;
+extern list_t      *ast_strings;
+extern list_t      *ast_locals;
+extern list_t      *ast_gotos;
+extern table_t     *ast_globalenv;
+extern table_t     *ast_localenv;
+extern table_t     *ast_structures;
+extern table_t     *ast_unions;
+extern table_t     *ast_labels;
 
 /*
  * Function: ast_structure_reference
@@ -624,18 +678,6 @@ data_type_t *ast_type_copy(data_type_t *type);
 data_type_t *ast_type_create(type_t type, bool sign);
 data_type_t *ast_type_stub(void);
 
-
-extern data_type_t *ast_data_table[AST_DATA_COUNT];
-
-extern list_t      *ast_floats;
-extern list_t      *ast_strings;
-extern list_t      *ast_locals;
-extern list_t      *ast_gotos;
-extern table_t     *ast_globalenv;
-extern table_t     *ast_localenv;
-extern table_t     *ast_structures;
-extern table_t     *ast_unions;
-extern table_t     *ast_labels;
 
 char *ast_string(ast_t *ast);
 
