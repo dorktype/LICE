@@ -1,7 +1,7 @@
 CC ?= clang
-CFLAGS=-c -Wall -std=gnu99 -MD -DLICE_TARGET_AMD64
+CFLAGS=-c -Wall -std=c99 -MD -DLICE_TARGET_AMD64
 LDFLAGS=
-SOURCES=ast.c parse.c lice.c gen.c lexer.c util.c
+SOURCES=ast.c parse.c lice.c gen_amd64.c lexer.c util.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=lice
 

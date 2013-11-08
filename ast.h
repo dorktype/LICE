@@ -541,7 +541,7 @@ typedef struct {
  *  without using additional space to determine it.
  */
 struct ast_s {
-    ast_type_t   type;
+    int          type;
     data_type_t *ctype;
 
     union {

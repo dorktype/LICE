@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "util.h"
 
@@ -266,4 +267,31 @@ list_t *table_keys(table_t *table) {
         for (list_iterator_t *it = list_iterator(table->list); !list_iterator_end(it); )
             list_push(list, ((table_entry_t*)list_iterator_next(it))->key);
     return list;
+}
+
+int strcasecmp(const char *s1, const char *s2) {
+    const unsigned char *u1 = (const unsigned char *)s1;
+    const unsigned char *u2 = (const unsigned char *)s2;
+
+    while (tolower(*u1) == tolower(*u2++))
+        if(*u1++ == '\0')
+            return 0;
+    return tolower(*u1) - tolower(*--u2);
+}
+
+int strncasecmp(const char *s1, const char *s2, size_t n) {
+    const unsigned char *u1 = (const unsigned char *)s1;
+    const unsigned char *u2 = (const unsigned char *)s2;
+
+    if (!n)
+        return 0;
+
+    do {
+        if (tolower(*u1) != tolower(*u2++))
+            return tolower(*u1) - tolower(*--u2);
+        if (*u1++ == '\0')
+            break;
+    } while (--n != 0);
+
+    return 0;
 }

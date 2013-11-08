@@ -200,4 +200,7 @@ list_t *table_keys(table_t *table);
  */
 void *memory_allocate(size_t bytes);
 
+
+int strcasecmp(const char *s1, const char *s2);
+int strncasecmp(const char *s1, const char *s2, size_t n);
 #endif
