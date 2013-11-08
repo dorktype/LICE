@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #include "lice.h"
-#include "lexer.h" // TODO reclassify lexer token types as ast
 
 // registers for function call
 static const char *registers[] = {
@@ -286,12 +285,12 @@ static void gen_comparision(char *operation, ast_t *ast) {
 static void gen_binary_arithmetic_integer(ast_t *ast) {
     char *op;
     switch (ast->type) {
-        case '+':                op = "add";  break;
-        case '-':                op = "sub";  break;
-        case '*':                op = "imul"; break;
-        case '^':                op = "xor";  break;
-        case LEXER_TOKEN_LSHIFT: op = "sal";  break;
-        case LEXER_TOKEN_RSHIFT: op = "sar";  break;
+        case '+':             op = "add";  break;
+        case '-':             op = "sub";  break;
+        case '*':             op = "imul"; break;
+        case '^':             op = "xor";  break;
+        case AST_TYPE_LSHIFT: op = "sal";  break;
+        case AST_TYPE_RSHIFT: op = "sar";  break;
         case '/':
         case '%':
             break;
@@ -313,7 +312,7 @@ static void gen_binary_arithmetic_integer(ast_t *ast) {
         gen_emit("idiv %%rcx");
         if (ast->type == '%')
             gen_emit("mov %%edx, %%eax");
-    } else if (ast->type == LEXER_TOKEN_LSHIFT || ast->type == LEXER_TOKEN_RSHIFT) {
+    } else if (ast->type == AST_TYPE_LSHIFT || ast->type == AST_TYPE_RSHIFT) {
         gen_emit("%s %%cl, %%rax", op);
     } else {
         gen_emit("%s %%rcx, %%rax", op);
@@ -374,12 +373,12 @@ static void gen_binary(ast_t *ast) {
     }
 
     switch (ast->type) {
-        case '<':                gen_comparision("setl",  ast); return;
-        case '>':                gen_comparision("setg",  ast); return;
-        case LEXER_TOKEN_EQUAL:  gen_comparision("sete",  ast); return;
-        case LEXER_TOKEN_GEQUAL: gen_comparision("setge", ast); return;
-        case LEXER_TOKEN_LEQUAL: gen_comparision("setle", ast); return;
-        case LEXER_TOKEN_NEQUAL: gen_comparision("setne", ast); return;
+        case '<':             gen_comparision("setl",  ast); return;
+        case '>':             gen_comparision("setg",  ast); return;
+        case AST_TYPE_EQUAL:  gen_comparision("sete",  ast); return;
+        case AST_TYPE_GEQUAL: gen_comparision("setge", ast); return;
+        case AST_TYPE_LEQUAL: gen_comparision("setle", ast); return;
+        case AST_TYPE_NEQUAL: gen_comparision("setne", ast); return;
     }
 
     if (ast_type_integer(ast->ctype))
@@ -735,7 +734,7 @@ static void gen_expression(ast_t *ast) {
             gen_emit("movzb %%al, %%eax");
             break;
 
-        case LEXER_TOKEN_AND:
+        case AST_TYPE_AND:
             end = ast_label();
             gen_expression(ast->left);
             gen_emit("test %%rax, %%rax");
@@ -749,7 +748,7 @@ static void gen_expression(ast_t *ast) {
             gen_label(end);
             break;
 
-        case LEXER_TOKEN_OR:
+        case AST_TYPE_OR:
             end = ast_label();
             gen_expression(ast->left);
             gen_emit("test %%rax, %%rax");

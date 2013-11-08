@@ -475,6 +475,22 @@ static int parse_operation_compound_operator(lexer_token_t *token) {
     return -1;
 }
 
+static int parse_operation_reclassify(int punct) {
+    switch (punct) {
+        case LEXER_TOKEN_LSHIFT: return AST_TYPE_LSHIFT;
+        case LEXER_TOKEN_RSHIFT: return AST_TYPE_RSHIFT;
+        case LEXER_TOKEN_EQUAL:  return AST_TYPE_EQUAL;
+        case LEXER_TOKEN_GEQUAL: return AST_TYPE_GEQUAL;
+        case LEXER_TOKEN_LEQUAL: return AST_TYPE_LEQUAL;
+        case LEXER_TOKEN_NEQUAL: return AST_TYPE_NEQUAL;
+        case LEXER_TOKEN_AND:    return AST_TYPE_AND;
+        case LEXER_TOKEN_OR:     return AST_TYPE_OR;
+        default:
+            break;
+    }
+    return punct;
+}
+
 static bool parse_operation_integer_check(int operation) {
     return operation == '^'
         || operation == '%'
@@ -546,7 +562,8 @@ static ast_t *parse_expression_intermediate(int precision) {
         next = parse_expression_intermediate(pri + !!parse_semantic_rightassoc(token));
         if (!next)
             compile_error("Internal error: parse_expression_intermediate (next)");
-        int op = compound ? compound : token->punct;
+        int operation = compound ? compound : token->punct;
+        int op        = parse_operation_reclassify(operation);
 
         if (parse_operation_integer_check(op)) {
             parse_semantic_integer(ast);
