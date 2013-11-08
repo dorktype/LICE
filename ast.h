@@ -445,34 +445,34 @@ struct ast_s {
     data_type_t *ctype;
 
     union {
-        int             casevalue;      // switch case value
-        long            integer;        // integer
-        char            character;      // character
-        ast_string_t    string;         // string
-        ast_variable_t  variable;       // local and global variable
-        ast_function_t  function;       // function
-        ast_unary_t     unary;          // unary operations
-        ast_decl_t      decl;           // declarations
-        ast_ifthan_t    ifstmt;         // if statement
-        ast_for_t       forstmt;        // for statement
-        ast_switch_t    switchstmt;     // switch statement
-        ast_t          *returnstmt;     // return statement
-        list_t         *compound;       // compound statement
-        ast_initlist_t  initlist;       // initializer list
-        ast_goto_t      gotostmt;       // goto statement
+        int             casevalue;
+        long            integer;
+        char            character;
+        ast_string_t    string;
+        ast_variable_t  variable;
+        ast_function_t  function;
+        ast_unary_t     unary;
+        ast_decl_t      decl;
+        ast_ifthan_t    ifstmt;
+        ast_for_t       forstmt;
+        ast_switch_t    switchstmt;
+        ast_t          *returnstmt;
+        list_t         *compound;
+        ast_initlist_t  initlist;
+        ast_goto_t      gotostmt;
 
-        struct {                        // tree
+        struct {
             ast_t *left;
             ast_t *right;
         };
 
-        struct {                        // struct
+        struct {
             ast_t       *structure;
             char        *field;
             data_type_t *fieldtype;
         };
 
-        struct {                        // float or double
+        struct {
             double value;
             char  *label;
         } floating;
@@ -524,7 +524,6 @@ data_type_t *ast_type_stub(void);
 
 extern data_type_t *ast_data_table[AST_DATA_COUNT];
 
-// data
 extern list_t      *ast_floats;
 extern list_t      *ast_strings;
 extern list_t      *ast_locals;
@@ -535,7 +534,6 @@ extern table_t     *ast_structures;
 extern table_t     *ast_unions;
 extern table_t     *ast_labels;
 
-// debug
 char *ast_string(ast_t *ast);
 
 #endif

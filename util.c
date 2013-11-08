@@ -5,7 +5,6 @@
 
 #include "util.h"
 
-// a memory pool
 #define MEMORY 0x800000
 
 static unsigned char *memory_pool = NULL;
@@ -29,7 +28,6 @@ void *memory_allocate(size_t bytes) {
     return value;
 }
 
-// an efficent strechy buffer string
 struct string_s {
     char *buffer;
     int   allocated;
@@ -98,7 +96,6 @@ char *string_quote(char *p) {
     return string->buffer;
 }
 
-// a standard double linked list
 struct list_node_s {
     void        *element;
     list_node_t *next;
@@ -219,7 +216,6 @@ void *list_tail(list_t *list) {
     return node->element;
 }
 
-// a key value associative table
 typedef struct {
     char *key;
     void *value;

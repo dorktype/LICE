@@ -69,7 +69,6 @@ static void lexer_skip_comment_block(void) {
     }
 }
 
-// skip whitespace
 static int lexer_skip(void) {
     int c;
     while ((c = getc(stdin)) != EOF) {
@@ -81,7 +80,6 @@ static int lexer_skip(void) {
     return EOF;
 }
 
-// read a number and build integer token for the token stream
 static lexer_token_t *lexer_read_number(int c) {
     string_t *string = string_create();
     string_cat(string, c);
@@ -157,12 +155,10 @@ static int lexer_read_character_escaped(void) {
             compile_error("malformatted escape sequence");
 
         default:
-            //compile_error("invalid escape sequenmce");
             return c;
     }
 }
 
-// read a character and build character token for the token stream
 static lexer_token_t *lexer_read_character(void) {
     int c = getc(stdin);
     int r = (c == '\\') ? lexer_read_character_escaped() : c;
@@ -173,7 +169,6 @@ static lexer_token_t *lexer_read_character(void) {
     return lexer_char((char)r);
 }
 
-// read a string and build string token for the token stream
 static lexer_token_t *lexer_read_string(void) {
     string_t *string = string_create();
     for (;;) {
@@ -184,8 +179,7 @@ static lexer_token_t *lexer_read_string(void) {
         if (c == '"')
             break;
 
-        // handle continuation and quote continuation correctly
-        // TODO eliminate
+        /* TODO fix */
         if (c == '\\') {
             c = getc(stdin);
             switch (c) {
@@ -205,13 +199,11 @@ static lexer_token_t *lexer_read_string(void) {
                     break;
             }
         }
-
-        string_cat(string, c); // append character
+        string_cat(string, c);
     }
     return lexer_strtok(string);
 }
 
-// read an indentifier and build identifier token for the token stream
 static lexer_token_t *lexer_read_identifier(int c1) {
     string_t *string = string_create();
     string_cat(string, (char)c1);
@@ -242,7 +234,6 @@ static lexer_token_t *lexer_read_reclassify_two(int expect1, int a, int expect2,
     return lexer_punct(e);
 }
 
-// read an token and build a token for the token stream
 static lexer_token_t *lexer_read_token(void) {
     int c;
     lexer_skip();
@@ -251,8 +242,6 @@ static lexer_token_t *lexer_read_token(void) {
         case '0' ... '9':  return lexer_read_number(c);
         case '"':          return lexer_read_string();
         case '\'':         return lexer_read_character();
-
-        // identifiers
         case 'a' ... 'z':
         case 'A' ... 'Z':
         case '$':
@@ -274,7 +263,6 @@ static lexer_token_t *lexer_read_token(void) {
             ungetc(c, stdin);
             return lexer_punct('/');
 
-        // punctuation
         case '(': case ')':
         case ',': case ';':
         case '[': case ']':
@@ -292,8 +280,6 @@ static lexer_token_t *lexer_read_token(void) {
         case '!': return lexer_read_reclassify_one('=', LEXER_TOKEN_NEQUAL,       '!');
         case '^': return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_XOR, '^');
 
-        // - is super special because it's the most used (in other tokens)
-        // you have, -, --, ->, and -=
         case '-':
             switch ((c = getc(stdin))) {
                 case '-': return lexer_punct(LEXER_TOKEN_DECREMENT);

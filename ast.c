@@ -7,18 +7,18 @@
 #include "lexer.h"
 
 data_type_t *ast_data_table[AST_DATA_COUNT] = {
-    &(data_type_t) { TYPE_VOID,    0,                      true },   // void
-    &(data_type_t) { TYPE_LONG,    ARCH_TYPE_SIZE_LONG,    true },   // long
-    &(data_type_t) { TYPE_LLONG,   ARCH_TYPE_SIZE_LLONG,   true },   // long long
-    &(data_type_t) { TYPE_INT,     ARCH_TYPE_SIZE_INT,     true },   // int
-    &(data_type_t) { TYPE_SHORT,   ARCH_TYPE_SIZE_SHORT,   true },   // short
-    &(data_type_t) { TYPE_CHAR,    ARCH_TYPE_SIZE_CHAR,    true },   // char
-    &(data_type_t) { TYPE_FLOAT,   ARCH_TYPE_SIZE_FLOAT,   true },   // float
-    &(data_type_t) { TYPE_DOUBLE,  ARCH_TYPE_SIZE_DOUBLE,  true },   // double
-    &(data_type_t) { TYPE_LDOUBLE, ARCH_TYPE_SIZE_LDOUBLE, true },   // long double
-    &(data_type_t) { TYPE_LONG,    ARCH_TYPE_SIZE_LONG,    false },  // unsigned long
-    &(data_type_t) { TYPE_LLONG,   ARCH_TYPE_SIZE_LLONG,   false },  // unsigned long long
-    NULL                                                             // function
+    &(data_type_t) { TYPE_VOID,    0,                      true },   /* void                */
+    &(data_type_t) { TYPE_LONG,    ARCH_TYPE_SIZE_LONG,    true },   /* long                */
+    &(data_type_t) { TYPE_LLONG,   ARCH_TYPE_SIZE_LLONG,   true },   /* long long           */
+    &(data_type_t) { TYPE_INT,     ARCH_TYPE_SIZE_INT,     true },   /* int                 */
+    &(data_type_t) { TYPE_SHORT,   ARCH_TYPE_SIZE_SHORT,   true },   /* short               */
+    &(data_type_t) { TYPE_CHAR,    ARCH_TYPE_SIZE_CHAR,    true },   /* char                */
+    &(data_type_t) { TYPE_FLOAT,   ARCH_TYPE_SIZE_FLOAT,   true },   /* float               */
+    &(data_type_t) { TYPE_DOUBLE,  ARCH_TYPE_SIZE_DOUBLE,  true },   /* double              */
+    &(data_type_t) { TYPE_LDOUBLE, ARCH_TYPE_SIZE_LDOUBLE, true },   /* long double         */
+    &(data_type_t) { TYPE_LONG,    ARCH_TYPE_SIZE_LONG,    false },  /* unsigned long       */
+    &(data_type_t) { TYPE_LLONG,   ARCH_TYPE_SIZE_LLONG,   false },  /* unsigned long long  */
+    NULL                                                             /* function            */
 };
 
 data_type_t *ast_data_function = NULL;
@@ -34,7 +34,6 @@ table_t     *ast_localenv    = &SENTINEL_TABLE;
 table_t     *ast_structures  = &SENTINEL_TABLE;
 table_t     *ast_unions      = &SENTINEL_TABLE;
 
-// ast result
 static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *a, data_type_t *b) {
     if (a->type > b->type) {
         data_type_t *t = a;
@@ -79,7 +78,6 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
             }
             compile_error("Internal error: ast_result_type (1)");
 
-        // outside for the future 'long long' type
         case TYPE_LONG:
         case TYPE_LLONG:
             switch (b->type) {
@@ -462,7 +460,6 @@ data_type_t *ast_pointer(data_type_t *type) {
     });
 }
 
-////////////////////////////////////////////////////////////////////////
 const char *ast_type_string(data_type_t *type) {
     string_t *string;
 
@@ -630,7 +627,7 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             string_cat(string, '}');
             break;
 
-        case AST_TYPE_STRUCT: // reference structure
+        case AST_TYPE_STRUCT:
             ast_string_impl(string, ast->structure);
             string_cat(string, '.');
             string_catf(string, ast->field);
@@ -644,7 +641,6 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             );
             break;
 
-        // statements
         case AST_TYPE_STATEMENT_IF:
             string_catf(string, "(if %s %s", ast_string(ast->ifstmt.cond), ast_string(ast->ifstmt.then));
             if (ast->ifstmt.last)

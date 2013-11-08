@@ -61,8 +61,6 @@ static bool parse_identifer_check(lexer_token_t *token, const char *identifier) 
     return token->type == LEXER_TOKEN_IDENTIFIER && !strcmp(token->string, identifier);
 }
 
-// the following is a feature complete evaluator via recursiveness, yes the
-// ast nodes are prpagated .. RECURSIVELY until a value is assumed.
 static int parse_evaluate(ast_t *ast) {
     switch (ast->type) {
         case AST_TYPE_LITERAL:
@@ -88,7 +86,7 @@ static int parse_evaluate(ast_t *ast) {
         case LEXER_TOKEN_LSHIFT: return parse_evaluate(ast->left) << parse_evaluate(ast->right);
         case LEXER_TOKEN_RSHIFT: return parse_evaluate(ast->left) >> parse_evaluate(ast->right);
 
-        // unary is special
+        /* Deal with unary operations differently */
         case '!':                      return !parse_evaluate(ast->unary.operand);
         case '~':                      return ~parse_evaluate(ast->unary.operand);
         case AST_TYPE_EXPRESSION_CAST: return  parse_evaluate(ast->unary.operand);
@@ -170,7 +168,6 @@ static void parse_function_typecheck(const char *name, list_t *parameters, list_
         data_type_t *parameter = list_iterator_next(it);
         data_type_t *argument  = list_iterator_next(jt);
 
-        // handle implicit int
         if (parameter)
             ast_result_type('=', parameter, argument);
         else
@@ -181,13 +178,13 @@ static void parse_function_typecheck(const char *name, list_t *parameters, list_
 static ast_t *parse_function_call(char *name) {
     list_t *list = list_create();
     for (;;) {
-        // break when call is done
+
         lexer_token_t *token = lexer_next();
         if (lexer_ispunct(token, ')'))
             break;
         lexer_unget(token);
         list_push(list, parse_expression());
-        // deal with call done here as well
+
         token = lexer_next();
         if (lexer_ispunct(token, ')'))
             break;
@@ -303,33 +300,26 @@ static ast_t *parse_expression_primary(void) {
     switch (token->type) {
         case LEXER_TOKEN_IDENTIFIER:
             return parse_generic(token->string);
-
-        // ast generating ones
         case LEXER_TOKEN_NUMBER:
             return parse_number(token->string);
-
         case LEXER_TOKEN_CHAR:
             return ast_new_integer(ast_data_table[AST_DATA_CHAR], token->character);
-
         case LEXER_TOKEN_STRING:
             ast = ast_new_string(token->string);
             list_push(ast_strings, ast);
             return ast;
-
         case LEXER_TOKEN_PUNCT:
             lexer_unget(token);
             return NULL;
-
         default:
             break;
     }
+
     compile_error("Internal error: parse_expression_primary");
     return NULL;
 }
 
 static ast_t *parse_expression_subscript(ast_t *ast) {
-    // generates the following code for subscript
-    // (deref (+ ast subscript))
     ast_t *subscript = parse_expression();
     parse_expect(']');
     ast_t *node = ast_new_binary('+', ast, subscript);
@@ -344,7 +334,7 @@ static ast_t *parse_sizeof(bool typename) {
         parse_function_parameter(&type, NULL, true);
         return ast_new_integer(ast_data_table[AST_DATA_LONG], type->size);
     }
-    // deal with the sizeof () thing
+
     if (lexer_ispunct(token, '(')) {
         ast_t *next = parse_sizeof(true);
         parse_expect(')');
@@ -378,7 +368,6 @@ static ast_t *parse_expression_unary(void) {
         return parse_sizeof(false);
     }
 
-    // for *(expression) and &(expression)
     if (lexer_ispunct(token, '(')) {
         if (parse_type_check(lexer_peek()))
             return parse_expression_unary_cast();
@@ -431,7 +420,7 @@ static ast_t *parse_expression_unary(void) {
 
 static ast_t *parse_expression_condition(ast_t *condition) {
     ast_t *then = parse_expression();
-    parse_expect(':'); // expecting : for ternary
+    parse_expect(':');
     ast_t *last = parse_expression();
     return ast_ternary(then->ctype, condition, then, last);
 }
@@ -498,7 +487,6 @@ static ast_t *parse_expression_intermediate(int precision) {
     ast_t       *ast;
     ast_t       *next;
 
-    // no primary expression?
     if (!(ast = parse_expression_unary()))
         return NULL;
 
@@ -525,7 +513,6 @@ static ast_t *parse_expression_intermediate(int precision) {
             continue;
         }
 
-        // for a->b generate (* (+ a b))
         if (lexer_ispunct(token, LEXER_TOKEN_ARROW)) {
             if (ast->ctype->type != TYPE_POINTER)
                 compile_error("Not a valid pointer type: %s", ast_string(ast));
@@ -566,7 +553,6 @@ static ast_t *parse_expression_intermediate(int precision) {
             parse_semantic_integer(next);
         }
 
-        // deal with compound assignments
         if (compound)
             ast = ast_new_binary('=', ast, ast_new_binary(op, ast, next));
         else
@@ -689,7 +675,6 @@ static ast_t *parse_declaration_structure_initializer_value(data_type_t *type) {
     return ast_initializerlist(initlist);
 }
 
-// parses a union/structure tag
 static char *parse_memory_tag(void) {
     lexer_token_t *token = lexer_next();
     if (token->type == LEXER_TOKEN_IDENTIFIER)
@@ -730,7 +715,7 @@ static table_t *parse_memory_fields(int *rsize, bool isstruct) {
         data_type_t *basetype = parse_declaration_specification(NULL);
 
         if (basetype->type == TYPE_STRUCTURE && lexer_ispunct(lexer_peek(), ';')) {
-            lexer_next(); // skip
+            lexer_next(); /* Skip */
             parse_memory_fields_squash(table, basetype, offset);
             if (isstruct)
                 offset += basetype->size;
@@ -841,7 +826,40 @@ static data_type_t *parse_declaration_specification(storage_t *rstorage) {
     if (!token || token->type != LEXER_TOKEN_IDENTIFIER)
         compile_error("internal error in declaration specification parsing");
 
-    // large declaration specification state machine
+    /*
+     *  large declaration specification state machine:
+     *    There is six pieces of state to the following state machine
+     *    for dealing with all the permutations of declaration
+     *    specification.
+     *
+     *    1: The type, most common of course, this is the "base type"
+     *       of the declaration.
+     *
+     *    2: The size, in C, types are also size specifiers on types,
+     *       e.g short int, long int, long long int, act as 'sizes'.
+     *       Short and long are not technically types, people who use
+     *       them as is without a type associated with them (like unsigned)
+     *       concludes implicit int. There is no situation where a size
+     *       specifier would couple with anything but an int type. It
+     *       should be noted that there has to be an "unsized" state for
+     *       types on their own.
+     *
+     *    3: The Signness/signature, for knowing if the declaration is
+     *       signed or unsigned. This isn't actually a boolean state because
+     *       there needs to be an unsignness state since the char type is
+     *       allowed to have it's signeness implementation-defined.
+     *
+     *    4: constantness
+     *         self explanatory
+     *    5: vollatileness
+     *         self explanatory
+     *    6: inlineness
+     *         self explanatory
+     *
+     *    7: user (can include redundant partial specification), e.g
+     *          typedef unsigned int foo; signed foo; <--- what to do?
+     *          this also includes enums, unions, and structures.
+     */
     enum {
         kvoid = 1,
         kchar,
@@ -1011,9 +1029,11 @@ static data_type_t *parse_declaration_specification(storage_t *rstorage) {
         case kllong:
             return ast_type_create(TYPE_LLONG, signature != kunsigned);
         default:
-            // retarded implicit int becomes easy this way, at least on of the
-            // useful benefits of such a complicated state machine.
-            return ast_type_create(TYPE_INT,   signature != kunsigned);
+            /*
+             * You also need to deal with implicit int given the right
+             * conditions of the state machine.
+             */
+            return ast_type_create(TYPE_INT, signature != kunsigned);
     }
 
     compile_error("ICE (BAD)");
@@ -1164,7 +1184,9 @@ static ast_t *parse_statement_continue(void) {
 static ast_t *parse_statement_switch(void) {
     parse_expect('(');
     ast_t *expression = parse_expression();
-    //parse_semantic_lvalue(expression); TODO verify lvalueness
+
+    /* TODO lvalueness test propogate?*/
+
     parse_expect(')');
     ast_t *body = parse_statement();
     return ast_switch(expression, body);
@@ -1184,7 +1206,7 @@ static ast_t *parse_statement_default(void) {
 static ast_t *parse_statement_return(void) {
     ast_t *val = parse_expression();
     parse_expect(';');
-    return ast_return(ast_data_table[AST_DATA_FUNCTION]->returntype, val); // todo more accurte type
+    return ast_return(ast_data_table[AST_DATA_FUNCTION]->returntype, val);
 }
 
 static ast_t *parse_statement_goto(void) {
@@ -1230,7 +1252,6 @@ static ast_t *parse_statement(void) {
     lexer_token_t *token = lexer_next();
     ast_t         *ast;
 
-    // deal with the statements
     if (lexer_ispunct        (token, '{'))        return parse_statement_compound();
     if (parse_identifer_check(token, "if"))       return parse_statement_if();
     if (parse_identifer_check(token, "for"))      return parse_statement_for();
@@ -1244,8 +1265,6 @@ static ast_t *parse_statement(void) {
     if (parse_identifer_check(token, "continue")) return parse_statement_continue();
     if (parse_identifer_check(token, "goto"))     return parse_statement_goto();
 
-    // technically not a statement, but since it's heavily involved with
-    // goto we call it a statement for organizational reasons.
     if (token->type == LEXER_TOKEN_IDENTIFIER && lexer_ispunct(lexer_peek(), ':'))
         return parse_label(token);
 
@@ -1306,7 +1325,6 @@ static data_type_t *parse_function_parameters(list_t *paramvars, data_type_t *re
             lexer_unget(token);
         }
 
-        // paramater parse
         data_type_t *ptype;
         char        *name;
         parse_function_parameter(&ptype, &name, typeonly);
@@ -1351,19 +1369,16 @@ static bool parse_function_definition_check(void) {
     bool    ready  = true;
 
     for (;;) {
-        // keep buffer of tokens
+
         lexer_token_t *token = lexer_next();
         list_push(buffer, token);
 
         if (!token)
             compile_error("function definition with unexpected ending");
 
-        // not a definition when no nesting and there is
-        // pren close followed by a {
         if (nests == 0 && paren && lexer_ispunct(token, '{'))
             break;
 
-        // ";," or "=" will respectfulyl mark this non ready
         if (nests == 0 && (lexer_ispunct(token, ';')
                          ||lexer_ispunct(token, ',')
                          ||lexer_ispunct(token, '=')))
@@ -1372,20 +1387,17 @@ static bool parse_function_definition_check(void) {
             break;
         }
 
-        // more nesting of parens
         if (lexer_ispunct(token, '('))
             nests++;
 
-        // handle nesting of parens and paren state
         if (lexer_ispunct(token, ')')) {
-            if (nests == 0) // too many closes
+            if (nests == 0)
                 compile_error("unmatches parenthesis");
             paren = true;
             nests--;
         }
     }
 
-    // now undo the token stream
     while (list_length(buffer) > 0)
         lexer_unget(list_pop(buffer));
 
@@ -1489,7 +1501,6 @@ static data_type_t *parse_declarator_direct(char **rname, data_type_t *basetype,
     return parse_declarator_direct_restage(basetype, parameters);
 }
 
-// fix the array size based on type
 static void parse_array_fix(data_type_t *type) {
     if (type->type == TYPE_ARRAY) {
         parse_array_fix(type->pointer);
