@@ -1,6 +1,27 @@
 #ifndef LICE_AMD64_HDR
+/*
+ * File: amd64.h
+ *  Isolates AMD64 / SystemV ABI specific details that are used in
+ *  a variety of places of the compiler to target AMD64.
+ */
 
-// type sizes
+/*
+ * Constants: Native type sizes
+ *
+ *  The following are macros which describe the sizes of various native
+ *  data types, they should reflect their true sizes on the given
+ *  architecture unless mentioned otherwise by a specific ABI.
+ *
+ *  ARCH_TYPE_SIZE_CHAR     - Size of a char
+ *  ARCH_TYPE_SIZE_LONG     - Size of a long
+ *  ARCH_TYPE_SIZE_LLONG    - Size of a long long
+ *  ARCH_TYPE_SIZE_INT      - Size of a int
+ *  ARCH_TYPE_SIZE_SHORT    - Size of a short
+ *  ARCH_TYPE_SIZE_FLOAT    - Size of a float
+ *  ARCH_TYPE_SIZE_DOUBLE   - Size of a double
+ *  ARCH_TYPE_SIZE_LDOUBLE  - Size of a long double
+ *  ARCH_TYPE_SIZE_POINTER  - Size of a pointer
+ */
 #define ARCH_TYPE_SIZE_CHAR      1
 #define ARCH_TYPE_SIZE_LONG      8
 #define ARCH_TYPE_SIZE_LLONG     8
@@ -11,8 +32,19 @@
 #define ARCH_TYPE_SIZE_LDOUBLE   8
 #define ARCH_TYPE_SIZE_POINTER   8
 
-// alignment
+/*
+ * Macro: ARCH_ALIGNMENT
+ *  The default alignment of structure elements (padding) for the given
+ *  architecture / ABI
+ */
 #define ARCH_ALIGNMENT           16
+
+/*
+ * Macro: ARCH_CALLREGISTERS
+ *  The maximum number of registers to place a direct or indirect
+ *  function call for the given architecture / ABI, after which stack
+ *  space will be used.
+ */
 #define ARCH_CALLREGISTERS       6
 
 #endif
