@@ -178,8 +178,6 @@ static lexer_token_t *lexer_read_string(void) {
 
         if (c == '"')
             break;
-
-        /* TODO fix */
         if (c == '\\')
             c = lexer_read_character_escaped();
         string_cat(string, c);
