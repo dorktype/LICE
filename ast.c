@@ -136,9 +136,7 @@ data_type_t *ast_result_type(char op, data_type_t *a, data_type_t *b) {
     return NULL;
 }
 
-////////////////////////////////////////////////////////////////////////
-// structures
-ast_t *ast_structure_reference_new(data_type_t *type, ast_t *structure, char *name) {
+ast_t *ast_structure_reference(data_type_t *type, ast_t *structure, char *name) {
     ast_t *ast     = memory_allocate(sizeof(ast_t));
     ast->type      = AST_TYPE_STRUCT;
     ast->ctype     = type;
@@ -148,7 +146,7 @@ ast_t *ast_structure_reference_new(data_type_t *type, ast_t *structure, char *na
     return ast;
 }
 
-data_type_t *ast_structure_field_new(data_type_t *type, int offset) {
+data_type_t *ast_structure_field(data_type_t *type, int offset) {
     data_type_t *field = ast_type_copy(type);
     field->offset = offset;
     return field;
@@ -163,8 +161,6 @@ data_type_t *ast_structure_new(table_t *fields, int size) {
     return structure;
 }
 
-////////////////////////////////////////////////////////////////////////
-// unary and binary
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand) {
     ast_t *ast         = memory_allocate(sizeof(ast_t));
     ast->type          = type;
@@ -192,8 +188,6 @@ ast_t *ast_new_binary(int type, ast_t *left, ast_t *right) {
     return ast;
 }
 
-////////////////////////////////////////////////////////////////////////
-// data types
 bool ast_type_integer(data_type_t *type) {
     return type->type == TYPE_CHAR
         || type->type == TYPE_SHORT
@@ -273,8 +267,6 @@ ast_t *ast_new_string(char *value) {
     return ast;
 }
 
-////////////////////////////////////////////////////////////////////////
-// variables (global and local)
 ast_t *ast_variable_local(data_type_t *type, char *name) {
     ast_t *ast         = memory_allocate(sizeof(ast_t));
     ast->type          = AST_TYPE_VAR_LOCAL;
@@ -300,8 +292,6 @@ ast_t *ast_variable_global(data_type_t *type, char *name) {
     return ast;
 }
 
-////////////////////////////////////////////////////////////////////////
-// functions and calls
 ast_t *ast_call(data_type_t *type, char *name, list_t *arguments, list_t *parametertypes) {
     ast_t *ast                   = memory_allocate(sizeof(ast_t));
     ast->type                    = AST_TYPE_CALL;
@@ -325,8 +315,6 @@ ast_t *ast_function(data_type_t *ret, char *name, list_t *params, ast_t *body, l
     return ast;
 }
 
-////////////////////////////////////////////////////////////////////////
-// declarations
 ast_t *ast_declaration(ast_t *var, ast_t *init) {
     ast_t *ast     = memory_allocate(sizeof(ast_t));
     ast->type      = AST_TYPE_DECLARATION;
@@ -337,8 +325,6 @@ ast_t *ast_declaration(ast_t *var, ast_t *init) {
     return ast;
 }
 
-////////////////////////////////////////////////////////////////////////
-// constructs
 ast_t *ast_initializerlist(list_t *init) {
     ast_t *ast         = memory_allocate(sizeof(ast_t));
     ast->type          = AST_TYPE_INITIALIZERLIST;
@@ -382,8 +368,6 @@ data_type_t *ast_pointer(data_type_t *type) {
     return data;
 }
 
-// while technically not a construct .. or an expression ternary
-// can be considered a construct
 ast_t *ast_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
     ast_t *ast       = memory_allocate(sizeof(ast_t));
     ast->type        = AST_TYPE_EXPRESSION_TERNARY;
@@ -395,8 +379,6 @@ ast_t *ast_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
     return ast;
 }
 
-////////////////////////////////////////////////////////////////////////
-// statements
 static ast_t *ast_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
     ast_t *ast        = memory_allocate(sizeof(ast_t));
     ast->type         = type;
@@ -491,8 +473,6 @@ ast_t *ast_compound(list_t *statements) {
     return ast;
 }
 
-////////////////////////////////////////////////////////////////////////
-// misc
 char *ast_label(void) {
     static int index = 0;
     string_t *string = string_create();
@@ -501,7 +481,6 @@ char *ast_label(void) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// ast debugging facilities
 const char *ast_type_string(data_type_t *type) {
     string_t *string;
 

@@ -2,7 +2,7 @@
 #define LICE_LEXER_HDR
 /*
  * File: lexer.h
- *  Implements the lexer interface of LICE
+ *  Implements the interface for LICE's lexer
  */
 #include <stdbool.h>
 
@@ -48,7 +48,7 @@ typedef enum {
     LEXER_TOKEN_CHAR,
     LEXER_TOKEN_STRING,
     LEXER_TOKEN_NUMBER,
-    LEXER_TOKEN_EQUAL     = 0x200,
+    LEXER_TOKEN_EQUAL = 0x200,
     LEXER_TOKEN_LEQUAL,
     LEXER_TOKEN_GEQUAL,
     LEXER_TOKEN_NEQUAL,

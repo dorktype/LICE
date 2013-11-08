@@ -446,7 +446,7 @@ static ast_t *parse_structure_field(ast_t *structure) {
     data_type_t *field = table_find(structure->ctype->fields, name->string);
     if (!field)
         compile_error("structure has no such field");
-    return ast_structure_reference_new(field, structure, name->string);
+    return ast_structure_reference(field, structure, name->string);
 }
 
 static int parse_operation_compound_operator(lexer_token_t *token) {
@@ -747,11 +747,11 @@ static table_t *parse_memory_fields(int *rsize, bool isstruct) {
 
             if (isstruct) {
                 offset   += parse_memory_fields_padding(offset, fieldtype->size);
-                fieldtype = ast_structure_field_new(fieldtype, offset);
+                fieldtype = ast_structure_field(fieldtype, offset);
                 offset   += fieldtype->size;
             } else {
                 maxsize   = MAX(maxsize, fieldtype->size);
-                fieldtype = ast_structure_field_new(fieldtype, 0);
+                fieldtype = ast_structure_field(fieldtype, 0);
             }
             table_insert(table, name, fieldtype);
 

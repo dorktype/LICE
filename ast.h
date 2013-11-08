@@ -480,8 +480,8 @@ struct ast_s {
     };
 };
 
-ast_t *ast_structure_reference_new(data_type_t *type, ast_t *structure, char *name);
-data_type_t *ast_structure_field_new(data_type_t *type, int offset);
+ast_t *ast_structure_reference(data_type_t *type, ast_t *structure, char *name);
+data_type_t *ast_structure_field(data_type_t *type, int offset);
 data_type_t *ast_structure_new(table_t *fields, int size);
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand);
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right);
@@ -491,9 +491,7 @@ ast_t *ast_new_char(char value);
 char *ast_label(void);
 ast_t *ast_declaration(ast_t *var, ast_t *init);
 ast_t *ast_variable_local(data_type_t *type, char *name);
-ast_t *ast_new_reference_local(data_type_t *type, ast_t *var, int off);
 ast_t *ast_variable_global(data_type_t *type, char *name);
-ast_t *ast_new_reference_global(data_type_t *type, ast_t *var, int off);
 ast_t *ast_new_string(char *value);
 ast_t *ast_call(data_type_t *type, char *name, list_t *args, list_t *paramtypes);
 ast_t *ast_function(data_type_t *type, char *name, list_t *params, ast_t *body, list_t *locals);
