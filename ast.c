@@ -266,7 +266,7 @@ ast_t *ast_new_floating(data_type_t *type, double value) {
 ast_t *ast_new_string(char *value) {
     ast_t *ast        = memory_allocate(sizeof(ast_t));
     ast->type         = AST_TYPE_STRING;
-    ast->ctype        = ast_new_array(ast_data_table[AST_DATA_CHAR], strlen(value) + 1);
+    ast->ctype        = ast_array(ast_data_table[AST_DATA_CHAR], strlen(value) + 1);
     ast->string.data  = value;
     ast->string.label = ast_label();
 
@@ -275,7 +275,7 @@ ast_t *ast_new_string(char *value) {
 
 ////////////////////////////////////////////////////////////////////////
 // variables (global and local)
-ast_t *ast_new_variable_local(data_type_t *type, char *name) {
+ast_t *ast_variable_local(data_type_t *type, char *name) {
     ast_t *ast         = memory_allocate(sizeof(ast_t));
     ast->type          = AST_TYPE_VAR_LOCAL;
     ast->ctype         = type;
@@ -289,7 +289,7 @@ ast_t *ast_new_variable_local(data_type_t *type, char *name) {
     return ast;
 }
 
-ast_t *ast_new_variable_global(data_type_t *type, char *name) {
+ast_t *ast_variable_global(data_type_t *type, char *name) {
     ast_t *ast          = memory_allocate(sizeof(ast_t));
     ast->type           = AST_TYPE_VAR_GLOBAL;
     ast->ctype          = type;
@@ -302,7 +302,7 @@ ast_t *ast_new_variable_global(data_type_t *type, char *name) {
 
 ////////////////////////////////////////////////////////////////////////
 // functions and calls
-ast_t *ast_new_call(data_type_t *type, char *name, list_t *arguments, list_t *parametertypes) {
+ast_t *ast_call(data_type_t *type, char *name, list_t *arguments, list_t *parametertypes) {
     ast_t *ast                   = memory_allocate(sizeof(ast_t));
     ast->type                    = AST_TYPE_CALL;
     ast->ctype                    = type;
@@ -313,7 +313,7 @@ ast_t *ast_new_call(data_type_t *type, char *name, list_t *arguments, list_t *pa
     return ast;
 }
 
-ast_t *ast_new_function(data_type_t *ret, char *name, list_t *params, ast_t *body, list_t *locals) {
+ast_t *ast_function(data_type_t *ret, char *name, list_t *params, ast_t *body, list_t *locals) {
     ast_t *ast           = memory_allocate(sizeof(ast_t));
     ast->type            = AST_TYPE_FUNCTION;
     ast->ctype           = ret;
@@ -327,7 +327,7 @@ ast_t *ast_new_function(data_type_t *ret, char *name, list_t *params, ast_t *bod
 
 ////////////////////////////////////////////////////////////////////////
 // declarations
-ast_t *ast_new_decl(ast_t *var, ast_t *init) {
+ast_t *ast_declaration(ast_t *var, ast_t *init) {
     ast_t *ast     = memory_allocate(sizeof(ast_t));
     ast->type      = AST_TYPE_DECLARATION;
     ast->ctype     = NULL;
@@ -339,7 +339,7 @@ ast_t *ast_new_decl(ast_t *var, ast_t *init) {
 
 ////////////////////////////////////////////////////////////////////////
 // constructs
-ast_t *ast_new_initializerlist(list_t *init) {
+ast_t *ast_initializerlist(list_t *init) {
     ast_t *ast         = memory_allocate(sizeof(ast_t));
     ast->type          = AST_TYPE_INITIALIZERLIST;
     ast->ctype         = NULL;
@@ -348,7 +348,7 @@ ast_t *ast_new_initializerlist(list_t *init) {
     return ast;
 }
 
-data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes, bool dots) {
+data_type_t *ast_prototype(data_type_t *returntype, list_t *paramtypes, bool dots) {
     data_type_t *type  = memory_allocate(sizeof(data_type_t));
     type->type         = TYPE_FUNCTION;
     type->returntype   = returntype;
@@ -357,7 +357,7 @@ data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes, bool
     return type;
 }
 
-data_type_t *ast_new_array(data_type_t *type, int length) {
+data_type_t *ast_array(data_type_t *type, int length) {
     data_type_t *data = memory_allocate(sizeof(data_type_t));
     data->type        = TYPE_ARRAY;
     data->pointer     = type;
@@ -370,10 +370,10 @@ data_type_t *ast_new_array(data_type_t *type, int length) {
 data_type_t *ast_array_convert(data_type_t *type) {
     if (type->type != TYPE_ARRAY)
         return type;
-    return ast_new_pointer(type->pointer);
+    return ast_pointer(type->pointer);
 }
 
-data_type_t *ast_new_pointer(data_type_t *type) {
+data_type_t *ast_pointer(data_type_t *type) {
     data_type_t *data = memory_allocate(sizeof(data_type_t));
     data->type        = TYPE_POINTER;
     data->pointer     = type;
@@ -384,7 +384,7 @@ data_type_t *ast_new_pointer(data_type_t *type) {
 
 // while technically not a construct .. or an expression ternary
 // can be considered a construct
-ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
+ast_t *ast_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
     ast_t *ast       = memory_allocate(sizeof(ast_t));
     ast->type        = AST_TYPE_EXPRESSION_TERNARY;
     ast->ctype       = type;
@@ -397,7 +397,7 @@ ast_t *ast_new_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last)
 
 ////////////////////////////////////////////////////////////////////////
 // statements
-static ast_t *ast_new_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
+static ast_t *ast_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
     ast_t *ast        = memory_allocate(sizeof(ast_t));
     ast->type         = type;
     ast->ctype        = NULL;
@@ -409,7 +409,7 @@ static ast_t *ast_new_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t
     return ast;
 }
 
-ast_t *ast_new_switch(ast_t *expr, ast_t *body) {
+ast_t *ast_switch(ast_t *expr, ast_t *body) {
     ast_t *ast           = memory_allocate(sizeof(ast_t));
     ast->type            = AST_TYPE_STATEMENT_SWITCH;
     ast->switchstmt.expr = expr;
@@ -418,7 +418,7 @@ ast_t *ast_new_switch(ast_t *expr, ast_t *body) {
     return ast;
 }
 
-ast_t *ast_new_case(int value) {
+ast_t *ast_case(int value) {
     ast_t *ast     = memory_allocate(sizeof(ast_t));
     ast->type      = AST_TYPE_STATEMENT_CASE;
     ast->casevalue = value;
@@ -432,7 +432,7 @@ ast_t *ast_make(int type) {
     return ast;
 }
 
-ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last) {
+ast_t *ast_if(ast_t *cond, ast_t *then, ast_t *last) {
     ast_t *ast       = memory_allocate(sizeof(ast_t));
     ast->type        = AST_TYPE_STATEMENT_IF;
     ast->ctype       = NULL;
@@ -443,19 +443,19 @@ ast_t *ast_new_if(ast_t *cond, ast_t *then, ast_t *last) {
     return ast;
 }
 
-ast_t *ast_new_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
-    return ast_new_for_intermediate(AST_TYPE_STATEMENT_FOR, init, cond, step, body);
+ast_t *ast_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
+    return ast_for_intermediate(AST_TYPE_STATEMENT_FOR, init, cond, step, body);
 }
 
-ast_t *ast_new_while(ast_t *cond, ast_t *body) {
-    return ast_new_for_intermediate(AST_TYPE_STATEMENT_WHILE, NULL, cond, NULL, body);
+ast_t *ast_while(ast_t *cond, ast_t *body) {
+    return ast_for_intermediate(AST_TYPE_STATEMENT_WHILE, NULL, cond, NULL, body);
 }
 
-ast_t *ast_new_do(ast_t *cond, ast_t *body) {
-    return ast_new_for_intermediate(AST_TYPE_STATEMENT_DO, NULL, cond, NULL, body);
+ast_t *ast_do(ast_t *cond, ast_t *body) {
+    return ast_for_intermediate(AST_TYPE_STATEMENT_DO, NULL, cond, NULL, body);
 }
 
-ast_t *ast_goto_new(char *label) {
+ast_t *ast_goto(char *label) {
     ast_t *ast          = memory_allocate(sizeof(ast_t));
     ast->type           = AST_TYPE_STATEMENT_GOTO;
     ast->gotostmt.label = label;
@@ -473,7 +473,7 @@ ast_t *ast_label_new(char *label) {
     return ast;
 }
 
-ast_t *ast_new_return(data_type_t *returntype, ast_t *value) {
+ast_t *ast_return(data_type_t *returntype, ast_t *value) {
     ast_t *ast      = memory_allocate(sizeof(ast_t));
     ast->type       = AST_TYPE_STATEMENT_RETURN;
     ast->ctype      = returntype;
@@ -482,7 +482,7 @@ ast_t *ast_new_return(data_type_t *returntype, ast_t *value) {
     return ast;
 }
 
-ast_t *ast_new_compound(list_t *statements) {
+ast_t *ast_compound(list_t *statements) {
     ast_t *ast    = memory_allocate(sizeof(ast_t));
     ast->type     = AST_TYPE_STATEMENT_COMPOUND;
     ast->ctype    = NULL;
