@@ -157,7 +157,7 @@ data_type_t *ast_structure_field_new(data_type_t *type, int offset) {
 }
 
 data_type_t *ast_structure_new(table_t *fields, int size) {
-    data_type_t *structure = (data_type_t*)memory_allocate(sizeof(data_type_t));
+    data_type_t *structure = memory_allocate(sizeof(data_type_t));
     structure->type        = TYPE_STRUCTURE;
     structure->size        = size;
     structure->fields      = fields;
@@ -351,7 +351,7 @@ ast_t *ast_new_initializerlist(list_t *init) {
 }
 
 data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes, bool dots) {
-    data_type_t *type  = (data_type_t*)memory_allocate(sizeof(data_type_t));
+    data_type_t *type  = memory_allocate(sizeof(data_type_t));
     type->type         = TYPE_FUNCTION;
     type->returntype   = returntype;
     type->parameters   = paramtypes;
@@ -360,7 +360,7 @@ data_type_t *ast_new_prototype(data_type_t *returntype, list_t *paramtypes, bool
 }
 
 data_type_t *ast_new_array(data_type_t *type, int length) {
-    data_type_t *data = (data_type_t*)memory_allocate(sizeof(data_type_t));
+    data_type_t *data = memory_allocate(sizeof(data_type_t));
     data->type        = TYPE_ARRAY;
     data->pointer     = type;
     data->size        = (length < 0) ? -1 : type->size * length;
@@ -376,7 +376,7 @@ data_type_t *ast_array_convert(data_type_t *type) {
 }
 
 data_type_t *ast_new_pointer(data_type_t *type) {
-    data_type_t *data = (data_type_t*)memory_allocate(sizeof(data_type_t));
+    data_type_t *data = memory_allocate(sizeof(data_type_t));
     data->type        = TYPE_POINTER;
     data->pointer     = type;
     data->size        = 8;

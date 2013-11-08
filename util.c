@@ -65,7 +65,7 @@ void string_catf(string_t *string, const char *fmt, ...) {
 }
 
 string_t *string_create(void) {
-    string_t *string  = (string_t*)memory_allocate(sizeof(string_t));
+    string_t *string  = memory_allocate(sizeof(string_t));
     string->buffer    = memory_allocate(1024);
     string->allocated = 1024;
     string->length    = 0;
@@ -110,7 +110,7 @@ struct list_iterator_s {
 };
 
 list_t *list_create(void) {
-    list_t *list = (list_t*)memory_allocate(sizeof(list_t));
+    list_t *list = memory_allocate(sizeof(list_t));
     list->length = 0;
     list->head   = NULL;
     list->tail   = NULL;
@@ -119,7 +119,7 @@ list_t *list_create(void) {
 }
 
 void *list_node_create(void *element) {
-    list_node_t *node = (list_node_t*)memory_allocate(sizeof(list_node_t));
+    list_node_t *node = memory_allocate(sizeof(list_node_t));
     node->element     = element;
     node->next        = NULL;
     node->prev        = NULL;
@@ -169,8 +169,8 @@ int list_length(list_t *list) {
 }
 
 list_iterator_t *list_iterator(list_t *list) {
-    list_iterator_t *iter = (list_iterator_t*)memory_allocate(sizeof(list_iterator_t));
-    iter->pointer     = list->head;
+    list_iterator_t *iter = memory_allocate(sizeof(list_iterator_t));
+    iter->pointer         = list->head;
     return iter;
 }
 
@@ -226,7 +226,7 @@ typedef struct {
 } table_entry_t;
 
 void *table_create(void *parent) {
-    table_t *table = (table_t*)memory_allocate(sizeof(table_t));
+    table_t *table = memory_allocate(sizeof(table_t));
     table->list    = list_create();
     table->parent  = parent;
 
@@ -245,7 +245,7 @@ void *table_find(table_t *table, const char *key) {
 }
 
 void table_insert(table_t *table, char *key, void *value) {
-    table_entry_t *entry = (table_entry_t*)memory_allocate(sizeof(table_entry_t));
+    table_entry_t *entry = memory_allocate(sizeof(table_entry_t));
     entry->key           = key;
     entry->value         = value;
 
