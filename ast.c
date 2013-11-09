@@ -241,12 +241,6 @@ ast_t *ast_variable_local(data_type_t *type, char *name) {
     return ast;
 }
 
-ast_t *ast_variable_local_init(data_type_t *type, char *name, list_t *init) {
-    ast_t *ast         = ast_variable_local(type, name);
-    ast->variable.init = init;
-    return ast;
-}
-
 ast_t *ast_variable_global(data_type_t *type, char *name) {
     ast_t *ast = ast_copy(&(ast_t){
         .type           = AST_TYPE_VAR_GLOBAL,

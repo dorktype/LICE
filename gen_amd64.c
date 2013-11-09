@@ -386,6 +386,7 @@ static void gen_literal_save(ast_t *ast, data_type_t *type, int offset) {
 
         case TYPE_LONG:
         case TYPE_LLONG:
+        case TYPE_POINTER:
             gen_push("rax");
             gen_emit("movq $%lu, %%rax", (unsigned long)ast->integer);
             gen_emit("movq %%rax, %d(%%rbp)", offset);
@@ -580,6 +581,10 @@ static void gen_expression(ast_t *ast) {
 
                 case AST_TYPE_VAR_GLOBAL:
                     gen_emit("lea %s(%%rip), %%rax", ast->unary.operand->variable.label);
+                    break;
+
+                case AST_TYPE_DEREFERENCE:
+                    gen_expression(ast->unary.operand);
                     break;
 
                 default:
@@ -800,42 +805,124 @@ static void gen_expression(ast_t *ast) {
     }
 }
 
-static void gen_data(ast_t *ast) {
-    gen_emit_inline(".global %s", ast->decl.var->variable.name);
-    gen_emit_inline("%s:", ast->decl.var->variable.name);
-
-    int   size = ast->decl.var->ctype->size;
-    char *data = memory_allocate(size);
-    char *p    = data;
-
-    memset(data, 0, size);
-
-    for (list_iterator_t *it = list_iterator(ast->decl.init); !list_iterator_end(it); ) {
+int parse_evaluate(ast_t *ast);
+static void gen_data_initialization_intermediate(table_t *labels, char *data, table_t *literal, list_t *init, int offset) {
+    for (list_iterator_t *it = list_iterator(init); !list_iterator_end(it); ) {
         ast_t *node = list_iterator_next(it);
+
+        if (node->init.value->type                == AST_TYPE_ADDRESS
+        &&  node->init.value->unary.operand->type == AST_TYPE_VAR_LOCAL
+        &&  node->init.value->unary.operand->variable.init) {
+
+            char     *label  = ast_label();
+            string_t *string = string_create();
+
+            string_catf(string, "%d", node->init.offset + offset);
+
+            table_insert(literal, label, node->init.value->unary.operand);
+            table_insert(labels,  string_buffer(string), label);
+            continue;
+        }
+
+        if (node->init.value->type == AST_TYPE_VAR_LOCAL && node->init.value->variable.init) {
+            gen_data_initialization_intermediate(labels, data, literal, node->init.value->variable.init, node->init.offset + offset);
+            continue;
+        }
+
         switch (node->init.type->type) {
-            case TYPE_CHAR:   *p          = node->init.value->integer;        p++;                 break;
-            case TYPE_FLOAT:  *(float*)p  = node->init.value->floating.value; p += sizeof(float);  break;
-            case TYPE_DOUBLE: *(double*)p = node->init.value->floating.value; p += sizeof(double); break;
-            case TYPE_SHORT:  *(short*)p  = node->init.value->integer;        p += sizeof(short);  break;
-            case TYPE_INT:    *(int*)p    = node->init.value->integer;        p += sizeof(int);    break;
+            case TYPE_FLOAT:
+                *(float*)(data + node->init.offset + offset) = node->init.value->floating.value;
+                break;
+
+            case TYPE_DOUBLE:
+                *(double*)(data + node->init.offset + offset) = node->init.value->floating.value;
+                break;
+
+            case TYPE_CHAR:
+                *(char*)(data + node->init.offset + offset) = parse_evaluate(node->init.value);
+                break;
+
+            case TYPE_SHORT:
+                *(short*)(data + node->init.offset + offset) = parse_evaluate(node->init.value);
+                break;
+
+            case TYPE_INT:
+                *(int*)(data + node->init.offset + offset) = parse_evaluate(node->init.value);
+                break;
 
             case TYPE_LONG:
-            case TYPE_LLONG:
-                *(long*)p = node->init.value->integer;
-                p += sizeof(long);
+                *(long*)(data + node->init.offset + offset) = parse_evaluate(node->init.value);
                 break;
+
+            case TYPE_LLONG:
+                *(long long*)(data + node->init.offset + offset) = parse_evaluate(node->init.value);
+                break;
+
+            case TYPE_POINTER:
+                *(long *)(data + node->init.offset + offset) = parse_evaluate(node->init.value);
 
             default:
                 break;
         }
     }
+}
 
-    /* write the rest of the data */
+static void gen_data_initialization(table_t *table, list_t *list, int size) {
+    char *data = memory_allocate(size);
+    memset(data, 0, size);
+
+    table_t *labels = table_create(NULL);
+    gen_data_initialization_intermediate(labels, data, table, list, 0);
+
     int i = 0;
-    for (; i < size - 8; i += 8)
-        gen_emit(".quad %ld", ((long*)data)[i]);
+    for (; i <= size - 4; i += 4) {
+        string_t *string = string_create();
+        string_catf(string, "%d", i);
+        char *label = table_find(labels, string_buffer(string));
+        if (label) {
+            gen_emit(".quad %s", label);
+            i += 4;
+        } else {
+            gen_emit(".long %d", data[i]);
+        }
+    }
     for (; i < size; i++)
         gen_emit(".byte %d", data[i]);
+    gen_emit(".align 8");
+}
+
+/*
+ * Recursive compliteral generation, emits data initialization
+ * until there is nothing to initialize left.
+ */
+static void gen_data_literal(char *label, ast_t *ast) {
+    table_t *table = table_create(NULL);
+    gen_emit_inline("%s:", label);
+    gen_data_initialization(table, ast->variable.init, ast->ctype->size);
+
+    for (list_iterator_t *it = list_iterator(table_keys(table)); !list_iterator_end(it); ) {
+        char  *label = list_iterator_next(it);
+        ast_t *node  = table_find(table, label);
+
+        gen_data_literal(label, node);
+    }
+}
+
+static void gen_data(ast_t *ast) {
+    table_t *table = table_create(NULL);
+
+    if (!ast->decl.var->ctype->isstatic)
+        gen_emit_inline(".global %s", ast->decl.var->variable.name);
+
+    gen_emit_inline("%s:", ast->decl.var->variable.name);
+    gen_data_initialization(table, ast->decl.init, ast->decl.var->ctype->size);
+
+    for (list_iterator_t *it = list_iterator(table_keys(table)); !list_iterator_end(it); ) {
+        char  *label = list_iterator_next(it);
+        ast_t *node  = table_find(table, label);
+
+        gen_data_literal(label, node);
+    }
 }
 
 static void gen_bss(ast_t *ast) {

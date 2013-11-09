@@ -62,7 +62,7 @@ static bool parse_identifer_check(lexer_token_t *token, const char *identifier) 
     return token->type == LEXER_TOKEN_IDENTIFIER && !strcmp(token->string, identifier);
 }
 
-static int parse_evaluate(ast_t *ast) {
+int parse_evaluate(ast_t *ast) {
     switch (ast->type) {
         case AST_TYPE_LITERAL:
             if (ast_type_integer(ast->ctype))
@@ -360,7 +360,10 @@ static ast_t *parse_expression_compound_literal(data_type_t *type) {
     char   *name = ast_label();
     list_t *list = parse_initializer_declaration(type);
     parse_expect('}');
-    return ast_variable_local_init(type, name, list);
+
+    ast_t *node = ast_variable_local(type, name);
+    node->variable.init = list;
+    return node;
 }
 
 static ast_t *parse_expression_unary_cast(void) {
@@ -1678,6 +1681,9 @@ static void parse_declaration(list_t *list, ast_t *(*make)(data_type_t *, char *
     for (;;) {
         char        *name = NULL;
         data_type_t *type = parse_declarator(&name, ast_type_copy_incomplete(basetype), NULL, CDECL_BODY);
+
+        if (storage == STORAGE_STATIC)
+            type->isstatic = true;
 
         token = lexer_next();
         if (lexer_ispunct(token, '=')) {
