@@ -71,11 +71,6 @@ a list has been provided below.
 
 -   Floating point constants beginning with `.` aren't supported.
 
--   Designated array initializers aren't supported.
-
--   Initializer lists, while they are supported, are only supported for one
-    level of nesting, similarly nested designators aren't supported either.
-
 -   C99 `typeof` keyword isn't supported.
 
 -   Character literals are interpreted as type `char`, opposed to type `int`,

@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "lice.h"
 
@@ -345,13 +346,6 @@ static void gen_save(data_type_t *to, data_type_t *from) {
 }
 
 static void gen_binary(ast_t *ast) {
-    if (ast->type == '=') {
-        gen_expression(ast->right);
-        gen_load(ast->ctype, ast->right->ctype);
-        gen_assignment(ast->left);
-        return;
-    }
-
     if (ast->ctype->type == TYPE_POINTER) {
         gen_pointer_arithmetic(ast->type, ast->left, ast->right);
         return;
@@ -372,6 +366,45 @@ static void gen_binary(ast_t *ast) {
         gen_binary_arithmetic_floating(ast);
     else
         compile_error("Internal error");
+}
+
+static void gen_literal_save(ast_t *ast, data_type_t *type, int offset) {
+    switch (type->type) {
+        case TYPE_CHAR:  gen_emit("movb $%d, %d(%%rbp)", ast->integer, offset); break;
+        case TYPE_SHORT: gen_emit("movw $%d, %d(%%rbp)", ast->integer, offset); break;
+        case TYPE_INT:   gen_emit("movl $%d, %d(%%rbp)", ast->integer, offset); break;
+
+        case TYPE_LONG:
+        case TYPE_LLONG:
+            gen_push("rax");
+            gen_emit("movq $%lu, %%rax", (unsigned long)ast->integer);
+            gen_emit("movq %%rax, %d(%%rbp)", offset);
+            gen_pop("rax");
+            break;
+
+        case TYPE_FLOAT:
+        case TYPE_DOUBLE:
+            gen_push("rax");
+            gen_emit("movq $%uld, %%rax", *(long*)&ast->floating);
+            gen_emit("movq %%rax, %d(%%rbp)", offset);
+            gen_pop("rax");
+            break;
+
+        default:
+            compile_error("codegen internal error in %s", __func__);
+    }
+}
+
+static void gen_declaration_initialization(list_t *init, int offset) {
+    for (list_iterator_t *it = list_iterator(init); !list_iterator_end(it); ) {
+        ast_t *node = list_iterator_next(it);
+        if (node->init.value->type == AST_TYPE_LITERAL)
+            gen_literal_save(node->init.value, node->init.type, node->init.offset + offset);
+        else {
+            gen_expression(node->init.value);
+            gen_save_local(node->init.type, node->init.offset + offset);
+        }
+    }
 }
 
 static void gen_emit_prefix(ast_t *ast, const char *op) {
@@ -425,7 +458,6 @@ static void gen_expression(ast_t *ast) {
 
     int regi = 0, backi;
     int regx = 0, backx;
-    int i;
 
     list_t *argtypes;
 
@@ -524,30 +556,9 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_DECLARATION:
-            if (!ast->decl.init)
-                return;
-
-            if (ast->decl.init->type == AST_TYPE_INITIALIZERLIST) {
-                i = 0;
-                for (list_iterator_t *it = list_iterator(ast->decl.init->initlist.list); !list_iterator_end(it);) {
-                    ast_t *element = list_iterator_next(it);
-                    gen_expression(element);
-                    gen_save_local(element->initlist.type, ast->decl.var->variable.off + i);
-                    i += element->initlist.type->size;
-                }
-            } else if (ast->decl.var->ctype->type == TYPE_ARRAY) {
-                char *p;
-                for (i = 0, p = ast->decl.init->string.data; *p; p++, i++)
-                    gen_emit("movb $%d, %d(%%rbp)", *p, ast->decl.var->variable.off + i);
-                gen_emit("movb $0, %d(%%rbp)", ast->decl.var->variable.off + i);
-            } else if (ast->decl.init->type == AST_TYPE_STRING) {
-                gen_load_global(ast->decl.init->ctype, ast->decl.init->string.label, 0);
-                gen_save_local(ast->decl.var->ctype, ast->decl.var->variable.off);
-            } else {
-                gen_expression(ast->decl.init);
-                gen_save_local(ast->decl.var->ctype, ast->decl.var->variable.off);
-            }
-            return;
+            if (ast->decl.init)
+                gen_declaration_initialization(ast->decl.init, ast->decl.var->variable.off);
+            break;
 
         case AST_TYPE_ADDRESS:
             switch (ast->unary.operand->type) {
@@ -766,20 +777,14 @@ static void gen_expression(ast_t *ast) {
             gen_load(ast->ctype, ast->unary.operand->ctype);
             break;
 
+        case '=':
+            gen_expression(ast->right);
+            gen_load(ast->ctype, ast->right->ctype);
+            gen_assignment(ast->left);
+            break;
+
         default:
             gen_binary(ast);
-    }
-}
-
-static void gen_data_integer(ast_t *data) {
-    switch (data->ctype->size) {
-        case 1: gen_emit(".byte %d", data->integer); break;
-        case 2: gen_emit(".word %d", data->integer); break;
-        case 4: gen_emit(".long %d", data->integer); break;
-        case 8: gen_emit(".quad %d", data->integer); break;
-        default:
-            compile_error("Internal error: failed to generate data");
-            break;
     }
 }
 
@@ -787,12 +792,38 @@ static void gen_data(ast_t *ast) {
     gen_emit_inline(".global %s", ast->decl.var->variable.name);
     gen_emit_inline("%s:", ast->decl.var->variable.name);
 
-    if (ast->decl.init->type == AST_TYPE_INITIALIZERLIST) {
-        for (list_iterator_t *it = list_iterator(ast->decl.init->initlist.list); !list_iterator_end(it); )
-            gen_data_integer(list_iterator_next(it));
-        return;
+    int   size = ast->decl.var->ctype->size;
+    char *data = memory_allocate(size);
+    char *p    = data;
+
+    memset(data, 0, size);
+
+    for (list_iterator_t *it = list_iterator(ast->decl.init); !list_iterator_end(it); ) {
+        ast_t *node = list_iterator_next(it);
+        switch (node->init.type->type) {
+            case TYPE_CHAR:   *p          = node->init.value->integer;        p++;                 break;
+            case TYPE_FLOAT:  *(float*)p  = node->init.value->floating.value; p += sizeof(float);  break;
+            case TYPE_DOUBLE: *(double*)p = node->init.value->floating.value; p += sizeof(double); break;
+            case TYPE_SHORT:  *(short*)p  = node->init.value->integer;        p += sizeof(short);  break;
+            case TYPE_INT:    *(int*)p    = node->init.value->integer;        p += sizeof(int);    break;
+
+            case TYPE_LONG:
+            case TYPE_LLONG:
+                *(long*)p = node->init.value->integer;
+                p += sizeof(long);
+                break;
+
+            default:
+                break;
+        }
     }
-    gen_data_integer(ast->decl.init);
+
+    /* write the rest of the data */
+    int i = 0;
+    for (; i < size - 8; i += 8)
+        gen_emit(".quad %ld", ((long*)data)[i]);
+    for (; i < size; i++)
+        gen_emit(".byte %d", data[i]);
 }
 
 static void gen_bss(ast_t *ast) {

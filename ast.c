@@ -55,13 +55,13 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
     switch (a->type) {
         case TYPE_VOID:
             goto error;
-        case TYPE_INT:
         case TYPE_CHAR:
         case TYPE_SHORT:
+        case TYPE_INT:
             switch (b->type) {
-                case TYPE_INT:
                 case TYPE_CHAR:
                 case TYPE_SHORT:
+                case TYPE_INT:
                     return ast_data_table[AST_DATA_INT];
                 case TYPE_LONG:
                 case TYPE_LLONG:
@@ -76,7 +76,7 @@ static data_type_t *ast_result_type_impl(jmp_buf *jmpbuf, char op, data_type_t *
                 default:
                     break;
             }
-            compile_error("Internal error: ast_result_type (1)");
+            compile_error("Internal error: ast_result_type %d", b->type);
 
         case TYPE_LONG:
         case TYPE_LLONG:
@@ -162,7 +162,7 @@ data_type_t *ast_result_type(int op, data_type_t *a, data_type_t *b) {
 
 ast_t *ast_copy(ast_t *ast) {
     ast_t *copy = memory_allocate(sizeof(ast_t));
-    memcpy(copy, ast, sizeof(ast_t));
+    *copy = *ast;
     return copy;
 }
 
@@ -184,9 +184,10 @@ ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand) {
 }
 
 ast_t *ast_new_binary(int type, ast_t *left, ast_t *right) {
-    ast_t *ast         = memory_allocate(sizeof(ast_t));
-    ast->type          = type;
-    ast->ctype         = ast_result_type(type, left->ctype, right->ctype);
+    ast_t *ast = ast_copy(&(ast_t){
+        .type  = type,
+        .ctype = ast_result_type(type, left->ctype, right->ctype),
+    });
     if (type != '='
         && ast_array_convert(left->ctype)->type  != TYPE_POINTER
         && ast_array_convert(right->ctype)->type == TYPE_POINTER) {
@@ -197,7 +198,6 @@ ast_t *ast_new_binary(int type, ast_t *left, ast_t *right) {
         ast->left  = left;
         ast->right = right;
     }
-
     return ast;
 }
 
@@ -273,20 +273,21 @@ ast_t *ast_function(data_type_t *ret, char *name, list_t *params, ast_t *body, l
     });
 }
 
-ast_t *ast_declaration(ast_t *var, ast_t *init) {
+ast_t *ast_declaration(ast_t *var, list_t *init) {
     return ast_copy(&(ast_t) {
         .type      = AST_TYPE_DECLARATION,
         .ctype     = NULL,
         .decl.var  = var,
-        .decl.init = init
+        .decl.init = init,
     });
 }
 
-ast_t *ast_initializerlist(list_t *init) {
+ast_t *ast_initializer(ast_t *value, data_type_t *to, int offset) {
     return ast_copy(&(ast_t){
-        .type          = AST_TYPE_INITIALIZERLIST,
-        .ctype         = NULL,
-        .initlist.list = init
+        .type          = AST_TYPE_INITIALIZER,
+        .init.value    = value,
+        .init.offset   = offset,
+        .init.type     = to
     });
 }
 
@@ -390,11 +391,12 @@ data_type_t *ast_structure_field(data_type_t *type, int offset) {
     return field;
 }
 
-data_type_t *ast_structure_new(table_t *fields, int size) {
+data_type_t *ast_structure_new(table_t *fields, int size, bool isstruct) {
     return ast_type_copy(&(data_type_t) {
-        .type   = TYPE_STRUCTURE,
-        .size   = size,
-        .fields = fields
+        .type     = TYPE_STRUCTURE,
+        .size     = size,
+        .fields   = fields,
+        .isstruct = isstruct
     });
 }
 
@@ -421,6 +423,14 @@ bool ast_type_floating(data_type_t *type) {
 
 data_type_t *ast_type_copy(data_type_t *type) {
     return memcpy(memory_allocate(sizeof(data_type_t)), type, sizeof(data_type_t));
+}
+
+data_type_t *ast_type_copy_incomplete(data_type_t *type) {
+    if (!type)
+        return NULL;
+    return (type->length == -1)
+                ? ast_type_copy(type)
+                : type;
 }
 
 data_type_t *ast_type_create(type_t type, bool sign) {
@@ -628,10 +638,20 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
                     ast_type_string(ast->decl.var->ctype),
                     ast->decl.var->variable.name
             );
-            if (ast->decl.init)
-                string_catf(string, " %s)", ast_string(ast->decl.init));
-            else
-                string_cat(string, ')');
+            if (ast->decl.init) {
+                string_cat(string, ' ');
+                for (list_iterator_t *it = list_iterator(ast->decl.init); !list_iterator_end(it); ) {
+                    ast_t *init = list_iterator_next(it);
+                    string_catf(string, "%s", ast_string(init));
+                    if (!list_iterator_end(it))
+                        string_cat(string, ' ');
+                }
+            }
+            string_cat(string, ')');
+            break;
+
+        case AST_TYPE_INITIALIZER:
+            string_catf(string, "%s@%d", ast_string(ast->init.value), ast->init.offset);
             break;
 
         case AST_TYPE_STATEMENT_COMPOUND:
@@ -639,16 +659,6 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             for (list_iterator_t *it = list_iterator(ast->compound); !list_iterator_end(it); ) {
                 ast_string_impl(string, list_iterator_next(it));
                 string_cat(string, ';');
-            }
-            string_cat(string, '}');
-            break;
-
-        case AST_TYPE_INITIALIZERLIST:
-            string_cat(string, '{');
-            for(list_iterator_t *it = list_iterator(ast->initlist.list); !list_iterator_end(it); ) {
-                ast_string_impl(string, list_iterator_next(it));
-                if (!list_iterator_end(it))
-                    string_cat(string, ',');
             }
             string_cat(string, '}');
             break;

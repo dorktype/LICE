@@ -20,7 +20,7 @@ typedef struct ast_s ast_t;
  *  AST_TYPE_FUNCTION                - Function
  *  AST_TYPE_PROTOTYPE               - Prototype
  *  AST_TYPE_DECLARATION             - Declaration
- *  AST_TYPE_INITIALIZERLIST         - Initializer list
+ *  AST_TYPE_INITIALIZER             - Initializer
  *  AST_TYPE_STRUCT                  - Structure
  *  AST_TYPE_ADDRESS                 - Address of operation
  *  AST_TYPE_DEREFERENCE             - Pointer dereference
@@ -61,7 +61,7 @@ typedef enum {
     AST_TYPE_FUNCTION,
     AST_TYPE_PROTOTYPE,
     AST_TYPE_DECLARATION,
-    AST_TYPE_INITIALIZERLIST,
+    AST_TYPE_INITIALIZER,
     AST_TYPE_STRUCT,
     AST_TYPE_ADDRESS,
     AST_TYPE_DEREFERENCE,
@@ -266,6 +266,13 @@ struct data_type_s {
          *  Offset of the given field in a structure (if a structure base type)
          */
         int offset;
+
+        /*
+         * Variable: isstruct
+         *  If we're dealing with a structure this will be true, false
+         *  otherwise.
+         */
+        bool isstruct;
     };
 
     /* function */
@@ -429,9 +436,9 @@ typedef struct {
     /*
      * Variable: init
      *  When the declaration includes an initialization this points
-     *  to such a node, otherwise it points to NULL.
+     *  to a initlization list.
      */
-    ast_t *init;
+    list_t *init;
 } ast_decl_t;
 
 /*
@@ -484,15 +491,24 @@ typedef struct {
 
 
 /*
- * Struct: ast_initlist_t
- *  Represents an initializer list in the AST tree.
+ * Struct: ast_init_t
+ *  Represents an initializer in the AST tree.
+ *
+ * Remarks:
+ *  Represents array initializer lists, as well as aggregate initializer
+ *  lists for structure, enum and union. Also represents a designated
+ *  initializer for a structure.
  */
 typedef struct {
-    /* Variable: list */
-    list_t      *list;
+    /* Variable: value */
+    ast_t       *value;
+
+    /* Variable: offset */
+    int          offset;
+
     /* Variable: type */
     data_type_t *type;
-} ast_initlist_t;
+} ast_init_t;
 
 /*
  * Struct: ast_switch_t
@@ -558,7 +574,7 @@ struct ast_s {
         ast_switch_t    switchstmt;
         ast_t          *returnstmt;
         list_t         *compound;
-        ast_initlist_t  initlist;
+        ast_init_t      init;
         ast_goto_t      gotostmt;
 
         struct {
@@ -626,14 +642,15 @@ data_type_t *ast_structure_field(data_type_t *type, int offset);
  *  Creates a structure data type
  *
  * Parameters;
- *  field   - A table of data_type_t fields for the structure
- *  size    - The size of the structure
+ *  field    - A table of data_type_t fields for the structure
+ *  size     - The size of the structure
+ *  isstruct - true if structure, false if structure-like
  *
  * Returns:
  *  A new structure data type with the specified fields and size on
  *  success, NULL otherwise.
  */
-data_type_t *ast_structure_new(table_t *fields, int size);
+data_type_t *ast_structure_new(table_t *fields, int size, bool isstruct);
 
 
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand);
@@ -646,13 +663,12 @@ ast_t *ast_new_label(char *);
 
 char *ast_label(void);
 
-ast_t *ast_declaration(ast_t *var, ast_t *init);
+ast_t *ast_declaration(ast_t *var, list_t *init);
 ast_t *ast_variable_local(data_type_t *type, char *name);
 ast_t *ast_variable_global(data_type_t *type, char *name);
 ast_t *ast_call(data_type_t *type, char *name, list_t *args, list_t *paramtypes);
 ast_t *ast_function(data_type_t *type, char *name, list_t *params, ast_t *body, list_t *locals);
-ast_t *ast_declaration(ast_t *var, ast_t *init);
-ast_t *ast_initializerlist(list_t *init);
+ast_t *ast_initializer(ast_t *, data_type_t *, int);
 ast_t *ast_if(ast_t *cond, ast_t *then, ast_t *last);
 ast_t *ast_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body);
 ast_t *ast_while(ast_t *cond, ast_t *body);
@@ -675,6 +691,7 @@ const char *ast_type_string(data_type_t *type);
 bool ast_type_integer(data_type_t *type);
 bool ast_type_floating(data_type_t *type);
 data_type_t *ast_type_copy(data_type_t *type);
+data_type_t *ast_type_copy_incomplete(data_type_t *type);
 data_type_t *ast_type_create(type_t type, bool sign);
 data_type_t *ast_type_stub(void);
 
