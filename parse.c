@@ -193,9 +193,6 @@ static ast_t *parse_function_call(char *name) {
             compile_error("unexpected token `%s'", lexer_tokenstr(token));
     }
 
-    if (ARCH_CALLREGISTERS < list_length(list))
-        compile_error("too many arguments");
-
     ast_t *func = table_find(ast_localenv, name);
     if (func) {
         data_type_t *declaration = func->ctype;
