@@ -15,9 +15,6 @@ most type specifiers and complicated declarations are accepted, the semantics
 and behavior of them aren't handled. So, to outline the inconsistencies,
 a list has been provided below.
 
--   Most constructs excluding designated initializers are, for the most part,
-    fully supported.
-
 -   Direct function calls are fully supported, but limited; for instance,
     function calls cannot exceed six arguments. Some calls may fail since
     stack alignment isn't fully correct, which may break floating point
@@ -25,9 +22,6 @@ a list has been provided below.
 
 -   Indirect function calls aren't supported, but declaring, and taking
     the address of functions are.
-
--   Compound literals are supported, but they aren't supported in function
-    definitions or global variable initializers.
 
 -   There is no support for copying structures, or passing structures by
     copy through functions.

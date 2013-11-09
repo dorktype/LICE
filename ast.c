@@ -241,6 +241,12 @@ ast_t *ast_variable_local(data_type_t *type, char *name) {
     return ast;
 }
 
+ast_t *ast_variable_local_init(data_type_t *type, char *name, list_t *init) {
+    ast_t *ast         = ast_variable_local(type, name);
+    ast->variable.init = init;
+    return ast;
+}
+
 ast_t *ast_variable_global(data_type_t *type, char *name) {
     ast_t *ast = ast_copy(&(ast_t){
         .type           = AST_TYPE_VAR_GLOBAL,
@@ -559,6 +565,15 @@ static void ast_string_binary(string_t *string, const char *op, ast_t *ast) {
     string_catf(string, "(%s %s %s)", op, ast_string(ast->left), ast_string(ast->right));
 }
 
+static void ast_string_initialization_declaration(string_t *string, list_t *initlist) {
+    for (list_iterator_t *it = list_iterator(initlist); !list_iterator_end(it); ) {
+        ast_t *init = list_iterator_next(it);
+        string_catf(string, "%s", ast_string(init));
+        if (!list_iterator_end(it))
+            string_cat(string, ' ');
+    }
+}
+
 static void ast_string_impl(string_t *string, ast_t *ast) {
     char *left;
     char *right;
@@ -607,6 +622,14 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
             break;
 
         case AST_TYPE_VAR_LOCAL:
+            string_catf(string, "%s", ast->variable.name);
+            if (ast->variable.init) {
+                string_cat(string, '(');
+                ast_string_initialization_declaration(string, ast->variable.init);
+                string_cat(string, ')');
+            }
+            break;
+
         case AST_TYPE_VAR_GLOBAL:
             string_catf(string, "%s", ast->variable.name);
             break;
@@ -638,15 +661,7 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
                     ast_type_string(ast->decl.var->ctype),
                     ast->decl.var->variable.name
             );
-            if (ast->decl.init) {
-                string_cat(string, ' ');
-                for (list_iterator_t *it = list_iterator(ast->decl.init); !list_iterator_end(it); ) {
-                    ast_t *init = list_iterator_next(it);
-                    string_catf(string, "%s", ast_string(init));
-                    if (!list_iterator_end(it))
-                        string_cat(string, ' ');
-                }
-            }
+            ast_string_initialization_declaration(string, ast->decl.init);
             string_cat(string, ')');
             break;
 

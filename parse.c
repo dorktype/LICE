@@ -16,6 +16,7 @@ static ast_t       *parse_statement(void);
 
 
 static data_type_t *parse_declaration_specification(storage_t *);
+static list_t      *parse_initializer_declaration(data_type_t *type);
 static data_type_t *parse_declarator(char **, data_type_t *, list_t *, cdecl_t);
 static void         parse_declaration(list_t *, ast_t *(*)(data_type_t *, char *));
 
@@ -326,18 +327,25 @@ static ast_t *parse_expression_subscript(ast_t *ast) {
     return ast_new_unary(AST_TYPE_DEREFERENCE, node->ctype->pointer, node);
 }
 
-static ast_t *parse_sizeof(bool typename) {
+static data_type_t *parse_sizeof_type(bool typename) {
     lexer_token_t *token = lexer_next();
     if (typename && parse_type_check(token)) {
         lexer_unget(token);
         data_type_t *type;
         parse_function_parameter(&type, NULL, true);
-        return ast_new_integer(ast_data_table[AST_DATA_LONG], type->size);
+        return type;
     }
 
     if (lexer_ispunct(token, '(')) {
-        ast_t *next = parse_sizeof(true);
+        data_type_t *next = parse_sizeof_type(true);
         parse_expect(')');
+        token = lexer_next();
+        if (lexer_ispunct(token, '{')) {
+            parse_initializer_declaration(next);
+            parse_expect('}');
+        } else {
+            lexer_unget(token);
+        }
         return next;
     }
 
@@ -345,7 +353,14 @@ static ast_t *parse_sizeof(bool typename) {
     ast_t *expression = parse_expression_unary();
     if (expression->ctype->size == 0)
         compile_error("sizeof(void) illegal");
-    return ast_new_integer(ast_data_table[AST_DATA_LONG], expression->ctype->size);
+    return expression->ctype;
+}
+
+static ast_t *parse_expression_compound_literal(data_type_t *type) {
+    char   *name = ast_label();
+    list_t *list = parse_initializer_declaration(type);
+    parse_expect('}');
+    return ast_variable_local_init(type, name, list);
 }
 
 static ast_t *parse_expression_unary_cast(void) {
@@ -353,8 +368,13 @@ static ast_t *parse_expression_unary_cast(void) {
     data_type_t *casttype = parse_declarator(NULL, basetype, NULL, CDECL_CAST);
 
     parse_expect(')');
-    ast_t *expression = parse_expression_unary();
 
+    lexer_token_t *token = lexer_next();
+    if (lexer_ispunct(token, '{'))
+        return parse_expression_compound_literal(casttype);
+    lexer_unget(token);
+
+    ast_t *expression = parse_expression_unary();
     return ast_new_unary(AST_TYPE_EXPRESSION_CAST, casttype, expression);
 }
 
@@ -365,7 +385,7 @@ static ast_t *parse_expression_unary(void) {
         compile_error("unexpected end of input");
 
     if (parse_identifer_check(token, "sizeof")) {
-        return parse_sizeof(false);
+        return ast_new_integer(ast_data_table[AST_DATA_LONG], parse_sizeof_type(false)->size);
     }
 
     if (lexer_ispunct(token, '(')) {
@@ -954,14 +974,13 @@ static void parse_initializer_list(list_t *init, data_type_t *type, int offset) 
         compile_error("ICE");
 }
 
-static ast_t *parse_initializer_declaration(ast_t *var) {
-    list_t *init = list_create();
-    if (var->ctype->type == TYPE_ARRAY || var->ctype->type == TYPE_STRUCTURE)
-        parse_initializer_list(init, var->ctype, 0);
+static list_t *parse_initializer_declaration(data_type_t *type) {
+    list_t *list = list_create();
+    if (type->type == TYPE_ARRAY || type->type == TYPE_STRUCTURE)
+        parse_initializer_list(list, type, 0);
     else
-        list_push(init, ast_initializer(parse_expression(), var->ctype, 0));
-
-    return ast_declaration(var, init);
+        list_push(list, ast_initializer(parse_expression(), type, 0));
+    return list;
 }
 
 /* declarator */
@@ -1666,7 +1685,7 @@ static void parse_declaration(list_t *list, ast_t *(*make)(data_type_t *, char *
                 compile_error("invalid use of typedef");
             parse_semantic_notvoid(type);
             ast_t *var = make(type, name);
-            list_push(list, parse_initializer_declaration(var));
+            list_push(list, ast_declaration(var, parse_initializer_declaration(var->ctype)));
             token = lexer_next();
         } else if (storage == STORAGE_TYPEDEF) {
             table_insert(parse_typedefs, name, type);

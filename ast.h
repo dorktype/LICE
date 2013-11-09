@@ -337,10 +337,16 @@ typedef struct {
     int off;
 
     /*
-     * Variable:
+     * Variable: label
      *  Name of the label associated with the variable.
      */
     char *label;
+
+    /*
+     * Variable: init
+     *  Compound literal list for initialization
+     */
+    list_t *init;
 } ast_variable_t;
 
 /*
@@ -665,6 +671,7 @@ char *ast_label(void);
 
 ast_t *ast_declaration(ast_t *var, list_t *init);
 ast_t *ast_variable_local(data_type_t *type, char *name);
+ast_t *ast_variable_local_init(data_type_t *type, char *name, list_t *init);
 ast_t *ast_variable_global(data_type_t *type, char *name);
 ast_t *ast_call(data_type_t *type, char *name, list_t *args, list_t *paramtypes);
 ast_t *ast_function(data_type_t *type, char *name, list_t *params, ast_t *body, list_t *locals);

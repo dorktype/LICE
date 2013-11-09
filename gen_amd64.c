@@ -10,6 +10,7 @@ static const char *registers[] = {
 };
 
 static void gen_expression(ast_t *);
+static void gen_declaration_initialization(list_t *, int);
 
 #define gen_emit(...)        gen_emit_impl(__LINE__, "\t" __VA_ARGS__)
 #define gen_emit_inline(...) gen_emit_impl(__LINE__,      __VA_ARGS__)
@@ -166,6 +167,12 @@ static void gen_assignment_dereference(ast_t *var) {
     gen_assignment_dereference_intermediate(var->unary.operand->ctype->pointer, 0);
 }
 
+static void gen_ensure_lva(ast_t *ast) {
+    if (ast->variable.init)
+        gen_declaration_initialization(ast->variable.init, ast->variable.off);
+    ast->variable.init = NULL;
+}
+
 static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
     gen_expression(left);
     gen_push("rax");
@@ -183,6 +190,7 @@ static void gen_pointer_arithmetic(char op, ast_t *left, ast_t *right) {
 static void gen_assignment_structure(ast_t *structure, data_type_t *field, int offset) {
     switch (structure->type) {
         case AST_TYPE_VAR_LOCAL:
+            gen_ensure_lva(structure);
             gen_save_local(field, structure->variable.off + field->offset + offset);
             break;
 
@@ -209,6 +217,7 @@ static void gen_assignment_structure(ast_t *structure, data_type_t *field, int o
 static void gen_load_structure(ast_t *structure, data_type_t *field, int offset) {
     switch (structure->type) {
         case AST_TYPE_VAR_LOCAL:
+            gen_ensure_lva(structure);
             gen_load_local(field, "rbp", structure->variable.off + field->offset + offset);
             break;
         case AST_TYPE_VAR_GLOBAL:
@@ -236,6 +245,7 @@ static void gen_assignment(ast_t *var) {
             gen_assignment_structure(var->structure, var->ctype, 0);
             break;
         case AST_TYPE_VAR_LOCAL:
+            gen_ensure_lva(var);
             gen_save_local(var->ctype, var->variable.off);
             break;
         case AST_TYPE_VAR_GLOBAL:
@@ -493,6 +503,7 @@ static void gen_expression(ast_t *ast) {
             break;
 
         case AST_TYPE_VAR_LOCAL:
+            gen_ensure_lva(ast);
             gen_load_local(ast->ctype, "rbp", ast->variable.off);
             break;
         case AST_TYPE_VAR_GLOBAL:
@@ -563,6 +574,7 @@ static void gen_expression(ast_t *ast) {
         case AST_TYPE_ADDRESS:
             switch (ast->unary.operand->type) {
                 case AST_TYPE_VAR_LOCAL:
+                    gen_ensure_lva(ast->unary.operand);
                     gen_emit("lea %d(%%rbp), %%rax", ast->unary.operand->variable.off);
                     break;
 
